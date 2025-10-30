@@ -23,7 +23,7 @@ static void sub_4E6130(int a1, int a2);
 static void sub_4E61B0(int start, int end, int inc);
 static int sub_4E61E0(int a1);
 static int sub_4E61F0(int a1);
-static void sub_4E6210();
+static void InitPopCountLookup();
 static void sub_4E6240();
 
 // 0x6036A8
@@ -806,7 +806,7 @@ void sub_4E59B0()
     dword_603718 = (int*)MALLOC(sizeof(*dword_603718) * dword_60371C);
     dword_6036FC = (uint8_t*)MALLOC(65536);
     dword_603720 = (S603720*)MALLOC(sizeof(*dword_603720) * 33);
-    sub_4E6210();
+    InitPopCountLookup();
     sub_4E6240();
     dword_603728 = true;
 }
@@ -1132,24 +1132,31 @@ int sub_4E61F0(int a1)
     return 1 << (a1 % 32);
 }
 
-// 0x4E6210
-void sub_4E6210()
+// Precompute the population count (number of set bits) for all 16-bit values.
+void InitPopCountLookup()
 {
-    int idx;
-    uint8_t v1;
-    int v2;
-    int v3;
+    int value; // Current 16-bit value being processed (0..65535).
+    uint8_t popCount; // Number of set bits found in 'value'.
+    int bitMask; // Bit mask used to test each bit position.
+    int bitIdx; // Loop counter for the 16 bit positions.
 
-    for (idx = 0; idx <= 65535; idx++) {
-        v1 = 0;
-        v2 = 1;
-        for (v3 = 16; v3 != 0; v3--) {
-            if ((v2 & idx) != 0) {
-                v1++;
+    // Iterate over every possible 16-bit value.
+    for (value = 0; value <= 65535; value++) {
+        popCount = 0; // Reset count for this 'value'.
+        bitMask = 1; // Start with LSB mask (1 << 0).
+
+        // Test all 16 bits of 'value'.
+        for (bitIdx = 16; bitIdx != 0; bitIdx--) {
+            // If the current bit is set, increment the count.
+            if ((bitMask & value) != 0) {
+                popCount++;
             }
-            v2 *= 2;
+            // Move mask to the next bit to the left.
+            bitMask *= 2; // Equivalent to: bitMask <<= 1;
         }
-        dword_6036FC[idx] = v1;
+
+        // Store the popcount for this 16-bit value.
+        dword_6036FC[value] = popCount;
     }
 }
 
