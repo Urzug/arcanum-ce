@@ -7,30 +7,30 @@
 #include "game/object.h"
 #include "game/sector.h"
 
-typedef struct S603710 {
+typedef struct ObjFieldMeta {
     /* 0000 */ int field_0;
     /* 0004 */ int field_4;
-} S603710;
+} ObjFieldMeta;
 
-typedef struct S603720 {
-    uint16_t field_0;
-    uint16_t field_2;
-} S603720;
+typedef struct BitMaskPair {
+    uint16_t lower_mask; /**< Mask for lower 16 bits of the input value. */
+    uint16_t upper_mask; /**< Mask for upper 16 bits of the input value. */
+} BitMaskPair;
 
-static void sub_4E4C80(S4E4BD0* a1, int size);
+static void sub_4E4C80(MemoryWriteBuffer* a1, int size);
 static void sub_4E6040(int a1, int a2);
 static void sub_4E6130(int a1, int a2);
 static void sub_4E61B0(int start, int end, int inc);
 static int sub_4E61E0(int a1);
 static int sub_4E61F0(int a1);
-static void sub_4E6210();
-static void sub_4E6240();
+static void InitPopCountLookup();
+static void ObjBitMaskTable_Init();
 
 // 0x6036A8
 static bool dword_6036A8;
 
 // 0x6036FC
-static uint8_t* dword_6036FC;
+static uint8_t* g_Popcount16Table;
 
 // 0x603700
 static int dword_603700;
@@ -45,13 +45,13 @@ static int dword_603708;
 // Size: 0x603714
 //
 // 0x60370C
-static int* dword_60370C;
+static int* g_FreeIndexList;
 
 // Capacity: 0x603700
 // Size: 0x603724
 //
 // 0x603710
-static S603710* dword_603710;
+static ObjFieldMeta* g_FieldMetaArray;
 
 // 0x603714
 static int dword_603714;
@@ -59,13 +59,13 @@ static int dword_603714;
 // Capacity: 0x60371C
 //
 // 0x603718
-static int* dword_603718;
+static int* g_FieldDataArray;
 
 // 0x60371C
 static int dword_60371C;
 
 // 0x603720
-static S603720* dword_603720;
+static BitMaskPair* g_ObjBitMaskTable;
 
 // 0x603724
 static int dword_603724;
@@ -647,7 +647,7 @@ bool sub_4E47E0(ObjSa* a1, TigFile* stream)
 }
 
 // 0x4E4990
-void sub_4E4990(ObjSa* a1, S4E4BD0* a2)
+void sub_4E4990(ObjSa* a1, MemoryWriteBuffer* a2)
 {
     // uint8_t presence;
     // int size;
@@ -752,21 +752,21 @@ int sub_4E4BA0(ObjSa* a1)
 }
 
 // 0x4E4BD0
-void sub_4E4BD0(S4E4BD0* a1)
+void sub_4E4BD0(MemoryWriteBuffer* a1)
 {
-    a1->field_0 = (uint8_t*)MALLOC(256);
-    a1->field_4 = a1->field_0;
-    a1->field_8 = 256;
-    a1->field_C = a1->field_8;
+    a1->base_pointer = (uint8_t*)MALLOC(256);
+    a1->write_pointer = a1->base_pointer;
+    a1->total_capacity = 256;
+    a1->remaining_capacity = a1->total_capacity;
 }
 
 // 0x4E4C00
-void sub_4E4C00(const void* data, int size, S4E4BD0* a3)
+void sub_4E4C00(const void* data, int size, MemoryWriteBuffer* a3)
 {
     sub_4E4C80(a3, size);
-    memcpy(a3->field_4, data, size);
-    a3->field_4 += size;
-    a3->field_C -= size;
+    memcpy(a3->write_pointer, data, size);
+    a3->write_pointer += size;
+    a3->remaining_capacity -= size;
 }
 
 // 0x4E4C50
@@ -777,18 +777,18 @@ void sub_4E4C50(void* buffer, int size, uint8_t** data)
 }
 
 // 0x4E4C80
-void sub_4E4C80(S4E4BD0* a1, int size)
+void sub_4E4C80(MemoryWriteBuffer* a1, int size)
 {
     int extra_size;
     int new_size;
 
-    extra_size = size - a1->field_C;
+    extra_size = size - a1->remaining_capacity;
     if (extra_size > 0) {
         new_size = (extra_size / 256 + 1) * 256;
-        a1->field_8 += new_size;
-        a1->field_0 = (uint8_t*)REALLOC(a1->field_0, a1->field_8);
-        a1->field_4 = a1->field_0 + a1->field_8 - a1->field_C - new_size;
-        a1->field_C += new_size;
+        a1->total_capacity += new_size;
+        a1->base_pointer = (uint8_t*)REALLOC(a1->base_pointer, a1->total_capacity);
+        a1->write_pointer = a1->base_pointer + a1->total_capacity - a1->remaining_capacity - new_size;
+        a1->remaining_capacity += new_size;
     }
 }
 
@@ -801,24 +801,24 @@ void sub_4E59B0()
     dword_603704 = 4096;
     dword_603708 = 0;
     dword_60371C = 8192;
-    dword_603710 = (S603710*)MALLOC(sizeof(*dword_603710) * dword_603700);
-    dword_60370C = (int*)MALLOC(sizeof(*dword_60370C) * dword_603704);
-    dword_603718 = (int*)MALLOC(sizeof(*dword_603718) * dword_60371C);
-    dword_6036FC = (uint8_t*)MALLOC(65536);
-    dword_603720 = (S603720*)MALLOC(sizeof(*dword_603720) * 33);
-    sub_4E6210();
-    sub_4E6240();
+    g_FieldMetaArray = (ObjFieldMeta*)MALLOC(sizeof(*g_FieldMetaArray) * dword_603700);
+    g_FreeIndexList = (int*)MALLOC(sizeof(*g_FreeIndexList) * dword_603704);
+    g_FieldDataArray = (int*)MALLOC(sizeof(*g_FieldDataArray) * dword_60371C);
+    g_Popcount16Table = (uint8_t*)MALLOC(65536);
+    g_ObjBitMaskTable = (BitMaskPair*)MALLOC(sizeof(*g_ObjBitMaskTable) * 33);
+    InitPopCountLookup();
+    ObjBitMaskTable_Init();
     dword_603728 = true;
 }
 
 // 0x4E5A50
 void sub_4E5A50()
 {
-    FREE(dword_603720);
-    FREE(dword_6036FC);
-    FREE(dword_603718);
-    FREE(dword_60370C);
-    FREE(dword_603710);
+    FREE(g_ObjBitMaskTable);
+    FREE(g_Popcount16Table);
+    FREE(g_FieldDataArray);
+    FREE(g_FreeIndexList);
+    FREE(g_FieldMetaArray);
     dword_603728 = false;
 }
 
@@ -828,22 +828,22 @@ int sub_4E5AA0()
     int index;
 
     if (dword_603714 != 0) {
-        return dword_60370C[--dword_603714];
+        return g_FreeIndexList[--dword_603714];
     }
 
     if (dword_603724 == dword_603700) {
         dword_603700 += 4096;
-        dword_603710 = (S603710*)REALLOC(dword_603710, sizeof(S603710) * dword_603700);
+        g_FieldMetaArray = (ObjFieldMeta*)REALLOC(g_FieldMetaArray, sizeof(ObjFieldMeta) * dword_603700);
     }
 
     index = dword_603724++;
     if (index == 0) {
-        dword_603710[0].field_4 = index;
+        g_FieldMetaArray[0].field_4 = index;
     } else {
-        dword_603710[index].field_4 = dword_603710[index - 1].field_0 + dword_603710[index - 1].field_4;
+        g_FieldMetaArray[index].field_4 = g_FieldMetaArray[index - 1].field_0 + g_FieldMetaArray[index - 1].field_4;
     }
 
-    dword_603710[index].field_0 = 0;
+    g_FieldMetaArray[index].field_0 = 0;
     sub_4E6040(index, 2);
 
     return index;
@@ -852,24 +852,24 @@ int sub_4E5AA0()
 // 0x4E5B40
 int sub_4E5B40(int a1)
 {
-    S603710* v1;
+    ObjFieldMeta* v1;
     int index;
 
-    v1 = &(dword_603710[a1]);
+    v1 = &(g_FieldMetaArray[a1]);
     if (v1->field_0 != 2) {
         sub_4E6130(a1, v1->field_0 - 2);
     }
 
     for (index = v1->field_4; index < v1->field_0 + v1->field_4; index++) {
-        dword_603718[index] = 0;
+        g_FieldDataArray[index] = 0;
     }
 
     if (dword_603714 == dword_603704) {
         dword_603704 += 4096;
-        dword_60370C = (int*)REALLOC(dword_60370C, sizeof(int) * dword_603704);
+        g_FreeIndexList = (int*)REALLOC(g_FreeIndexList, sizeof(int) * dword_603704);
     }
 
-    dword_60370C[dword_603714] = a1;
+    g_FreeIndexList[dword_603714] = a1;
 
     return ++dword_603714;
 }
@@ -882,13 +882,13 @@ int sub_4E5BF0(int a1)
     int index;
 
     v1 = sub_4E5AA0();
-    v2 = dword_603710[a1].field_0 - dword_603710[v1].field_0;
+    v2 = g_FieldMetaArray[a1].field_0 - g_FieldMetaArray[v1].field_0;
     if (v2 != 0) {
         sub_4E6040(v1, v2);
     }
 
-    for (index = 0; index < dword_603710[a1].field_0; index++) {
-        dword_603718[dword_603710[v1].field_4 + index] = dword_603718[dword_603710[a1].field_4 + index];
+    for (index = 0; index < g_FieldMetaArray[a1].field_0; index++) {
+        g_FieldDataArray[g_FieldMetaArray[v1].field_4 + index] = g_FieldDataArray[g_FieldMetaArray[a1].field_4 + index];
     }
 
     return v1;
@@ -901,19 +901,19 @@ void sub_4E5C60(int a1, int a2, bool a3)
     int v2;
 
     v1 = sub_4E61E0(a2);
-    if (v1 >= dword_603710[a1].field_0) {
+    if (v1 >= g_FieldMetaArray[a1].field_0) {
         if (!a3) {
             return;
         }
 
-        sub_4E6040(a1, v1 - dword_603710[a1].field_0 + 1);
+        sub_4E6040(a1, v1 - g_FieldMetaArray[a1].field_0 + 1);
     }
 
     v2 = sub_4E61F0(a2);
     if (a3) {
-        dword_603718[v1 + dword_603710[a1].field_4] |= v2;
+        g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4] |= v2;
     } else {
-        dword_603718[v1 + dword_603710[a1].field_4] &= ~v2;
+        g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4] &= ~v2;
     }
 }
 
@@ -924,12 +924,12 @@ int sub_4E5CE0(int a1, int a2)
     int v2;
 
     v1 = sub_4E61E0(a2);
-    if (v1 > dword_603710[a1].field_0 - 1) {
+    if (v1 > g_FieldMetaArray[a1].field_0 - 1) {
         return 0;
     }
 
     v2 = sub_4E61F0(a2);
-    return v2 & dword_603718[v1 + dword_603710[a1].field_4];
+    return v2 & g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4];
 }
 
 // 0x4E5D30
@@ -940,17 +940,17 @@ int sub_4E5D30(int a1, int a2)
     int v3;
     int v4;
 
-    v2 = dword_603710[a1].field_4;
+    v2 = g_FieldMetaArray[a1].field_4;
     v3 = sub_4E61E0(a2);
     v4 = v2 + v3;
-    if (v3 < dword_603710[a1].field_0) {
-        v1 += sub_4E5FE0(dword_603718[v4], a2 % 32);
+    if (v3 < g_FieldMetaArray[a1].field_0) {
+        v1 += sub_4E5FE0(g_FieldDataArray[v4], a2 % 32);
     } else {
-        v4 = v2 + dword_603710[a1].field_0;
+        v4 = v2 + g_FieldMetaArray[a1].field_0;
     }
 
     while (v2 < v4) {
-        v1 += sub_4E5FE0(dword_603718[v2++], 32);
+        v1 += sub_4E5FE0(g_FieldDataArray[v2++], 32);
     }
 
     return v1;
@@ -966,14 +966,14 @@ bool sub_4E5DB0(int a1, bool (*callback)(int))
     int bit;
     unsigned int flags;
 
-    v1 = dword_603710[a1].field_4;
-    v2 = dword_603710[a1].field_0 + v1;
+    v1 = g_FieldMetaArray[a1].field_4;
+    v2 = g_FieldMetaArray[a1].field_0 + v1;
 
     pos = 0;
     for (idx = v1; idx < v2; idx++) {
         flags = 1;
         for (bit = 0; bit < 32; bit++) {
-            if ((flags & dword_603718[idx]) != 0) {
+            if ((flags & g_FieldDataArray[idx]) != 0) {
                 if (!callback(pos)) {
                     return false;
                 }
@@ -989,11 +989,11 @@ bool sub_4E5DB0(int a1, bool (*callback)(int))
 // 0x4E5E20
 bool sub_4E5E20(int a1, TigFile* stream)
 {
-    if (tig_file_fwrite(&(dword_603710[a1].field_0), sizeof(int), 1, stream) != 1) {
+    if (tig_file_fwrite(&(g_FieldMetaArray[a1].field_0), sizeof(int), 1, stream) != 1) {
         return false;
     }
 
-    if (tig_file_fwrite(&(dword_603718[dword_603710[a1].field_4]), sizeof(int) * dword_603710[a1].field_0, 1, stream) != 1) {
+    if (tig_file_fwrite(&(g_FieldDataArray[g_FieldMetaArray[a1].field_4]), sizeof(int) * g_FieldMetaArray[a1].field_0, 1, stream) != 1) {
         return false;
     }
 
@@ -1012,11 +1012,11 @@ bool sub_4E5E80(int* a1, TigFile* stream)
         return false;
     }
 
-    if (v2 != dword_603710[v1].field_0 && v2 - dword_603710[v1].field_0 > 0) {
-        sub_4E6040(v1, v2 - dword_603710[v1].field_0);
+    if (v2 != g_FieldMetaArray[v1].field_0 && v2 - g_FieldMetaArray[v1].field_0 > 0) {
+        sub_4E6040(v1, v2 - g_FieldMetaArray[v1].field_0);
     }
 
-    if (tig_file_fread(&(dword_603718[dword_603710[v1].field_4]), 4 * v2, 1, stream) != 1) {
+    if (tig_file_fread(&(g_FieldDataArray[g_FieldMetaArray[v1].field_4]), 4 * v2, 1, stream) != 1) {
         return false;
     }
 
@@ -1028,7 +1028,7 @@ bool sub_4E5E80(int* a1, TigFile* stream)
 // 0x4E5F10
 int sub_4E5F10(int a1)
 {
-    return 4 * (dword_603710[a1].field_0 + 1);
+    return 4 * (g_FieldMetaArray[a1].field_0 + 1);
 }
 
 // 0x4E5F30
@@ -1037,11 +1037,11 @@ void sub_4E5F30(int a1, void* a2)
     int v1;
     int v2;
 
-    v1 = dword_603710[a1].field_4;
-    v2 = dword_603710[a1].field_0;
+    v1 = g_FieldMetaArray[a1].field_4;
+    v2 = g_FieldMetaArray[a1].field_0;
 
-    *(int*)a2 = dword_603710[a1].field_0;
-    memcpy((int*)a2 + 1, &(dword_603718[v1]), sizeof(int) * v2);
+    *(int*)a2 = g_FieldMetaArray[a1].field_0;
+    memcpy((int*)a2 + 1, &(g_FieldDataArray[v1]), sizeof(int) * v2);
 }
 
 // 0x4E5F70
@@ -1054,11 +1054,11 @@ void sub_4E5F70(int* a1, uint8_t** data)
 
     sub_4E4C50(&v2, sizeof(v2), data);
 
-    if (v2 != dword_603710[v1].field_0) {
-        sub_4E6040(v1, v2 - dword_603710[v1].field_0);
+    if (v2 != g_FieldMetaArray[v1].field_0) {
+        sub_4E6040(v1, v2 - g_FieldMetaArray[v1].field_0);
     }
 
-    sub_4E4C50(&(dword_603718[dword_603710[v1].field_4]), 4 * v2, data);
+    sub_4E4C50(&(g_FieldDataArray[g_FieldMetaArray[v1].field_4]), 4 * v2, data);
 
     *a1 = v1;
 }
@@ -1066,8 +1066,8 @@ void sub_4E5F70(int* a1, uint8_t** data)
 // 0x4E5FE0
 int sub_4E5FE0(int a1, int a2)
 {
-    return dword_6036FC[dword_603720[a2].field_0 & (a1 & 0xFFFF)]
-        + dword_6036FC[dword_603720[a2].field_2 & ((a1 >> 16) & 0xFFFF)];
+    return g_Popcount16Table[g_ObjBitMaskTable[a2].lower_mask & (a1 & 0xFFFF)]
+        + g_Popcount16Table[g_ObjBitMaskTable[a2].upper_mask & ((a1 >> 16) & 0xFFFF)];
 }
 
 // 0x4E6040
@@ -1078,20 +1078,20 @@ void sub_4E6040(int a1, int a2)
 
     if (dword_603708 + a2 > dword_60371C) {
         dword_60371C += ((dword_603708 + a2 - dword_60371C - 1) / 8192 + 1) * 8192;
-        dword_603718 = REALLOC(dword_603718, sizeof(*dword_603718) * dword_60371C);
+        g_FieldDataArray = REALLOC(g_FieldDataArray, sizeof(*g_FieldDataArray) * dword_60371C);
     }
 
     if (a1 != dword_603724 - 1) {
-        v1 = &(dword_603718[dword_603710[a1 + 1].field_4]);
-        memmove(&(v1[a2]), v1, sizeof(*v1) * (dword_603708 - dword_603710[a1 + 1].field_4));
+        v1 = &(g_FieldDataArray[g_FieldMetaArray[a1 + 1].field_4]);
+        memmove(&(v1[a2]), v1, sizeof(*v1) * (dword_603708 - g_FieldMetaArray[a1 + 1].field_4));
         sub_4E61B0(a1 + 1, dword_603724 - 1, a2);
     }
 
-    dword_603710[a1].field_0 += a2;
+    g_FieldMetaArray[a1].field_0 += a2;
     dword_603708 += a2;
 
-    for (idx = dword_603710[a1].field_0 + dword_603710[a1].field_4 - a2; idx < dword_603710[a1].field_0 + dword_603710[a1].field_4; idx++) {
-        dword_603718[idx] = 0;
+    for (idx = g_FieldMetaArray[a1].field_0 + g_FieldMetaArray[a1].field_4 - a2; idx < g_FieldMetaArray[a1].field_0 + g_FieldMetaArray[a1].field_4; idx++) {
+        g_FieldDataArray[idx] = 0;
     }
 }
 
@@ -1101,12 +1101,12 @@ void sub_4E6130(int a1, int a2)
     int* v1;
 
     if (a1 != dword_603724 - 1) {
-        v1 = &(dword_603718[dword_603710[a1 + 1].field_4]);
-        memmove(&(v1[-a2]), v1, sizeof(*v1) * (dword_603708 - dword_603710[a1 + 1].field_4));
+        v1 = &(g_FieldDataArray[g_FieldMetaArray[a1 + 1].field_4]);
+        memmove(&(v1[-a2]), v1, sizeof(*v1) * (dword_603708 - g_FieldMetaArray[a1 + 1].field_4));
         sub_4E61B0(a1 + 1, dword_603724 - 1, -a2);
     }
 
-    dword_603710[a1].field_0 -= a2;
+    g_FieldMetaArray[a1].field_0 -= a2;
     dword_603708 -= a2;
 }
 
@@ -1116,7 +1116,7 @@ void sub_4E61B0(int start, int end, int inc)
     int index;
 
     for (index = start; index <= end; index++) {
-        dword_603710[index].field_4 += inc;
+        g_FieldMetaArray[index].field_4 += inc;
     }
 }
 
@@ -1132,44 +1132,51 @@ int sub_4E61F0(int a1)
     return 1 << (a1 % 32);
 }
 
-// 0x4E6210
-void sub_4E6210()
+// Precompute the population count (number of set bits) for all 16-bit values.
+void InitPopCountLookup()
 {
-    int idx;
-    uint8_t v1;
-    int v2;
-    int v3;
+    int value; // Current 16-bit value being processed (0..65535).
+    uint8_t popCount; // Number of set bits found in 'value'.
+    int bitMask; // Bit mask used to test each bit position.
+    int bitIdx; // Loop counter for the 16 bit positions.
 
-    for (idx = 0; idx <= 65535; idx++) {
-        v1 = 0;
-        v2 = 1;
-        for (v3 = 16; v3 != 0; v3--) {
-            if ((v2 & idx) != 0) {
-                v1++;
+    // Iterate over every possible 16-bit value.
+    for (value = 0; value <= 65535; value++) {
+        popCount = 0; // Reset count for this 'value'.
+        bitMask = 1; // Start with LSB mask (1 << 0).
+
+        // Test all 16 bits of 'value'.
+        for (bitIdx = 16; bitIdx != 0; bitIdx--) {
+            // If the current bit is set, increment the count.
+            if ((bitMask & value) != 0) {
+                popCount++;
             }
-            v2 *= 2;
+            // Move mask to the next bit to the left.
+            bitMask *= 2; // Equivalent to: bitMask <<= 1;
         }
-        dword_6036FC[idx] = v1;
+
+        // Store the popcount for this 16-bit value.
+        g_Popcount16Table[value] = popCount;
     }
 }
 
 // 0x4E6240
-void sub_4E6240()
+void ObjBitMaskTable_Init()
 {
-    int idx;
-    int v1 = 1;
-    int v2 = 0;
+    int bit_length;
+    int bit_value = 1;
+    int lower_mask = 0;
 
-    dword_603720[0].field_0 = 0;
-    dword_603720[0].field_2 = 0;
+    g_ObjBitMaskTable[0].lower_mask = 0;
+    g_ObjBitMaskTable[0].upper_mask = 0;
 
-    for (idx = 1; idx <= 16; idx++) {
-        v2 += v1;
-        v1 *= 2;
+    for (bit_length = 1; bit_length <= 16; bit_length++) {
+        lower_mask += bit_value;
+        bit_value *= 2;
 
-        dword_603720[idx].field_0 = v2;
-        dword_603720[idx].field_2 = 0;
-        dword_603720[idx + 16].field_0 = -1;
-        dword_603720[idx + 16].field_2 = v2;
+        g_ObjBitMaskTable[bit_length].lower_mask = lower_mask;
+        g_ObjBitMaskTable[bit_length].upper_mask = 0;
+        g_ObjBitMaskTable[bit_length + 16].lower_mask = -1;
+        g_ObjBitMaskTable[bit_length + 16].upper_mask = lower_mask;
     }
 }
