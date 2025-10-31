@@ -553,7 +553,7 @@ bool obj_init(GameInitInfo* init_info)
     obj_editor = init_info->editor;
     sub_4E59B0();
     obj_pool_init(sizeof(Object), obj_editor);
-    sub_4E3F80();
+    ObjPrivate_Enable();
     obj_find_init();
     sub_40A400();
     sub_40BAC0();
@@ -578,7 +578,7 @@ void obj_exit()
     sub_40BBB0();
     obj_find_exit();
     obj_pool_exit();
-    sub_4E3F90();
+    ObjPrivate_Disable();
     sub_4E5A50();
 
     FREE(object_fields);
@@ -593,11 +593,11 @@ void obj_exit()
 void sub_405250()
 {
     obj_pool_exit();
-    sub_4E3F90();
+    ObjPrivate_Disable();
     sub_4E5A50();
     sub_4E59B0();
     obj_pool_init(sizeof(Object), obj_editor);
-    sub_4E3F80();
+    ObjPrivate_Enable();
 }
 
 // 0x405280
@@ -2391,7 +2391,7 @@ void sub_408760(Object* object, int fld, void* value_ptr)
         break;
     }
 
-    sub_4E4000(&v1);
+    object_field_apply_from_storage(&v1);
 }
 
 // 0x4088B0
@@ -2441,7 +2441,7 @@ void sub_4088B0(Object* object, int fld, int index, void* value_ptr)
         break;
     }
 
-    sub_4E4000(&v1);
+    object_field_apply_from_storage(&v1);
 }
 
 // 0x408A20
@@ -4364,7 +4364,7 @@ bool sub_40C6E0(Object* object, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(object->data[dword_5D10F4]);
-    sub_4E3FA0(&v1);
+    object_field_deallocate(&v1);
     dword_5D10F4++;
 
     return true;
@@ -4412,7 +4412,7 @@ void sub_40C840(Object* object, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(object->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]);
-    sub_4E3FA0(&v1);
+    object_field_deallocate(&v1);
 }
 
 // 0x40C880
@@ -4584,7 +4584,7 @@ bool sub_40CB60(Object* object, int fld, ObjectFieldInfo* info)
 
     v1.type = info->type;
     v1.ptr = &(object->data[fld]);
-    sub_4E3FA0(&v1);
+    object_field_deallocate(&v1);
     return true;
 }
 
@@ -4735,10 +4735,10 @@ bool sub_40CE20(Object* object, int start, int end, ObjEnumerateCallbackEx* call
     int fld;
 
     for (index = 0; index < object_fields[start + 1].change_array_idx; index++) {
-        v1 += sub_4E5FE0(object->field_48[index], 32);
+        v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], 32);
     }
 
-    v1 += sub_4E5FE0(object->field_48[index], object_fields[start + 1].bit);
+    v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], object_fields[start + 1].bit);
 
     for (fld = start + 1; fld < end; fld++) {
         if ((object->field_48[object_fields[fld].change_array_idx] & object_fields[fld].mask) != 0) {
@@ -4902,10 +4902,10 @@ bool sub_40D170(Object* object, int start, int end, ObjEnumerateCallbackEx* call
     int fld;
 
     for (index = 0; index < object_fields[start + 1].change_array_idx; index++) {
-        v1 += sub_4E5FE0(object->field_48[index], 32);
+        v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], 32);
     }
 
-    v1 += sub_4E5FE0(object->field_48[index], object_fields[start + 1].bit);
+    v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], object_fields[start + 1].bit);
 
     for (fld = start + 1; fld < end; fld++) {
         if (!callback(object, v1, &(object_fields[fld]))) {
@@ -4927,10 +4927,10 @@ int sub_40D230(Object* object, int fld)
     int index;
 
     for (index = 0; index < object_fields[fld].change_array_idx; index++) {
-        v1 += sub_4E5FE0(object->field_48[index], 32);
+        v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], 32);
     }
 
-    v1 += sub_4E5FE0(object->field_48[index], object_fields[fld].bit);
+    v1 += count_set_bits_in_word_up_to_limit(object->field_48[index], object_fields[fld].bit);
 
     return v1;
 }
@@ -5029,7 +5029,7 @@ void sub_40D4D0(Object* object, int fld)
     v1 = sub_40D230(object, fld);
     v2.type = object_fields[fld].type;
     v2.ptr = &(object->data[v1]);
-    sub_4E3FA0(&v2);
+    object_field_deallocate(&v2);
 
     for (index = v1; index < object->num_fields - 1; index++) {
         object->data[index] = object->data[index + 1];

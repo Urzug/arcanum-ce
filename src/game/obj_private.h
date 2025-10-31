@@ -27,11 +27,13 @@ typedef enum SaType {
     SA_TYPE_PTR_ARRAY = 15,
 } SaType;
 
+// Structure representing a dynamically growing memory write buffer.
+// Used to write sequential data into memory without knowing final size upfront.
 typedef struct MemoryWriteBuffer {
-    uint8_t* base_pointer; /**< Start of the allocated buffer. */
+    uint8_t* base_pointer; /**< Pointer to the start of the allocated buffer. */
     uint8_t* write_pointer; /**< Current position to write the next byte. */
-    int total_capacity; /**< Total number of bytes allocated. */
-    int remaining_capacity; /**< Remaining number of bytes that can be written before growing. */
+    int total_capacity; /**< Total number of bytes currently allocated. */
+    int remaining_capacity; /**< Number of bytes left before reallocation is required. */
 } MemoryWriteBuffer;
 
 typedef struct ObjSa {
@@ -50,10 +52,10 @@ typedef struct ObjSa {
     } storage;
 } ObjSa;
 
-void sub_4E3F80();
-void sub_4E3F90();
-void sub_4E3FA0(ObjSa* a1);
-void sub_4E4000(ObjSa* a1);
+void ObjPrivate_Enable();
+void ObjPrivate_Disable();
+void object_field_deallocate(ObjSa* a1);
+void object_field_apply_from_storage(ObjSa* a1);
 void sub_4E4180(ObjSa* a1);
 void sub_4E4280(ObjSa* a1, void* value);
 bool sub_4E4360(ObjSa* a1, TigFile* stream);
@@ -68,18 +70,18 @@ void sub_4E4C00(const void* data, int size, MemoryWriteBuffer* a3);
 void sub_4E4C50(void* buffer, int size, uint8_t** data);
 void sub_4E59B0();
 void sub_4E5A50();
-int sub_4E5AA0();
-int sub_4E5B40(int a1);
-int sub_4E5BF0(int a1);
-void sub_4E5C60(int a1, int a2, bool a3);
-int sub_4E5CE0(int a1, int a2);
-int sub_4E5D30(int a1, int a2);
-bool sub_4E5DB0(int a1, bool (*callback)(int));
-bool sub_4E5E20(int a1, TigFile* stream);
-bool sub_4E5E80(int* a1, TigFile* stream);
-int sub_4E5F10(int a1);
-void sub_4E5F30(int a1, void* a2);
-void sub_4E5F70(int* a1, uint8_t** data);
-int sub_4E5FE0(int a1, int a2);
+int field_metadata_acquire();
+int field_metadata_release(int a1);
+int field_metadata_clone(int a1);
+void field_metadata_set_or_clear_bit(int a1, int a2, bool a3);
+int field_metadata_test_bit(int a1, int a2);
+int field_metadata_count_set_bits_up_to(int a1, int a2);
+bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int));
+bool field_metadata_serialize_to_tig_file(int a1, TigFile* stream);
+bool field_metadata_deserialize_from_tig_file(int* a1, TigFile* stream);
+int field_metadata_calculate_export_size(int a1);
+void field_metadata_export_to_memory(int a1, void* a2);
+void field_metadata_import_from_memory(int* a1, uint8_t** data);
+int count_set_bits_in_word_up_to_limit(int a1, int a2);
 
 #endif /* ARCANUM_GAME_OBJ_PRIVATE_H_ */

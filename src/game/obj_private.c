@@ -17,76 +17,78 @@ typedef struct BitMaskPair {
     uint16_t upper_mask; /**< Mask for upper 16 bits of the input value. */
 } BitMaskPair;
 
-static void sub_4E4C80(MemoryWriteBuffer* a1, int size);
-static void sub_4E6040(int a1, int a2);
-static void sub_4E6130(int a1, int a2);
-static void sub_4E61B0(int start, int end, int inc);
-static int sub_4E61E0(int a1);
-static int sub_4E61F0(int a1);
+// Ensures that the buffer has enough space for 'size' additional bytes,
+// reallocating and expanding its capacity if necessary.
+static void ensure_memory_capacity(MemoryWriteBuffer* a1, int size);
+static void field_metadata_grow_word_array(int a1, int a2);
+static void field_metadata_shrink_word_array(int a1, int a2);
+static void AdjustFieldOffsets(int start, int end, int inc);
+static int convert_bit_index_to_word_index(int a1);
+static int convert_bit_index_to_mask(int a1);
 static void InitPopCountLookup();
 static void ObjBitMaskTable_Init();
 
 // 0x6036A8
-static bool dword_6036A8;
+static bool g_ObjPrivateEnabled;
 
 // 0x6036FC
-static uint8_t* g_Popcount16Table;
+static uint8_t* Popcount16Lookup;
 
 // 0x603700
-static int dword_603700;
+static int FieldMetaCapacity;
 
 // 0x603704
-static int dword_603704;
+static int FreeIndexCapacity;
 
 // 0x603708
-static int dword_603708;
+static int FieldBitDataSize;
 
 // Capacity: 0x603704
 // Size: 0x603714
 //
 // 0x60370C
-static int* g_FreeIndexList;
+static int* FreeFieldMetaIndices;
 
 // Capacity: 0x603700
 // Size: 0x603724
 //
 // 0x603710
-static ObjFieldMeta* g_FieldMetaArray;
+static ObjFieldMeta* FieldMetaTable;
 
 // 0x603714
-static int dword_603714;
+static int FreeIndexCount;
 
 // Capacity: 0x60371C
 //
 // 0x603718
-static int* g_FieldDataArray;
+static int* FieldBitData;
 
 // 0x60371C
-static int dword_60371C;
+static int FieldBitDataCapacity;
 
 // 0x603720
-static BitMaskPair* g_ObjBitMaskTable;
+static BitMaskPair* BitMaskTable;
 
 // 0x603724
-static int dword_603724;
+static int FieldMetaCount;
 
 // 0x603728
-static bool dword_603728;
+static bool ObjPrivateStorageAllocated;
 
 // 0x4E3F80
-void sub_4E3F80()
+void ObjPrivate_Enable()
 {
-    dword_6036A8 = true;
+    g_ObjPrivateEnabled = true;
 }
 
 // 0x4E3F90
-void sub_4E3F90()
+void ObjPrivate_Disable()
 {
-    dword_6036A8 = false;
+    g_ObjPrivateEnabled = false;
 }
 
 // 0x4E3FA0
-void sub_4E3FA0(ObjSa* a1)
+void object_field_deallocate(ObjSa* a1)
 {
     switch (a1->type) {
     case SA_TYPE_INT32:
@@ -122,86 +124,117 @@ void sub_4E3FA0(ObjSa* a1)
     }
 }
 
+// Apply the value from a1->storage into the live field at a1->ptr.
+// - Allocates/frees for pointer-backed types as needed.
+// - For arrays, ensures the SizeableArray exists, then writes element at a1->idx.
+// - For HANDLE and STRING, deep-copies the stored value into owned memory.
+// - For INT64 and HANDLE, a "null"/zero in storage frees and clears the target.
 // 0x4E4000
-void sub_4E4000(ObjSa* a1)
+void object_field_apply_from_storage(ObjSa* obj_field)
 {
-    switch (a1->type) {
+    switch (obj_field->type) {
     case SA_TYPE_INT32:
-        *(int*)a1->ptr = a1->storage.value;
+        // Plain in-place store.
+        *(int*)obj_field->ptr = obj_field->storage.value;
         break;
+
     case SA_TYPE_INT64:
-        if (a1->storage.value64 != 0) {
+        // Pointer-backed 64-bit integer.
+        // storage.value64 == 0  → free and NULL the target
+        // otherwise            → ensure allocation and write the value
+        if (obj_field->storage.value64 != 0) {
             if (*(int64_t**)a1->ptr == NULL) {
                 *(int64_t**)a1->ptr = MALLOC(sizeof(int64_t));
             }
             **(int64_t**)a1->ptr = a1->storage.value64;
         } else {
             if (*(int64_t**)a1->ptr != NULL) {
-                FREE(*(int64_t**)a1->ptr);
+                FREE(*(int64_t**)obj_field->ptr);
                 *(int64_t**)a1->ptr = NULL;
             }
         }
         break;
+
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(int));
+        // Ensure array exists with element size = int, then set element at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(int));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
+
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT64_ARRAY:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(int64_t));
+        // Ensure array exists with element size = int64_t, then set element at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(int64_t));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
+
     case SA_TYPE_SCRIPT:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(Script));
+        // Ensure array exists with element size = Script, then set element at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(Script));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
+
     case SA_TYPE_QUEST:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(PcQuestState));
+        // Ensure array exists with element size = PcQuestState, then set element at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(PcQuestState));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
+
     case SA_TYPE_STRING:
-        if (*(char**)a1->ptr != NULL) {
-            FREE(*(char**)a1->ptr);
+        // Replace existing string with a duplicate of storage.str.
+        // Ownership: this function owns and frees the previous allocation.
+        if (*(char**)obj_field->ptr != NULL) {
+            FREE(*(char**)obj_field->ptr);
         }
-        *(char**)a1->ptr = STRDUP(a1->storage.str);
+        *(char**)obj_field->ptr = STRDUP(obj_field->storage.str);
         break;
+
     case SA_TYPE_HANDLE:
-        if (a1->storage.oid.type != OID_TYPE_NULL) {
-            if (*(ObjectID**)a1->ptr == NULL) {
-                *(ObjectID**)a1->ptr = MALLOC(sizeof(ObjectID));
+        // Pointer-backed ObjectID.
+        // storage.oid.type == OID_TYPE_NULL → free and NULL the target
+        // otherwise                        → ensure allocation and copy struct
+        if (obj_field->storage.oid.type != OID_TYPE_NULL) {
+            if (*(ObjectID**)obj_field->ptr == NULL) {
+                *(ObjectID**)obj_field->ptr = MALLOC(sizeof(ObjectID));
             }
-            **(ObjectID**)a1->ptr = a1->storage.oid;
-            break;
+            **(ObjectID**)obj_field->ptr = obj_field->storage.oid;
+            break; // NOTE: intentional break here to avoid fall-through to the else-free path.
         } else {
-            if (*(ObjectID**)a1->ptr != NULL) {
-                FREE(*(ObjectID**)a1->ptr);
-                *(ObjectID**)a1->ptr = NULL;
+            if (*(ObjectID**)obj_field->ptr != NULL) {
+                FREE(*(ObjectID**)obj_field->ptr);
+                *(ObjectID**)obj_field->ptr = NULL;
             }
         }
         break;
+
     case SA_TYPE_HANDLE_ARRAY:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(ObjectID));
+        // Ensure array exists with element size = ObjectID, then set at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(ObjectID));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
+
     case SA_TYPE_PTR:
+        // Raw pointer-sized integer copy (no ownership implied).
         *(intptr_t*)a1->ptr = a1->storage.ptr;
         break;
+
     case SA_TYPE_PTR_ARRAY:
-        if (*(SizeableArray**)a1->ptr == NULL) {
-            sa_allocate((SizeableArray**)a1->ptr, sizeof(intptr_t));
+        // Ensure array exists with element size = intptr_t, then set at idx.
+        if (*(SizeableArray**)obj_field->ptr == NULL) {
+            sa_allocate((SizeableArray**)obj_field->ptr, sizeof(intptr_t));
         }
-        sa_set((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
+        sa_set((SizeableArray**)obj_field->ptr, obj_field->idx, &(obj_field->storage));
         break;
     }
 }
@@ -752,21 +785,21 @@ int sub_4E4BA0(ObjSa* a1)
 }
 
 // 0x4E4BD0
-void sub_4E4BD0(MemoryWriteBuffer* a1)
+void sub_4E4BD0(MemoryWriteBuffer* buffer)
 {
-    a1->base_pointer = (uint8_t*)MALLOC(256);
-    a1->write_pointer = a1->base_pointer;
-    a1->total_capacity = 256;
-    a1->remaining_capacity = a1->total_capacity;
+    buffer->base_pointer = (uint8_t*)MALLOC(256);
+    buffer->write_pointer = buffer->base_pointer;
+    buffer->total_capacity = 256;
+    buffer->remaining_capacity = buffer->total_capacity;
 }
 
 // 0x4E4C00
-void sub_4E4C00(const void* data, int size, MemoryWriteBuffer* a3)
+void sub_4E4C00(const void* data, int size, MemoryWriteBuffer* buffer)
 {
-    sub_4E4C80(a3, size);
-    memcpy(a3->write_pointer, data, size);
-    a3->write_pointer += size;
-    a3->remaining_capacity -= size;
+    ensure_memory_capacity(buffer, size);
+    memcpy(buffer->write_pointer, data, size);
+    buffer->write_pointer += size;
+    buffer->remaining_capacity -= size;
 }
 
 // 0x4E4C50
@@ -777,7 +810,7 @@ void sub_4E4C50(void* buffer, int size, uint8_t** data)
 }
 
 // 0x4E4C80
-void sub_4E4C80(MemoryWriteBuffer* a1, int size)
+void ensure_memory_capacity(MemoryWriteBuffer* a1, int size)
 {
     int extra_size;
     int new_size;
@@ -795,169 +828,190 @@ void sub_4E4C80(MemoryWriteBuffer* a1, int size)
 // 0x4E59B0
 void sub_4E59B0()
 {
-    dword_603724 = 0;
-    dword_603700 = 4096;
-    dword_603714 = 0;
-    dword_603704 = 4096;
-    dword_603708 = 0;
-    dword_60371C = 8192;
-    g_FieldMetaArray = (ObjFieldMeta*)MALLOC(sizeof(*g_FieldMetaArray) * dword_603700);
-    g_FreeIndexList = (int*)MALLOC(sizeof(*g_FreeIndexList) * dword_603704);
-    g_FieldDataArray = (int*)MALLOC(sizeof(*g_FieldDataArray) * dword_60371C);
-    g_Popcount16Table = (uint8_t*)MALLOC(65536);
-    g_ObjBitMaskTable = (BitMaskPair*)MALLOC(sizeof(*g_ObjBitMaskTable) * 33);
+    FieldMetaCount = 0;
+    FieldMetaCapacity = 4096;
+    FreeIndexCount = 0;
+    FreeIndexCapacity = 4096;
+    FieldBitDataSize = 0;
+    FieldBitDataCapacity = 8192;
+    FieldMetaTable = (ObjFieldMeta*)MALLOC(sizeof(*FieldMetaTable) * FieldMetaCapacity);
+    FreeFieldMetaIndices = (int*)MALLOC(sizeof(*FreeFieldMetaIndices) * FreeIndexCapacity);
+    FieldBitData = (int*)MALLOC(sizeof(*FieldBitData) * FieldBitDataCapacity);
+    Popcount16Lookup = (uint8_t*)MALLOC(65536);
+    BitMaskTable = (BitMaskPair*)MALLOC(sizeof(*BitMaskTable) * 33);
     InitPopCountLookup();
     ObjBitMaskTable_Init();
-    dword_603728 = true;
+    ObjPrivateStorageAllocated = true;
 }
 
 // 0x4E5A50
 void sub_4E5A50()
 {
-    FREE(g_ObjBitMaskTable);
-    FREE(g_Popcount16Table);
-    FREE(g_FieldDataArray);
-    FREE(g_FreeIndexList);
-    FREE(g_FieldMetaArray);
-    dword_603728 = false;
+    FREE(BitMaskTable);
+    FREE(Popcount16Lookup);
+    FREE(FieldBitData);
+    FREE(FreeFieldMetaIndices);
+    FREE(FieldMetaTable);
+    ObjPrivateStorageAllocated = false;
 }
 
 // 0x4E5AA0
-int sub_4E5AA0()
+int field_metadata_acquire()
 {
     int index;
 
-    if (dword_603714 != 0) {
-        return g_FreeIndexList[--dword_603714];
+    if (FreeIndexCount != 0) {
+        return FreeFieldMetaIndices[--FreeIndexCount];
     }
 
-    if (dword_603724 == dword_603700) {
-        dword_603700 += 4096;
-        g_FieldMetaArray = (ObjFieldMeta*)REALLOC(g_FieldMetaArray, sizeof(ObjFieldMeta) * dword_603700);
+    if (FieldMetaCount == FieldMetaCapacity) {
+        FieldMetaCapacity += 4096;
+        FieldMetaTable = (ObjFieldMeta*)REALLOC(FieldMetaTable, sizeof(ObjFieldMeta) * FieldMetaCapacity);
     }
 
-    index = dword_603724++;
+    index = FieldMetaCount++;
     if (index == 0) {
-        g_FieldMetaArray[0].field_4 = index;
+        FieldMetaTable[0].field_4 = index;
     } else {
-        g_FieldMetaArray[index].field_4 = g_FieldMetaArray[index - 1].field_0 + g_FieldMetaArray[index - 1].field_4;
+        FieldMetaTable[index].field_4 = FieldMetaTable[index - 1].field_0 + FieldMetaTable[index - 1].field_4;
     }
 
-    g_FieldMetaArray[index].field_0 = 0;
-    sub_4E6040(index, 2);
+    FieldMetaTable[index].field_0 = 0;
+    field_metadata_grow_word_array(index, 2);
 
     return index;
 }
 
 // 0x4E5B40
-int sub_4E5B40(int a1)
+int field_metadata_release(int a1)
 {
     ObjFieldMeta* v1;
     int index;
 
-    v1 = &(g_FieldMetaArray[a1]);
+    v1 = &(FieldMetaTable[a1]);
     if (v1->field_0 != 2) {
-        sub_4E6130(a1, v1->field_0 - 2);
+        field_metadata_shrink_word_array(a1, v1->field_0 - 2);
     }
 
     for (index = v1->field_4; index < v1->field_0 + v1->field_4; index++) {
-        g_FieldDataArray[index] = 0;
+        FieldBitData[index] = 0;
     }
 
-    if (dword_603714 == dword_603704) {
-        dword_603704 += 4096;
-        g_FreeIndexList = (int*)REALLOC(g_FreeIndexList, sizeof(int) * dword_603704);
+    if (FreeIndexCount == FreeIndexCapacity) {
+        FreeIndexCapacity += 4096;
+        FreeFieldMetaIndices = (int*)REALLOC(FreeFieldMetaIndices, sizeof(int) * FreeIndexCapacity);
     }
 
-    g_FreeIndexList[dword_603714] = a1;
+    FreeFieldMetaIndices[FreeIndexCount] = a1;
 
-    return ++dword_603714;
+    return ++FreeIndexCount;
 }
 
 // 0x4E5BF0
-int sub_4E5BF0(int a1)
+int field_metadata_clone(int a1)
 {
     int v1;
     int v2;
     int index;
 
-    v1 = sub_4E5AA0();
-    v2 = g_FieldMetaArray[a1].field_0 - g_FieldMetaArray[v1].field_0;
+    v1 = field_metadata_acquire();
+    v2 = FieldMetaTable[a1].field_0 - FieldMetaTable[v1].field_0;
     if (v2 != 0) {
-        sub_4E6040(v1, v2);
+        field_metadata_grow_word_array(v1, v2);
     }
 
-    for (index = 0; index < g_FieldMetaArray[a1].field_0; index++) {
-        g_FieldDataArray[g_FieldMetaArray[v1].field_4 + index] = g_FieldDataArray[g_FieldMetaArray[a1].field_4 + index];
+    for (index = 0; index < FieldMetaTable[a1].field_0; index++) {
+        FieldBitData[FieldMetaTable[v1].field_4 + index] = FieldBitData[FieldMetaTable[a1].field_4 + index];
     }
 
     return v1;
 }
 
 // 0x4E5C60
-void sub_4E5C60(int a1, int a2, bool a3)
+void field_metadata_set_or_clear_bit(int a1, int a2, bool a3)
 {
     int v1;
     int v2;
 
-    v1 = sub_4E61E0(a2);
-    if (v1 >= g_FieldMetaArray[a1].field_0) {
+    v1 = convert_bit_index_to_word_index(a2);
+    if (v1 >= FieldMetaTable[a1].field_0) {
         if (!a3) {
             return;
         }
 
-        sub_4E6040(a1, v1 - g_FieldMetaArray[a1].field_0 + 1);
+        field_metadata_grow_word_array(a1, v1 - FieldMetaTable[a1].field_0 + 1);
     }
 
-    v2 = sub_4E61F0(a2);
+    v2 = convert_bit_index_to_mask(a2);
     if (a3) {
-        g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4] |= v2;
+        FieldBitData[v1 + FieldMetaTable[a1].field_4] |= v2;
     } else {
-        g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4] &= ~v2;
+        FieldBitData[v1 + FieldMetaTable[a1].field_4] &= ~v2;
     }
 }
 
 // 0x4E5CE0
-int sub_4E5CE0(int a1, int a2)
+int field_metadata_test_bit(int a1, int a2)
 {
     int v1;
     int v2;
 
-    v1 = sub_4E61E0(a2);
-    if (v1 > g_FieldMetaArray[a1].field_0 - 1) {
+    v1 = convert_bit_index_to_word_index(a2);
+    if (v1 > FieldMetaTable[a1].field_0 - 1) {
         return 0;
     }
 
-    v2 = sub_4E61F0(a2);
-    return v2 & g_FieldDataArray[v1 + g_FieldMetaArray[a1].field_4];
+    v2 = convert_bit_index_to_mask(a2);
+    return v2 & FieldBitData[v1 + FieldMetaTable[a1].field_4];
 }
 
 // 0x4E5D30
-int sub_4E5D30(int a1, int a2)
+// Count the number of set bits in a field metadata entry for all bit positions
+// strictly less than `bit_index_limit`.
+//
+// Semantics:
+// - Exclusive upper bound: bits with index < bit_index_limit are counted.
+// - If bit_index_limit lies inside an existing word, we partially count that word's
+//   lower (bit_index_limit % 32) bits.
+// - If bit_index_limit is beyond the current word count, we count all existing words.
+//
+// Complexity: O(number of 32-bit words touched).
+int field_metadata_count_set_bits_up_to(int metadata_index, int bit_index_limit)
 {
-    int v1 = 0;
-    int v2;
-    int v3;
-    int v4;
+    int total_count = 0;
 
-    v2 = g_FieldMetaArray[a1].field_4;
-    v3 = sub_4E61E0(a2);
-    v4 = v2 + v3;
-    if (v3 < g_FieldMetaArray[a1].field_0) {
-        v1 += sub_4E5FE0(g_FieldDataArray[v4], a2 % 32);
+    // Start of this entry's bitfield in the global word array.
+    int base_word_index = FieldMetaTable[metadata_index].field_4;
+
+    // Word index that contains the (exclusive) upper-bound bit.
+    int limit_word_index = convert_bit_index_to_word_index(bit_index_limit);
+
+    // Absolute index into the global array of the limit word for this entry.
+    int stop_word_index = base_word_index + limit_word_index;
+
+    // If the limit word exists, count only the lower (bit_index_limit % 32) bits of it.
+    // This yields exclusive semantics: we do not include the bit at bit_index_limit.
+    if (limit_word_index < FieldMetaTable[metadata_index].field_0) {
+        total_count += count_set_bits_in_word_up_to_limit(
+            FieldBitData[stop_word_index],
+            bit_index_limit % 32 // number of lower bits to include (0..31)
+        );
     } else {
-        v4 = v2 + g_FieldMetaArray[a1].field_0;
+        // If the limit is beyond the current words, cap at the end of this entry's region.
+        stop_word_index = base_word_index + FieldMetaTable[metadata_index].field_0;
     }
 
-    while (v2 < v4) {
-        v1 += sub_4E5FE0(g_FieldDataArray[v2++], 32);
+    // Count all full words strictly before the limit word.
+    while (base_word_index < stop_word_index) {
+        total_count += count_set_bits_in_word_up_to_limit(FieldBitData[base_word_index++], 32);
     }
 
-    return v1;
+    return total_count;
 }
 
+
 // 0x4E5DB0
-bool sub_4E5DB0(int a1, bool (*callback)(int))
+bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int))
 {
     int v1;
     int v2;
@@ -966,14 +1020,14 @@ bool sub_4E5DB0(int a1, bool (*callback)(int))
     int bit;
     unsigned int flags;
 
-    v1 = g_FieldMetaArray[a1].field_4;
-    v2 = g_FieldMetaArray[a1].field_0 + v1;
+    v1 = FieldMetaTable[a1].field_4;
+    v2 = FieldMetaTable[a1].field_0 + v1;
 
     pos = 0;
     for (idx = v1; idx < v2; idx++) {
         flags = 1;
         for (bit = 0; bit < 32; bit++) {
-            if ((flags & g_FieldDataArray[idx]) != 0) {
+            if ((flags & FieldBitData[idx]) != 0) {
                 if (!callback(pos)) {
                     return false;
                 }
@@ -987,13 +1041,13 @@ bool sub_4E5DB0(int a1, bool (*callback)(int))
 }
 
 // 0x4E5E20
-bool sub_4E5E20(int a1, TigFile* stream)
+bool field_metadata_serialize_to_tig_file(int a1, TigFile* stream)
 {
-    if (tig_file_fwrite(&(g_FieldMetaArray[a1].field_0), sizeof(int), 1, stream) != 1) {
+    if (tig_file_fwrite(&(FieldMetaTable[a1].field_0), sizeof(int), 1, stream) != 1) {
         return false;
     }
 
-    if (tig_file_fwrite(&(g_FieldDataArray[g_FieldMetaArray[a1].field_4]), sizeof(int) * g_FieldMetaArray[a1].field_0, 1, stream) != 1) {
+    if (tig_file_fwrite(&(FieldBitData[FieldMetaTable[a1].field_4]), sizeof(int) * FieldMetaTable[a1].field_0, 1, stream) != 1) {
         return false;
     }
 
@@ -1001,22 +1055,22 @@ bool sub_4E5E20(int a1, TigFile* stream)
 }
 
 // 0x4E5E80
-bool sub_4E5E80(int* a1, TigFile* stream)
+bool field_metadata_deserialize_from_tig_file(int* a1, TigFile* stream)
 {
     int v1;
     int v2;
 
-    v1 = sub_4E5AA0();
+    v1 = field_metadata_acquire();
 
     if (tig_file_fread(&v2, sizeof(v2), 1, stream) != 1) {
         return false;
     }
 
-    if (v2 != g_FieldMetaArray[v1].field_0 && v2 - g_FieldMetaArray[v1].field_0 > 0) {
-        sub_4E6040(v1, v2 - g_FieldMetaArray[v1].field_0);
+    if (v2 != FieldMetaTable[v1].field_0 && v2 - FieldMetaTable[v1].field_0 > 0) {
+        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].field_0);
     }
 
-    if (tig_file_fread(&(g_FieldDataArray[g_FieldMetaArray[v1].field_4]), 4 * v2, 1, stream) != 1) {
+    if (tig_file_fread(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, 1, stream) != 1) {
         return false;
     }
 
@@ -1026,112 +1080,169 @@ bool sub_4E5E80(int* a1, TigFile* stream)
 }
 
 // 0x4E5F10
-int sub_4E5F10(int a1)
+int field_metadata_calculate_export_size(int a1)
 {
-    return 4 * (g_FieldMetaArray[a1].field_0 + 1);
+    return 4 * (FieldMetaTable[a1].field_0 + 1);
 }
 
 // 0x4E5F30
-void sub_4E5F30(int a1, void* a2)
+void field_metadata_export_to_memory(int a1, void* a2)
 {
     int v1;
     int v2;
 
-    v1 = g_FieldMetaArray[a1].field_4;
-    v2 = g_FieldMetaArray[a1].field_0;
+    v1 = FieldMetaTable[a1].field_4;
+    v2 = FieldMetaTable[a1].field_0;
 
-    *(int*)a2 = g_FieldMetaArray[a1].field_0;
-    memcpy((int*)a2 + 1, &(g_FieldDataArray[v1]), sizeof(int) * v2);
+    *(int*)a2 = FieldMetaTable[a1].field_0;
+    memcpy((int*)a2 + 1, &(FieldBitData[v1]), sizeof(int) * v2);
 }
 
 // 0x4E5F70
-void sub_4E5F70(int* a1, uint8_t** data)
+void field_metadata_import_from_memory(int* a1, uint8_t** data)
 {
     int v1;
     int v2;
 
-    v1 = sub_4E5AA0();
+    v1 = field_metadata_acquire();
 
     sub_4E4C50(&v2, sizeof(v2), data);
 
-    if (v2 != g_FieldMetaArray[v1].field_0) {
-        sub_4E6040(v1, v2 - g_FieldMetaArray[v1].field_0);
+    if (v2 != FieldMetaTable[v1].field_0) {
+        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].field_0);
     }
 
-    sub_4E4C50(&(g_FieldDataArray[g_FieldMetaArray[v1].field_4]), 4 * v2, data);
+    sub_4E4C50(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, data);
 
     *a1 = v1;
 }
 
 // 0x4E5FE0
-int sub_4E5FE0(int a1, int a2)
+int count_set_bits_in_word_up_to_limit(int a1, int a2)
 {
-    return g_Popcount16Table[g_ObjBitMaskTable[a2].lower_mask & (a1 & 0xFFFF)]
-        + g_Popcount16Table[g_ObjBitMaskTable[a2].upper_mask & ((a1 >> 16) & 0xFFFF)];
+    return Popcount16Lookup[BitMaskTable[a2].lower_mask & (a1 & 0xFFFF)]
+        + Popcount16Lookup[BitMaskTable[a2].upper_mask & ((a1 >> 16) & 0xFFFF)];
 }
 
 // 0x4E6040
-void sub_4E6040(int a1, int a2)
+// Grow the bitfield (word array) for a given field metadata entry by
+// `additional_word_count` 32-bit words.
+//
+// This function may:
+// - Expand the global backing storage (FieldBitData) in chunks of 8192 words.
+// - Shift later segments forward to make room for the newly inserted words.
+// - Update start offsets for all later segments.
+// - Zero-initialize the newly added words for this metadata entry.
+//
+// Complexity notes:
+// - Potential O(N) memmove when this entry is not the last segment.
+// - Capacity growth uses geometric-style chunking to limit reallocations.
+void field_metadata_grow_word_array(int metadata_index, int additional_word_count)
 {
-    int* v1;
-    int idx;
+    int* next_segment_data;
+    size_t words_to_move;
+    int zero_start_index;
+    int zero_end_index;
+    int data_index;
 
-    if (dword_603708 + a2 > dword_60371C) {
-        dword_60371C += ((dword_603708 + a2 - dword_60371C - 1) / 8192 + 1) * 8192;
-        g_FieldDataArray = REALLOC(g_FieldDataArray, sizeof(*g_FieldDataArray) * dword_60371C);
+    // Ensure the global backing array has enough capacity.
+    if (FieldBitDataSize + additional_word_count > FieldBitDataCapacity) {
+        // Grow capacity in 8192-word chunks.
+        FieldBitDataCapacity += ((FieldBitDataSize + additional_word_count - FieldBitDataCapacity - 1) / 8192 + 1) * 8192;
+        FieldBitData = REALLOC(FieldBitData, sizeof(*FieldBitData) * FieldBitDataCapacity);
     }
 
-    if (a1 != dword_603724 - 1) {
-        v1 = &(g_FieldDataArray[g_FieldMetaArray[a1 + 1].field_4]);
-        memmove(&(v1[a2]), v1, sizeof(*v1) * (dword_603708 - g_FieldMetaArray[a1 + 1].field_4));
-        sub_4E61B0(a1 + 1, dword_603724 - 1, a2);
+    // If this metadata entry is not the last one, shift subsequent segments forward
+    // to make room for the words we are inserting into this entry.
+    if (metadata_index != FieldMetaCount - 1) {
+        // Pointer to the start of the next segment's data in the global array.
+        next_segment_data = &(FieldBitData[FieldMetaTable[metadata_index + 1].field_4]);
+
+        // Number of words occupied by all segments after the next segment's start.
+        words_to_move = (size_t)(FieldBitDataSize - FieldMetaTable[metadata_index + 1].field_4);
+
+        // Move later data forward by `additional_word_count` words.
+        memmove(&(next_segment_data[additional_word_count]),
+            next_segment_data,
+            sizeof(*next_segment_data) * words_to_move);
+
+        // Update the recorded start offsets for all segments after this one.
+        field_metadata_adjust_offsets(metadata_index + 1,
+            FieldMetaCount - 1,
+            additional_word_count);
     }
 
-    g_FieldMetaArray[a1].field_0 += a2;
-    dword_603708 += a2;
+    // Increase this entry's word count and the global size of occupied words.
+    FieldMetaTable[metadata_index].field_0 += additional_word_count;
+    FieldBitDataSize += additional_word_count;
 
-    for (idx = g_FieldMetaArray[a1].field_0 + g_FieldMetaArray[a1].field_4 - a2; idx < g_FieldMetaArray[a1].field_0 + g_FieldMetaArray[a1].field_4; idx++) {
-        g_FieldDataArray[idx] = 0;
+    // Zero-initialize the newly inserted words for this entry.
+    zero_start_index = FieldMetaTable[metadata_index].field_4
+        + FieldMetaTable[metadata_index].field_0
+        - additional_word_count;
+
+    zero_end_index = FieldMetaTable[metadata_index].field_4
+        + FieldMetaTable[metadata_index].field_0;
+
+    for (data_index = zero_start_index; data_index < zero_end_index; ++data_index) {
+        FieldBitData[data_index] = 0;
     }
 }
 
+
 // 0x4E6130
-void sub_4E6130(int a1, int a2)
+void field_metadata_shrink_word_array(int a1, int a2)
 {
     int* v1;
 
-    if (a1 != dword_603724 - 1) {
-        v1 = &(g_FieldDataArray[g_FieldMetaArray[a1 + 1].field_4]);
-        memmove(&(v1[-a2]), v1, sizeof(*v1) * (dword_603708 - g_FieldMetaArray[a1 + 1].field_4));
-        sub_4E61B0(a1 + 1, dword_603724 - 1, -a2);
+    if (a1 != FieldMetaCount - 1) {
+        v1 = &(FieldBitData[FieldMetaTable[a1 + 1].field_4]);
+        memmove(&(v1[-a2]), v1, sizeof(*v1) * (FieldBitDataSize - FieldMetaTable[a1 + 1].field_4));
+        AdjustFieldOffsets(a1 + 1, FieldMetaCount - 1, -a2);
     }
 
-    g_FieldMetaArray[a1].field_0 -= a2;
-    dword_603708 -= a2;
+    FieldMetaTable[a1].field_0 -= a2;
+    FieldBitDataSize -= a2;
 }
 
 // 0x4E61B0
-void sub_4E61B0(int start, int end, int inc)
+void AdjustFieldOffsets(int start, int end, int inc)
 {
     int index;
 
     for (index = start; index <= end; index++) {
-        g_FieldMetaArray[index].field_4 += inc;
+        FieldMetaTable[index].field_4 += inc;
     }
 }
 
+// Convert a bit index into the index of its corresponding 32-bit word.
+// For example:
+//   bit 0–31   → word index 0
+//   bit 32–63  → word index 1
+//   bit 64–95  → word index 2
+//
+// This is used to locate which 32-bit word in the bitfield holds a given bit.
 // 0x4E61E0
-int sub_4E61E0(int a1)
+int convert_bit_index_to_word_index(int bit_index)
 {
-    return a1 / 32;
+    return bit_index / 32;
 }
 
+// Convert a bit index into its bit mask within the 32-bit word that contains it.
+// For example:
+//   bit 0  → 0x00000001
+//   bit 5  → 0x00000020
+//   bit 31 → 0x80000000
+//
+// This is used to isolate or modify a single bit in a given word.
 // 0x4E61F0
-int sub_4E61F0(int a1)
+int convert_bit_index_to_mask(int bit_index)
 {
-    return 1 << (a1 % 32);
+    return 1 << (bit_index % 32);
 }
 
+
+// 0x4e61f0
 // Precompute the population count (number of set bits) for all 16-bit values.
 void InitPopCountLookup()
 {
@@ -1156,7 +1267,7 @@ void InitPopCountLookup()
         }
 
         // Store the popcount for this 16-bit value.
-        g_Popcount16Table[value] = popCount;
+        Popcount16Lookup[value] = popCount;
     }
 }
 
@@ -1167,16 +1278,16 @@ void ObjBitMaskTable_Init()
     int bit_value = 1;
     int lower_mask = 0;
 
-    g_ObjBitMaskTable[0].lower_mask = 0;
-    g_ObjBitMaskTable[0].upper_mask = 0;
+    BitMaskTable[0].lower_mask = 0;
+    BitMaskTable[0].upper_mask = 0;
 
     for (bit_length = 1; bit_length <= 16; bit_length++) {
         lower_mask += bit_value;
         bit_value *= 2;
 
-        g_ObjBitMaskTable[bit_length].lower_mask = lower_mask;
-        g_ObjBitMaskTable[bit_length].upper_mask = 0;
-        g_ObjBitMaskTable[bit_length + 16].lower_mask = -1;
-        g_ObjBitMaskTable[bit_length + 16].upper_mask = lower_mask;
+        BitMaskTable[bit_length].lower_mask = lower_mask;
+        BitMaskTable[bit_length].upper_mask = 0;
+        BitMaskTable[bit_length + 16].lower_mask = -1;
+        BitMaskTable[bit_length + 16].upper_mask = lower_mask;
     }
 }
