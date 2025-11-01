@@ -22,63 +22,96 @@ typedef struct BitMaskPair {
     uint16_t upper_mask; /**< Mask for upper 16 bits of the input value. */
 } BitMaskPair;
 
-// Ensures that the buffer has enough space for 'size' additional bytes,
-// reallocating and expanding its capacity if necessary.
-static void ensure_memory_capacity(MemoryWriteBuffer* a1, int size);
+// ───────────────────────────────────────────────────────────────
+// Internal static helper declarations (object field metadata system)
+// ───────────────────────────────────────────────────────────────
+
+// Ensure 'buffer' can accept 'size' more bytes; grow (realloc) if needed.
+static void ensure_memory_capacity(MemoryWriteBuffer* buffer, int size);
+
+// Grow a metadata entry's bitfield by 'a2' 32-bit words.
 static void field_metadata_grow_word_array(int a1, int a2);
+
+// Shrink a metadata entry's bitfield by 'a2' 32-bit words.
 static void field_metadata_shrink_word_array(int a1, int a2);
+
+// Add 'inc' to word offsets for entries in [start, end].
 static void AdjustFieldOffsets(int start, int end, int inc);
-static int convert_bit_index_to_word_index(int a1);
-static int convert_bit_index_to_mask(int a1);
+
+// Map a bit index to its containing 32-bit word index.
+static int convert_bit_index_to_word_index(int bit_index);
+
+// Return a single-bit mask for the given bit index (within a 32-bit word).
+static unsigned int convert_bit_index_to_mask(int bit_index);
+
+// Initialize 16-bit popcount lookup table (0..65535).
 static void InitPopCountLookup();
+
+// Initialize precomputed masks for partial 32-bit popcounts (0..32 bits).
 static void ObjBitMaskTable_Init();
 
+// ───────────────────────────────────────────────────────────────
+// Global (static) state for object field metadata
+// ───────────────────────────────────────────────────────────────
+
+// Global toggle for private object data handling.
 // 0x6036A8
 static bool g_ObjPrivateEnabled;
 
+// 16-bit popcount table used by bit-count helpers.
 // 0x6036FC
 static uint8_t* Popcount16Lookup;
 
+// Capacity of FieldMetaTable (entries).
 // 0x603700
 static int FieldMetaCapacity;
 
+// Capacity of FreeFieldMetaIndices (entries).
 // 0x603704
 static int FreeIndexCapacity;
 
+// Number of 32-bit words currently used in FieldBitData.
 // 0x603708
 static int FieldBitDataSize;
 
-// Capacity: 0x603704
-// Size: 0x603714
-//
+// Free-list of reusable metadata indices.
+// Capacity: 0x603704, Size: 0x603714
 // 0x60370C
 static int* FreeFieldMetaIndices;
 
-// Capacity: 0x603700
-// Size: 0x603724
-//
+// Table of metadata entries.
+// Capacity: 0x603700, Size: 0x603724
 // 0x603710
 static ObjFieldMeta* FieldMetaTable;
 
+// Count of free indices currently in the free list.
 // 0x603714
 static int FreeIndexCount;
 
+// Contiguous storage for all bitfield words.
 // Capacity: 0x60371C
-//
 // 0x603718
 static int* FieldBitData;
 
+// Allocated size of FieldBitData (in 32-bit words).
 // 0x60371C
 static int FieldBitDataCapacity;
 
+// Lookup masks for counting up to N bits in a 32-bit word (N=0..32).
 // 0x603720
 static BitMaskPair* BitMaskTable;
 
+// Number of active metadata entries.
 // 0x603724
 static int FieldMetaCount;
 
+// True if obj_field_metadata_system_init() has allocated global storage.
 // 0x603728
 static bool ObjPrivateStorageAllocated;
+
+// ───────────────────────────────────────────────────────────────
+// Enable/disable private object field handling
+// ───────────────────────────────────────────────────────────────
 
 // 0x4E3F80
 void ObjPrivate_Enable()
@@ -92,21 +125,35 @@ void ObjPrivate_Disable()
     g_ObjPrivateEnabled = false;
 }
 
+// Releases resources for a single ObjSa field based on its SA_TYPE_*:
+// - SA_TYPE_INT32, SA_TYPE_PTR:
+//     Zero the value.
+// - SA_TYPE_INT64, SA_TYPE_STRING, SA_TYPE_HANDLE:
+//     If non-null, FREE the heap object/string and set pointer to NULL.
+// - *_ARRAY (INT32/64/UINT32/64_ARRAY, SCRIPT, QUEST, HANDLE_ARRAY, PTR_ARRAY):
+//     If present, deallocate via sa_deallocate().
+//
 // 0x4E3FA0
-void object_field_deallocate(ObjSa* a1)
+void object_field_deallocate(ObjSa* field)
 {
-    switch (a1->type) {
+    switch (field->type) {
+
+    // Simple 32-bit integer: zero the value.
     case SA_TYPE_INT32:
-        *(int*)a1->ptr = 0;
+        *(int*)field->ptr = 0;
         break;
+
+    // Pointer-backed single-value types: free and nullify.
     case SA_TYPE_INT64:
     case SA_TYPE_STRING:
     case SA_TYPE_HANDLE:
-        if (*(void**)a1->ptr != NULL) {
-            FREE(*(void**)a1->ptr);
-            *(void**)a1->ptr = NULL;
+        if (*(void**)field->ptr != NULL) {
+            FREE(*(void**)field->ptr);
+            *(void**)field->ptr = NULL;
         }
         break;
+
+    // Array-backed types: release using SizeableArray deallocator.
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -114,16 +161,20 @@ void object_field_deallocate(ObjSa* a1)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_deallocate((SizeableArray**)a1->ptr);
+        if (*(SizeableArray**)field->ptr != NULL) {
+            sa_deallocate((SizeableArray**)field->ptr);
         }
         break;
+
+    // Raw pointer type: reset the pointer value to 0.
     case SA_TYPE_PTR:
-        *(intptr_t*)a1->ptr = 0;
+        *(intptr_t*)field->ptr = 0;
         break;
+
+    // Pointer array type: also deallocate via SizeableArray helper.
     case SA_TYPE_PTR_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_deallocate((SizeableArray**)a1->ptr);
+        if (*(SizeableArray**)field->ptr != NULL) {
+            sa_deallocate((SizeableArray**)field->ptr);
         }
         break;
     }
