@@ -57,7 +57,7 @@ void ObjPrivate_Disable();
 void object_field_deallocate(ObjSa* a1);
 void object_field_apply_from_storage(ObjSa* a1);
 void object_field_load_into_storage(ObjSa* a1);
-void sub_4E4280(ObjSa* a1, void* value);
+void object_field_deep_copy_value(ObjSa* a1, void* value);
 bool sub_4E4360(ObjSa* a1, TigFile* stream);
 bool sub_4E44F0(ObjSa* a1, TigFile* stream);
 void sub_4E4660(ObjSa* a1, uint8_t** data);

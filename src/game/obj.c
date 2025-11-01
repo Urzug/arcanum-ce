@@ -4377,7 +4377,7 @@ bool sub_40C730(Object* object, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(dword_5D1110->data[dword_5D10F4]);
-    sub_4E4280(&v1, &(object->data[dword_5D10F4]));
+    object_field_deep_copy_value(&v1, &(object->data[dword_5D10F4]));
     dword_5D10F4++;
 
     return true;
@@ -4390,7 +4390,7 @@ bool sub_40C7A0(Object* object, int fld, ObjectFieldInfo* info)
 
     v1.type = info->type;
     v1.ptr = &(dword_5D1108->data[fld]);
-    sub_4E4280(&v1, &(object->data[fld]));
+    object_field_deep_copy_value(&v1, &(object->data[fld]));
 
     return true;
 }
@@ -4402,7 +4402,7 @@ void sub_40C7F0(Object* dst, Object* src, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(src->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]);
-    sub_4E4280(&v1, &(dst->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]));
+    object_field_deep_copy_value(&v1, &(dst->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]));
 }
 
 // 0x40C840
@@ -4951,7 +4951,7 @@ void sub_40D2A0(Object* object, int fld)
     v1.type = object_fields[fld].type;
     v1.ptr = &(prototype->data[v2]);
     v3 = sub_40D230(object, fld);
-    sub_4E4280(&v1, &(object->data[v3]));
+    object_field_deep_copy_value(&v1, &(object->data[v3]));
 }
 
 // 0x40D320

@@ -371,21 +371,33 @@ void object_field_load_into_storage(ObjSa* field)
 }
 
 
+// Deep-copy the current live value of an ObjSa field into a new destination pointer.
+// The destination (`value`) receives a copy or duplicate of the data held by `field->ptr`.
+// For pointer-backed types, new memory is allocated as needed.
+// For arrays, deep copies are made using sub_4E74A0().
+// Non-serializable pointer types (SA_TYPE_PTR / PTR_ARRAY) are not supported.
+//
 // 0x4E4280
-void sub_4E4280(ObjSa* a1, void* value)
+void object_field_deep_copy_value(ObjSa* field, void* value)
 {
-    switch (a1->type) {
+    switch (field->type) {
     case SA_TYPE_INT32:
-        *(int*)value = *(int*)a1->ptr;
+        // Direct copy of a 32-bit integer.
+        *(int*)value = *(int*)field->ptr;
         break;
+
     case SA_TYPE_INT64:
-        if (*(int64_t**)a1->ptr != NULL) {
+        // Pointer-backed 64-bit integer.
+        // If source pointer is valid, allocate a new int64_t and copy its value.
+        // Otherwise, output pointer is set to NULL.
+        if (*(int64_t**)field->ptr != NULL) {
             *(int64_t**)value = (int64_t*)MALLOC(sizeof(int64_t));
-            **(int64_t**)value = **(int64_t**)a1->ptr;
+            **(int64_t**)value = **(int64_t**)field->ptr;
         } else {
             *(int64_t**)value = NULL;
         }
         break;
+
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -393,29 +405,42 @@ void sub_4E4280(ObjSa* a1, void* value)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sub_4E74A0((SizeableArray**)value, (SizeableArray**)a1->ptr);
+        // Array-based types (SizeableArray-backed).
+        // If the source array exists, create a deep copy using sub_4E74A0().
+        // Otherwise, set destination pointer to NULL.
+        if (*(SizeableArray**)field->ptr != NULL) {
+            sub_4E74A0((SizeableArray**)value, (SizeableArray**)field->ptr);
         } else {
             *(SizeableArray**)value = NULL;
         }
         break;
+
     case SA_TYPE_STRING:
-        if (*(char**)a1->ptr != NULL) {
-            *(char**)value = STRDUP(*(char**)a1->ptr);
+        // String type: duplicate the C string using STRDUP().
+        // Destination becomes a new heap-allocated copy or NULL if no string exists.
+        if (*(char**)field->ptr != NULL) {
+            *(char**)value = STRDUP(*(char**)field->ptr);
         } else {
             *(char**)value = NULL;
         }
         break;
+
     case SA_TYPE_HANDLE:
-        if (*(ObjectID**)a1->ptr != NULL) {
+        // Pointer-backed ObjectID.
+        // If handle exists, allocate a new ObjectID and copy the struct.
+        // Otherwise, set destination pointer to NULL.
+        if (*(ObjectID**)field->ptr != NULL) {
             *(ObjectID**)value = (ObjectID*)MALLOC(sizeof(ObjectID));
-            **(ObjectID**)value = **(ObjectID**)a1->ptr;
+            **(ObjectID**)value = **(ObjectID**)field->ptr;
         } else {
             *(ObjectID**)value = NULL;
         }
         break;
+
     case SA_TYPE_PTR:
     case SA_TYPE_PTR_ARRAY:
+        // Raw pointer or pointer-array types are intentionally unsupported.
+        // These do not have defined deep-copy semantics.
         assert(0);
     }
 }
