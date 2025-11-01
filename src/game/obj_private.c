@@ -1411,27 +1411,57 @@ bool field_metadata_serialize_to_tig_file(int metadata_index, TigFile* stream)
     return true;
 }
 
+// Deserialize a field metadata entry from a TigFile stream.
+//
+// Reads a serialized bitfield entry previously written by
+// field_metadata_serialize_to_tig_file() and reconstructs it
+// into a new entry within the global metadata tables.
+//
+// Binary format:
+//   [word_count: int32]
+//   [bit_data:   int32[word_count]]
+//
+// Behavior:
+// - Allocates a new metadata entry using field_metadata_acquire().
+// - Expands its word array if the stored word_count exceeds the default size.
+// - Reads the bit data directly into the global FieldBitData buffer.
+// - Stores the new entry index into *out_index.
+//
+// Returns:
+//   true  – on successful read and reconstruction.
+//   false – on any read failure.
+//
 // 0x4E5E80
-bool field_metadata_deserialize_from_tig_file(int* a1, TigFile* stream)
+bool field_metadata_deserialize_from_tig_file(int* out_index, TigFile* stream)
 {
-    int v1;
-    int v2;
+    int metadata_index;
+    int word_count;
 
-    v1 = field_metadata_acquire();
+    // Acquire a new metadata entry slot.
+    metadata_index = field_metadata_acquire();
 
-    if (tig_file_fread(&v2, sizeof(v2), 1, stream) != 1) {
+    // Read the number of 32-bit words in this serialized entry.
+    if (tig_file_fread(&word_count, sizeof(word_count), 1, stream) != 1) {
         return false;
     }
 
-    if (v2 != FieldMetaTable[v1].word_count && v2 - FieldMetaTable[v1].word_count > 0) {
-        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].word_count);
+    // Expand this entry’s storage if the serialized size is larger.
+    if (word_count > FieldMetaTable[metadata_index].word_count) {
+        field_metadata_grow_word_array(metadata_index, word_count - FieldMetaTable[metadata_index].word_count);
     }
 
-    if (tig_file_fread(&(FieldBitData[FieldMetaTable[v1].word_offset]), 4 * v2, 1, stream) != 1) {
+    // Read the serialized bitfield data directly into the allocated space.
+    if (tig_file_fread(
+            &(FieldBitData[FieldMetaTable[metadata_index].word_offset]),
+            sizeof(int) * word_count,
+            1,
+            stream)
+        != 1) {
         return false;
     }
 
-    *a1 = v1;
+    // Return the index of the newly reconstructed metadata entry.
+    *out_index = metadata_index;
 
     return true;
 }
