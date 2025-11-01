@@ -2459,14 +2459,14 @@ void sub_408A20(Object* object, int fld, void* value_ptr)
     if (object->prototype_oid.type == OID_TYPE_BLOCKED) {
         index = sub_40CB40(object, fld);
         v1.ptr = &(object->data[index]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else if (fld > OBJ_F_TRANSIENT_BEGIN && fld < OBJ_F_TRANSIENT_END) {
         v1.ptr = &(object->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else if (sub_40D320(object, fld)) {
         index = sub_40D230(object, fld);
         v1.ptr = &(object->data[index]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else {
         int64_t proto_handle;
         Object* proto;
@@ -2475,7 +2475,7 @@ void sub_408A20(Object* object, int fld, void* value_ptr)
         proto = obj_lock(proto_handle);
         index = sub_40CB40(proto, fld);
         v1.ptr = &(proto->data[index]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
         obj_unlock(proto_handle);
     }
 
@@ -2510,18 +2510,18 @@ void sub_408BB0(Object* object, int fld, int index, void* value)
 
     if (object->prototype_oid.type == OID_TYPE_BLOCKED) {
         v1.ptr = &(object->data[sub_40CB40(object, fld)]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else if (fld > OBJ_F_TRANSIENT_BEGIN && fld < OBJ_F_TRANSIENT_END) {
         v1.ptr = &(object->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else if (sub_40D350(object, fld)) {
         v1.ptr = &(object->data[sub_40D230(object, fld)]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
     } else {
         proto_handle = obj_get_prototype_handle(object);
         proto = obj_lock(proto_handle);
         v1.ptr = &(proto->data[sub_40CB40(proto, fld)]);
-        sub_4E4180(&v1);
+        object_field_load_into_storage(&v1);
         obj_unlock(proto_handle);
     }
 

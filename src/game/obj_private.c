@@ -239,83 +239,137 @@ void object_field_apply_from_storage(ObjSa* obj_field)
     }
 }
 
+// Reads the current live value of an ObjSa field (via pointer or array)
+// and stores it into its internal storage buffer.
+// This is the inverse of `object_field_apply_from_storage()`.
 // 0x4E4180
-void sub_4E4180(ObjSa* a1)
+void object_field_load_into_storage(ObjSa* field)
 {
-    switch (a1->type) {
+    switch (field->type) {
     case SA_TYPE_INT32:
-        a1->storage.value = *(int*)a1->ptr;
+        // Plain 32-bit integer: copy the value directly from memory.
+        field->storage.value = *(int*)field->ptr;
         break;
-    case SA_TYPE_INT64:
-        if (*(int64_t**)a1->ptr != NULL) {
-            a1->storage.value64 = **(int64_t**)a1->ptr;
+
+    case SA_TYPE_INT64: {
+        // Pointer-backed 64-bit integer.
+        // If a valid int64_t* exists, read the value it points to.
+        // Otherwise, store 0 to represent "no value".
+        int64_t** int64_handle = (int64_t**)field->ptr;
+        if (*int64_handle != NULL) {
+            field->storage.value64 = **int64_handle;
         } else {
-            a1->storage.value64 = 0;
-        }
-        break;
-    case SA_TYPE_INT32_ARRAY:
-    case SA_TYPE_UINT32_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            a1->storage.value = 0;
-        }
-        break;
-    case SA_TYPE_INT64_ARRAY:
-    case SA_TYPE_UINT64_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            a1->storage.value64 = 0;
-        }
-        break;
-    case SA_TYPE_SCRIPT:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            memset(&(a1->storage.scr), 0, sizeof(a1->storage.scr));
-        }
-        break;
-    case SA_TYPE_QUEST:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            memset(&(a1->storage.quest), 0, sizeof(a1->storage.quest));
-        }
-        break;
-    case SA_TYPE_STRING:
-        if (*(char**)a1->ptr != NULL) {
-            a1->storage.str = STRDUP(*(char**)a1->ptr);
-        } else {
-            a1->storage.str = NULL;
-        }
-        break;
-    case SA_TYPE_HANDLE:
-        if (*(ObjectID**)a1->ptr != NULL) {
-            a1->storage.oid = **(ObjectID**)a1->ptr;
-        } else {
-            a1->storage.oid.type = OID_TYPE_NULL;
-        }
-        break;
-    case SA_TYPE_HANDLE_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            a1->storage.oid.type = OID_TYPE_NULL;
-        }
-        break;
-    case SA_TYPE_PTR:
-        a1->storage.ptr = *(intptr_t*)a1->ptr;
-        break;
-    case SA_TYPE_PTR_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sa_get((SizeableArray**)a1->ptr, a1->idx, &(a1->storage));
-        } else {
-            a1->storage.ptr = 0;
+            field->storage.value64 = 0;
         }
         break;
     }
+
+    case SA_TYPE_INT32_ARRAY:
+    case SA_TYPE_UINT32_ARRAY: {
+        // 32-bit integer arrays: read one element from SizeableArray.
+        // If the array exists, fetch element at `field->idx` into storage.
+        // Otherwise, store 0.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            field->storage.value = 0;
+        }
+        break;
+    }
+
+    case SA_TYPE_INT64_ARRAY:
+    case SA_TYPE_UINT64_ARRAY: {
+        // 64-bit integer arrays: same logic as above, but with 64-bit storage.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            field->storage.value64 = 0;
+        }
+        break;
+    }
+
+    case SA_TYPE_SCRIPT: {
+        // Script arrays: copy one Script struct from the array.
+        // If missing, zero the script storage to avoid uninitialized data.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            memset(&field->storage.scr, 0, sizeof(field->storage.scr));
+        }
+        break;
+    }
+
+    case SA_TYPE_QUEST: {
+        // Quest arrays: copy one PcQuestState struct.
+        // If array is absent, zero the quest structure.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            memset(&field->storage.quest, 0, sizeof(field->storage.quest));
+        }
+        break;
+    }
+
+    case SA_TYPE_STRING: {
+        // String: duplicate the current string value into storage.
+        // If no string exists, set storage.str = NULL.
+        char** str_ref = (char**)field->ptr;
+        if (*str_ref != NULL) {
+            field->storage.str = STRDUP(*str_ref);
+        } else {
+            field->storage.str = NULL;
+        }
+        break;
+    }
+
+    case SA_TYPE_HANDLE: {
+        // HANDLE = pointer-backed ObjectID.
+        // If the handle exists, copy the ObjectID by value.
+        // If NULL, mark the stored handle as a null object ID.
+        ObjectID** object_id_ptr = (ObjectID**)field->ptr;
+        if (*object_id_ptr != NULL) {
+            field->storage.oid = **object_id_ptr;
+        } else {
+            field->storage.oid.type = OID_TYPE_NULL;
+        }
+        break;
+    }
+
+    case SA_TYPE_HANDLE_ARRAY: {
+        // Handle arrays: read one ObjectID from SizeableArray.
+        // Store a null ObjectID if array does not exist.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            field->storage.oid.type = OID_TYPE_NULL;
+        }
+        break;
+    }
+
+    case SA_TYPE_PTR:
+        // Raw pointer type: copy the pointer-sized integer directly.
+        field->storage.ptr = *(intptr_t*)field->ptr;
+        break;
+
+    case SA_TYPE_PTR_ARRAY: {
+        // Pointer arrays (as integers): read one intptr_t from array.
+        // Store 0 if array missing.
+        SizeableArray** array_ref = (SizeableArray**)field->ptr;
+        if (*array_ref != NULL) {
+            sa_get(array_ref, field->idx, &field->storage);
+        } else {
+            field->storage.ptr = 0;
+        }
+        break;
+    }
+    }
 }
+
 
 // 0x4E4280
 void sub_4E4280(ObjSa* a1, void* value)
