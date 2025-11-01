@@ -701,30 +701,52 @@ bool object_field_read_from_file_no_dealloc(ObjSa* field, TigFile* file)
 }
 
 
+// Deserialize a single ObjSa field from an in-memory byte buffer (`cursor`) into its live storage.
+//
+// Format conventions by type:
+// - SA_TYPE_INT32: raw 4 bytes copied into target.
+// - SA_TYPE_INT64 / SA_TYPE_HANDLE / arrays / string:
+//     Leading 1-byte `has_value` flag.
+//       has_value == 0 → free existing allocation (if any) and set pointer to NULL.
+//       has_value == 1 → ensure allocation (for pointer-backed), then read payload.
+// - Arrays use sub_4E7820() to read their payload.
+// - SA_TYPE_PTR / SA_TYPE_PTR_ARRAY are unsupported here (assert).
+//
+// Advances *cursor by the number of bytes consumed.
+// Leaves the destination field either NULL or a valid allocation.
+//
 // 0x4E4660
-void sub_4E4660(ObjSa* a1, uint8_t** data)
+void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
 {
-    uint8_t presence;
-    int size;
+    uint8_t has_value; // 1 → value present; 0 → null/absent
+    int strlen_bytes; // SA_TYPE_STRING: number of bytes excluding the NUL
 
-    switch (a1->type) {
+    switch (field->type) {
+
+    // Plain 32-bit integer: copy 4 bytes into the target location.
     case SA_TYPE_INT32:
-        sub_4E4C50(a1->ptr, sizeof(int), data);
+        sub_4E4C50(field->ptr, sizeof(int), cursor);
         return;
+
+    // Pointer-backed 64-bit integer:
+    // Layout: [has_value:1][int64 payload if has_value==1]
     case SA_TYPE_INT64:
-        sub_4E4C50(&presence, sizeof(presence), data);
-        if (!presence) {
-            if (*(int64_t**)a1->ptr != NULL) {
-                FREE(*(int64_t**)a1->ptr);
-                *(int64_t**)a1->ptr = NULL;
+        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        if (!has_value) {
+            if (*(int64_t**)field->ptr != NULL) {
+                FREE(*(int64_t**)field->ptr);
+                *(int64_t**)field->ptr = NULL;
             }
             return;
         }
-        if (*(int64_t**)a1->ptr == NULL) {
-            *(int64_t**)a1->ptr = (int64_t*)MALLOC(sizeof(int64_t));
+        if (*(int64_t**)field->ptr == NULL) {
+            *(int64_t**)field->ptr = (int64_t*)MALLOC(sizeof(int64_t));
         }
-        sub_4E4C50(*(int64_t**)a1->ptr, sizeof(int64_t), data);
+        sub_4E4C50(*(int64_t**)field->ptr, sizeof(int64_t), cursor);
         return;
+
+    // SizeableArray-backed types:
+    // Layout: [has_value:1][array payload if has_value==1 via sub_4E7820]
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -732,43 +754,51 @@ void sub_4E4660(ObjSa* a1, uint8_t** data)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        sub_4E4C50(&presence, sizeof(presence), data);
-        if (!presence) {
-            if (*(SizeableArray**)a1->ptr != NULL) {
-                FREE(*(SizeableArray**)a1->ptr);
-                *(SizeableArray**)a1->ptr = NULL;
+        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        if (!has_value) {
+            if (*(SizeableArray**)field->ptr != NULL) {
+                FREE(*(SizeableArray**)field->ptr);
+                *(SizeableArray**)field->ptr = NULL;
             }
             return;
         }
-        sub_4E7820((SizeableArray**)a1->ptr, data);
+        sub_4E7820((SizeableArray**)field->ptr, cursor);
         return;
+
+    // String:
+    // Layout: [has_value:1][strlen_bytes:int32][bytes:strlen_bytes+1 including NUL]
     case SA_TYPE_STRING:
-        sub_4E4C50(&presence, sizeof(presence), data);
-        if (*(char**)a1->ptr != NULL) {
-            FREE(*(char**)a1->ptr);
+        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        if (*(char**)field->ptr != NULL) {
+            FREE(*(char**)field->ptr);
         }
-        if (!presence) {
-            *(char**)a1->ptr = NULL;
+        if (!has_value) {
+            *(char**)field->ptr = NULL;
             return;
         }
-        sub_4E4C50(&size, sizeof(size), data);
-        *(char**)a1->ptr = (char*)MALLOC(size + 1);
-        sub_4E4C50(*(char**)a1->ptr, size + 1, data);
+        sub_4E4C50(&strlen_bytes, sizeof(strlen_bytes), cursor);
+        *(char**)field->ptr = (char*)MALLOC(strlen_bytes + 1);
+        sub_4E4C50(*(char**)field->ptr, strlen_bytes + 1, cursor);
         return;
+
+    // Pointer-backed ObjectID:
+    // Layout: [has_value:1][ObjectID payload if has_value==1]
     case SA_TYPE_HANDLE:
-        sub_4E4C50(&presence, sizeof(presence), data);
-        if (!presence) {
-            if (*(ObjectID**)a1->ptr != NULL) {
-                FREE(*(ObjectID**)a1->ptr);
-                *(ObjectID**)a1->ptr = NULL;
+        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        if (!has_value) {
+            if (*(ObjectID**)field->ptr != NULL) {
+                FREE(*(ObjectID**)field->ptr);
+                *(ObjectID**)field->ptr = NULL;
             }
             return;
         }
-        if (*(ObjectID**)a1->ptr == NULL) {
-            *(ObjectID**)a1->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
+        if (*(ObjectID**)field->ptr == NULL) {
+            *(ObjectID**)field->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
         }
-        sub_4E4C50(*(ObjectID**)a1->ptr, sizeof(ObjectID), data);
+        sub_4E4C50(*(ObjectID**)field->ptr, sizeof(ObjectID), cursor);
         return;
+
+    // Non-serializable pointer types: should not appear here.
     case SA_TYPE_PTR:
     case SA_TYPE_PTR_ARRAY:
         assert(0);

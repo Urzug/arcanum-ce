@@ -3222,7 +3222,7 @@ bool obj_proto_field_read_mem(Object* object, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(object->data[dword_5D10F4]);
-    sub_4E4660(&v1, &dword_5D111C);
+    object_field_read_from_memory(&v1, &dword_5D111C);
     dword_5D10F4++;
 
     return true;
@@ -3275,7 +3275,7 @@ bool obj_inst_field_read_mem(Object* object, int idx, ObjectFieldInfo* info)
 
     v1.type = info->type;
     v1.ptr = &(object->data[idx]);
-    sub_4E4660(&v1, &dword_5D111C);
+    object_field_read_from_memory(&v1, &dword_5D111C);
 
     return true;
 }
