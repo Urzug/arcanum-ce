@@ -1377,14 +1377,34 @@ bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int))
     return true;
 }
 
+// Serialize a field metadata entry to a TigFile stream.
+//
+// Writes the bitfield's word count followed by its raw 32-bit word data
+// from the global FieldBitData array.
+//
+// Binary format:
+//   [word_count: int32]
+//   [bit_data:   int32[word_count]]
+//
+// Returns:
+//   true  – if both write operations succeed.
+//   false – if any write fails.
+//
 // 0x4E5E20
-bool field_metadata_serialize_to_tig_file(int a1, TigFile* stream)
+bool field_metadata_serialize_to_tig_file(int metadata_index, TigFile* stream)
 {
-    if (tig_file_fwrite(&(FieldMetaTable[a1].word_count), sizeof(int), 1, stream) != 1) {
+    // Write the number of 32-bit words in this metadata entry.
+    if (tig_file_fwrite(&(FieldMetaTable[metadata_index].word_count), sizeof(int), 1, stream) != 1) {
         return false;
     }
 
-    if (tig_file_fwrite(&(FieldBitData[FieldMetaTable[a1].word_offset]), sizeof(int) * FieldMetaTable[a1].word_count, 1, stream) != 1) {
+    // Write the actual bitfield data segment corresponding to this entry.
+    if (tig_file_fwrite(
+            &(FieldBitData[FieldMetaTable[metadata_index].word_offset]),
+            sizeof(int) * FieldMetaTable[metadata_index].word_count,
+            1,
+            stream)
+        != 1) {
         return false;
     }
 
