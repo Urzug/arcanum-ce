@@ -143,14 +143,14 @@ void object_field_apply_from_storage(ObjSa* obj_field)
         // storage.value64 == 0  → free and NULL the target
         // otherwise            → ensure allocation and write the value
         if (obj_field->storage.value64 != 0) {
-            if (*(int64_t**)a1->ptr == NULL) {
-                *(int64_t**)a1->ptr = MALLOC(sizeof(int64_t));
+            if (*(int64_t**)obj_field->ptr == NULL) {
+                *(int64_t**)obj_field->ptr = MALLOC(sizeof(int64_t));
             }
-            **(int64_t**)a1->ptr = a1->storage.value64;
+            **(int64_t**)obj_field->ptr = obj_field->storage.value64;
         } else {
-            if (*(int64_t**)a1->ptr != NULL) {
+            if (*(int64_t**)obj_field->ptr != NULL) {
                 FREE(*(int64_t**)obj_field->ptr);
-                *(int64_t**)a1->ptr = NULL;
+                *(int64_t**)obj_field->ptr = NULL;
             }
         }
         break;
@@ -226,7 +226,7 @@ void object_field_apply_from_storage(ObjSa* obj_field)
 
     case SA_TYPE_PTR:
         // Raw pointer-sized integer copy (no ownership implied).
-        *(intptr_t*)a1->ptr = a1->storage.ptr;
+        *(intptr_t*)obj_field->ptr = obj_field->storage.ptr;
         break;
 
     case SA_TYPE_PTR_ARRAY:
