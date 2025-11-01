@@ -3261,7 +3261,7 @@ bool object_field_read(Object* object, int idx, ObjectFieldInfo* info)
 
     v1.type = info->type;
     v1.ptr = &(object->data[idx]);
-    if (!sub_4E44F0(&v1, dword_5D110C)) {
+    if (!object_field_read_from_file_no_dealloc(&v1, dword_5D110C)) {
         return false;
     }
 

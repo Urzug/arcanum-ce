@@ -59,7 +59,7 @@ void object_field_apply_from_storage(ObjSa* a1);
 void object_field_load_into_storage(ObjSa* a1);
 void object_field_deep_copy_value(ObjSa* a1, void* value);
 bool object_field_read_from_file(ObjSa* a1, TigFile* stream);
-bool sub_4E44F0(ObjSa* a1, TigFile* stream);
+bool object_field_read_from_file_no_dealloc(ObjSa* a1, TigFile* stream);
 void sub_4E4660(ObjSa* a1, uint8_t** data);
 bool sub_4E47E0(ObjSa* a1, TigFile* stream);
 void sub_4E4990(ObjSa* a1, MemoryWriteBuffer* a2);

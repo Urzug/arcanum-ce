@@ -565,31 +565,60 @@ bool object_field_read_from_file(ObjSa* field, TigFile* file)
     }
 }
 
+// Reads a serialized ObjSa field value from a TigFile into its in-memory pointer,
+// without freeing any existing allocations beforehand.
+// This "no-dealloc" variant assumes the destination is uninitialized
+// or safe to overwrite directly.
+//
+// Format overview per type:
+// - INT32: raw 4-byte value.
+// - Pointer-backed types (INT64, HANDLE, STRING): prefixed with 1-byte has_value flag.
+// - Arrays and structured types: prefixed with has_value byte, followed by serialized data.
+// - Pointer types (PTR / PTR_ARRAY) are unsupported.
+//
+// Returns true on success, false on any read or format error.
+//
 // 0x4E44F0
-bool sub_4E44F0(ObjSa* a1, TigFile* stream)
+bool object_field_read_from_file_no_dealloc(ObjSa* field, TigFile* file)
 {
-    uint8_t presence;
-    int size;
+    uint8_t has_value; // 1 = value present, 0 = absent
+    int string_len; // used for SA_TYPE_STRING length field
 
-    switch (a1->type) {
+    switch (field->type) {
+
+    // ───────────────────────────────
+    // Primitive 32-bit integer
+    // ───────────────────────────────
     case SA_TYPE_INT32:
-        if (!objf_read(a1->ptr, sizeof(int), stream)) {
+        // Read the raw integer directly into memory.
+        if (!objf_read(field->ptr, sizeof(int), file)) {
             return false;
         }
         return true;
+
+    // ───────────────────────────────
+    // Pointer-backed 64-bit integer
+    // ───────────────────────────────
     case SA_TYPE_INT64:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Read has_value flag.
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            *(int64_t**)a1->ptr = NULL;
+        // If absent, set pointer to NULL.
+        if (!has_value) {
+            *(int64_t**)field->ptr = NULL;
             return true;
         }
-        *(int64_t**)a1->ptr = (int64_t*)MALLOC(sizeof(int64_t));
-        if (!objf_read(*(int64_t**)a1->ptr, sizeof(int64_t), stream)) {
+        // Otherwise allocate and read value.
+        *(int64_t**)field->ptr = (int64_t*)MALLOC(sizeof(int64_t));
+        if (!objf_read(*(int64_t**)field->ptr, sizeof(int64_t), file)) {
             return false;
         }
         return true;
+
+    // ───────────────────────────────
+    // Array-backed and structured types
+    // ───────────────────────────────
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -597,53 +626,80 @@ bool sub_4E44F0(ObjSa* a1, TigFile* stream)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Read has_value flag to know if array exists.
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            *(SizeableArray**)a1->ptr = NULL;
+        // If no array, set pointer to NULL.
+        if (!has_value) {
+            *(SizeableArray**)field->ptr = NULL;
             return true;
         }
-        if (!sa_read_no_dealloc((SizeableArray**)a1->ptr, stream)) {
+        // Otherwise read array without deallocating existing memory.
+        if (!sa_read_no_dealloc((SizeableArray**)field->ptr, file)) {
             return false;
         }
         return true;
+
+    // ───────────────────────────────
+    // Strings
+    // ───────────────────────────────
     case SA_TYPE_STRING:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Read has_value flag.
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            *(char**)a1->ptr = NULL;
+        // If string missing, set NULL.
+        if (!has_value) {
+            *(char**)field->ptr = NULL;
             return true;
         }
-        if (!objf_read(&size, sizeof(size), stream)) {
+        // Otherwise read string length and contents.
+        if (!objf_read(&string_len, sizeof(string_len), file)) {
             return false;
         }
-        *(char**)a1->ptr = (char*)MALLOC(size + 1);
-        if (!objf_read(*(char**)a1->ptr, size + 1, stream)) {
+        *(char**)field->ptr = (char*)MALLOC(string_len + 1);
+        if (!objf_read(*(char**)field->ptr, string_len + 1, file)) {
             return false;
         }
         return true;
+
+    // ───────────────────────────────
+    // Object handles
+    // ───────────────────────────────
     case SA_TYPE_HANDLE:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Read has_value flag.
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            *(ObjectID**)a1->ptr = NULL;
+        // If absent, set pointer to NULL.
+        if (!has_value) {
+            *(ObjectID**)field->ptr = NULL;
             return true;
         }
-        *(ObjectID**)a1->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
-        if (!objf_read(*(ObjectID**)a1->ptr, sizeof(ObjectID), stream)) {
+        // Otherwise allocate and read ObjectID struct.
+        *(ObjectID**)field->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
+        if (!objf_read(*(ObjectID**)field->ptr, sizeof(ObjectID), file)) {
             return false;
         }
         return true;
+
+    // ───────────────────────────────
+    // Non-serializable pointer types
+    // ───────────────────────────────
     case SA_TYPE_PTR:
     case SA_TYPE_PTR_ARRAY:
+        // These should never be serialized; abort if encountered.
         assert(0);
+
+    // ───────────────────────────────
+    // Unknown or unsupported type
+    // ───────────────────────────────
     default:
         return false;
     }
 }
+
 
 // 0x4E4660
 void sub_4E4660(ObjSa* a1, uint8_t** data)
