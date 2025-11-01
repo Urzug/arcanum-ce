@@ -805,26 +805,50 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
     }
 }
 
+// Serialize a single ObjSa field to a TigFile stream.
+//
+// Each field type uses a specific binary format:
+// - SA_TYPE_INT32:
+//     Writes the 4-byte integer directly.
+// - SA_TYPE_INT64 / SA_TYPE_HANDLE / SA_TYPE_STRING / Array-backed types:
+//     Start with a 1-byte presence flag (1 = value present, 0 = null/absent).
+//     If present, write the data payload (struct, string, or array).
+// - Strings include a 4-byte length field followed by the string bytes + '\0'.
+// - Arrays (SizeableArray-backed) are serialized via sa_write().
+// - SA_TYPE_PTR / SA_TYPE_PTR_ARRAY are unsupported (assert).
+//
+// Returns true on success, false if any write fails.
+//
 // 0x4E47E0
-bool sub_4E47E0(ObjSa* a1, TigFile* stream)
+bool object_field_write_to_file(ObjSa* field, TigFile* file)
 {
-    uint8_t presence;
-    int size;
+    uint8_t presence; // 1 = value present, 0 = null/absent
+    int size; // Used for string length
 
-    switch (a1->type) {
+    switch (field->type) {
+
+    // Plain 32-bit integer: write directly.
     case SA_TYPE_INT32:
-        if (!objf_write((int*)a1->ptr, sizeof(int), stream)) return false;
+        if (!objf_write((int*)field->ptr, sizeof(int), file))
+            return false;
         return true;
+
+    // Pointer-backed 64-bit integer:
+    // Format: [presence:1][value:8 if present]
     case SA_TYPE_INT64:
-        if (*(int64_t**)a1->ptr != NULL) {
+        if (*(int64_t**)field->ptr != NULL) {
             presence = 1;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
-            if (!objf_write(*(int64_t**)a1->ptr, sizeof(int64_t), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
+            if (!objf_write(*(int64_t**)field->ptr, sizeof(int64_t), file)) return false;
         } else {
             presence = 0;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
         }
         return true;
+
+    // SizeableArray-backed types:
+    // Format: [presence:1][array payload if present]
+    // Uses sa_write() to serialize the array contents.
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -832,40 +856,50 @@ bool sub_4E47E0(ObjSa* a1, TigFile* stream)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
+        if (*(SizeableArray**)field->ptr != NULL) {
             presence = 1;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
-            if (!sa_write((SizeableArray**)a1->ptr, stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
+            if (!sa_write((SizeableArray**)field->ptr, file)) return false;
         } else {
             presence = 0;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
         }
         return true;
+
+    // String:
+    // Format: [presence:1][length:int32][data:length+1 (including NUL)]
     case SA_TYPE_STRING:
-        if (*(char**)a1->ptr != NULL) {
+        if (*(char**)field->ptr != NULL) {
             presence = 1;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
-            size = (int)strlen(*(char**)a1->ptr);
-            if (!objf_write(&size, sizeof(size), stream)) return false;
-            if (!objf_write(*(char**)a1->ptr, size + 1, stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
+            size = (int)strlen(*(char**)field->ptr);
+            if (!objf_write(&size, sizeof(size), file)) return false;
+            if (!objf_write(*(char**)field->ptr, size + 1, file)) return false;
         } else {
             presence = 0;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
         }
         return true;
+
+    // Pointer-backed ObjectID:
+    // Format: [presence:1][ObjectID struct if present]
     case SA_TYPE_HANDLE:
-        if (*(ObjectID**)a1->ptr != NULL) {
+        if (*(ObjectID**)field->ptr != NULL) {
             presence = 1;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
-            if (!objf_write(*(ObjectID**)a1->ptr, sizeof(ObjectID), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
+            if (!objf_write(*(ObjectID**)field->ptr, sizeof(ObjectID), file)) return false;
         } else {
             presence = 0;
-            if (!objf_write(&presence, sizeof(presence), stream)) return false;
+            if (!objf_write(&presence, sizeof(presence), file)) return false;
         }
         return true;
+
+    // Unsupported pointer-based types.
     case SA_TYPE_PTR:
     case SA_TYPE_PTR_ARRAY:
         assert(0);
+
+    // Unknown / unhandled field type.
     default:
         return false;
     }
