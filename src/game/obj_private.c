@@ -1211,87 +1211,135 @@ int field_metadata_acquire()
     return index;
 }
 
+// Release a field metadata entry and add its index to the free list.
+//
+// Behavior:
+// - Shrinks the entry’s word array back down to the minimum (2 words) if larger.
+// - Zeros out the entry’s current bit-data region.
+// - Ensures the free-index array has capacity, then pushes this index.
+// - Returns the new count of free indices.
+//
+// Notes:
+// - The physical bit storage for this entry is compacted if shrinking occurs;
+//   later entries’ offsets are adjusted by field_metadata_shrink_word_array().
+//
 // 0x4E5B40
 int field_metadata_release(int a1)
 {
-    ObjFieldMeta* v1;
-    int index;
+    ObjFieldMeta* meta;
+    int i;
 
-    v1 = &(FieldMetaTable[a1]);
-    if (v1->word_count != 2) {
-        field_metadata_shrink_word_array(a1, v1->word_count - 2);
+    meta = &FieldMetaTable[a1];
+
+    // Ensure entry does not keep more than the baseline 2 words.
+    if (meta->word_count != 2) {
+        field_metadata_shrink_word_array(a1, meta->word_count - 2);
     }
 
-    for (index = v1->word_offset; index < v1->word_count + v1->word_offset; index++) {
-        FieldBitData[index] = 0;
+    // Clear the entry’s current words.
+    for (i = meta->word_offset; i < meta->word_offset + meta->word_count; i++) {
+        FieldBitData[i] = 0;
     }
 
+    // Grow free-list if needed.
     if (FreeIndexCount == FreeIndexCapacity) {
         FreeIndexCapacity += 4096;
         FreeFieldMetaIndices = (int*)REALLOC(FreeFieldMetaIndices, sizeof(int) * FreeIndexCapacity);
     }
 
+    // Push this index onto the free-list.
     FreeFieldMetaIndices[FreeIndexCount] = a1;
 
     return ++FreeIndexCount;
 }
 
+// Create a copy of an existing field metadata entry.
+//
+// Steps:
+// - Acquire a fresh entry `dst` (baseline 2 words).
+// - Grow `dst` to match the source word count if needed.
+// - Copy the raw 32-bit words from source into destination.
+// - Return the index of the cloned entry.
+//
 // 0x4E5BF0
 int field_metadata_clone(int a1)
 {
-    int v1;
-    int v2;
-    int index;
+    int dst = field_metadata_acquire();
+    int needed = FieldMetaTable[a1].word_count - FieldMetaTable[dst].word_count;
 
-    v1 = field_metadata_acquire();
-    v2 = FieldMetaTable[a1].word_count - FieldMetaTable[v1].word_count;
-    if (v2 != 0) {
-        field_metadata_grow_word_array(v1, v2);
+    // Match destination capacity to source.
+    if (needed != 0) {
+        field_metadata_grow_word_array(dst, needed);
     }
 
-    for (index = 0; index < FieldMetaTable[a1].word_count; index++) {
-        FieldBitData[FieldMetaTable[v1].word_offset + index] = FieldBitData[FieldMetaTable[a1].word_offset + index];
+    // Copy the bitfield words.
+    for (int i = 0; i < FieldMetaTable[a1].word_count; i++) {
+        FieldBitData[FieldMetaTable[dst].word_offset + i] = FieldBitData[FieldMetaTable[a1].word_offset + i];
     }
 
-    return v1;
+    return dst;
 }
 
+// Set or clear a single bit in a field metadata entry.
+//
+// Parameters:
+// - a1: metadata entry index
+// - a2: bit index (0..∞)
+// - a3: true → set bit, false → clear bit
+//
+// Behavior:
+// - Ensures the backing word exists when setting a bit beyond current size
+//   by growing the entry’s word array as needed.
+// - Computes the target word index and bit mask, then sets/clears the bit.
+//
 // 0x4E5C60
 void field_metadata_set_or_clear_bit(int a1, int a2, bool a3)
 {
-    int v1;
-    int v2;
+    int word_index = convert_bit_index_to_word_index(a2);
 
-    v1 = convert_bit_index_to_word_index(a2);
-    if (v1 >= FieldMetaTable[a1].word_count) {
+    // If setting a bit in a word that doesn't exist yet, grow to include it.
+    if (word_index >= FieldMetaTable[a1].word_count) {
         if (!a3) {
+            // Clearing a bit beyond current size is a no-op.
             return;
         }
-
-        field_metadata_grow_word_array(a1, v1 - FieldMetaTable[a1].word_count + 1);
+        field_metadata_grow_word_array(a1, word_index - FieldMetaTable[a1].word_count + 1);
     }
 
-    v2 = convert_bit_index_to_mask(a2);
+    int mask = convert_bit_index_to_mask(a2);
+    int abs_index = FieldMetaTable[a1].word_offset + word_index;
+
     if (a3) {
-        FieldBitData[v1 + FieldMetaTable[a1].word_offset] |= v2;
+        FieldBitData[abs_index] |= mask; // set
     } else {
-        FieldBitData[v1 + FieldMetaTable[a1].word_offset] &= ~v2;
+        FieldBitData[abs_index] &= ~mask; // clear
     }
 }
 
+// Test whether a single bit is set in a field metadata entry.
+//
+// Parameters:
+// - a1: metadata entry index
+// - a2: bit index (0..∞)
+//
+// Returns:
+// - nonzero (mask) if the bit is set
+// - 0 if the bit is clear or lies beyond the current word_count
+//
 // 0x4E5CE0
 int field_metadata_test_bit(int a1, int a2)
 {
-    int v1;
-    int v2;
+    int word_index = convert_bit_index_to_word_index(a2);
 
-    v1 = convert_bit_index_to_word_index(a2);
-    if (v1 > FieldMetaTable[a1].word_count - 1) {
+    // If the word does not exist, the bit cannot be set.
+    if (word_index > FieldMetaTable[a1].word_count - 1) {
         return 0;
     }
 
-    v2 = convert_bit_index_to_mask(a2);
-    return v2 & FieldBitData[v1 + FieldMetaTable[a1].word_offset];
+    int mask = convert_bit_index_to_mask(a2);
+    int abs_index = FieldMetaTable[a1].word_offset + word_index;
+
+    return FieldBitData[abs_index] & mask;
 }
 
 // 0x4E5D30
