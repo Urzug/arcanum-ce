@@ -445,36 +445,51 @@ void object_field_deep_copy_value(ObjSa* field, void* value)
     }
 }
 
+// Reads an ObjSa field's serialized value from a TigFile into its live in-memory pointer.
+// Allocates or frees memory for pointer-backed and array types as needed.
+//
+// Format overview per type:
+// - Primitive types (INT32): raw binary values.
+// - Pointer-backed types (INT64, HANDLE, STRING): prefixed with a 1-byte presence flag.
+// - Arrays and structured types: prefixed with presence byte, then serialized data.
+//
+// Returns true on success, false on any read error.
+//
 // 0x4E4360
-bool sub_4E4360(ObjSa* a1, TigFile* stream)
+bool object_field_read_from_file(ObjSa* field, TigFile* file)
 {
-    uint8_t presence;
-    int size;
+    uint8_t has_value; // 1 = value present, 0 = null/absent
+    int string_len; // used for SA_TYPE_STRING
 
-    switch (a1->type) {
+    switch (field->type) {
     case SA_TYPE_INT32:
-        if (!objf_read(a1->ptr, sizeof(int), stream)) {
+        // Plain 32-bit integer: directly read into memory.
+        if (!objf_read(field->ptr, sizeof(int), file)) {
             return false;
         }
         return true;
+
     case SA_TYPE_INT64:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Pointer-backed 64-bit integer.
+        // Format: [has_value:1][value:8 if present]
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            if (*(int64_t**)a1->ptr != NULL) {
-                FREE(*(int64_t**)a1->ptr);
-                *(int64_t**)a1->ptr = NULL;
+        if (!has_value) {
+            if (*(int64_t**)field->ptr != NULL) {
+                FREE(*(int64_t**)field->ptr);
+                *(int64_t**)field->ptr = NULL;
             }
             return true;
         }
-        if (*(int64_t**)a1->ptr == NULL) {
-            *(int64_t**)a1->ptr = (int64_t*)MALLOC(sizeof(int64_t));
+        if (*(int64_t**)field->ptr == NULL) {
+            *(int64_t**)field->ptr = (int64_t*)MALLOC(sizeof(int64_t));
         }
-        if (!objf_read(*(int64_t**)a1->ptr, sizeof(int64_t), stream)) {
+        if (!objf_read(*(int64_t**)field->ptr, sizeof(int64_t), file)) {
             return false;
         }
         return true;
+
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -482,58 +497,70 @@ bool sub_4E4360(ObjSa* a1, TigFile* stream)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Array-backed types (SizeableArray-based).
+        // Format: [has_value:1][array data if present]
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            *(SizeableArray**)a1->ptr = NULL;
+        if (!has_value) {
+            *(SizeableArray**)field->ptr = NULL;
             return true;
         }
-        if (!sa_read((SizeableArray**)a1->ptr, stream)) {
+        if (!sa_read((SizeableArray**)field->ptr, file)) {
             return false;
         }
         return true;
+
     case SA_TYPE_STRING:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Variable-length string.
+        // Format: [has_value:1][length:4][data:length+1 bytes including null terminator]
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (*(char**)a1->ptr != NULL) {
-            FREE(*(char**)a1->ptr);
+        if (*(char**)field->ptr != NULL) {
+            FREE(*(char**)field->ptr);
         }
-        if (!presence) {
-            *(char**)a1->ptr = NULL;
+        if (!has_value) {
+            *(char**)field->ptr = NULL;
             return true;
         }
-        if (!objf_read(&size, sizeof(size), stream)) {
+        if (!objf_read(&string_len, sizeof(string_len), file)) {
             return false;
         }
-        *(char**)a1->ptr = (char*)MALLOC(size + 1);
-        if (!objf_read(*(char**)a1->ptr, size + 1, stream)) {
+        *(char**)field->ptr = (char*)MALLOC(string_len + 1);
+        if (!objf_read(*(char**)field->ptr, string_len + 1, file)) {
             return false;
         }
         return true;
+
     case SA_TYPE_HANDLE:
-        if (!objf_read(&presence, sizeof(presence), stream)) {
+        // Pointer-backed ObjectID structure.
+        // Format: [has_value:1][ObjectID struct if present]
+        if (!objf_read(&has_value, sizeof(has_value), file)) {
             return false;
         }
-        if (!presence) {
-            if (*(ObjectID**)a1->ptr != NULL) {
-                FREE(*(ObjectID**)a1->ptr);
-                *(ObjectID**)a1->ptr = NULL;
+        if (!has_value) {
+            if (*(ObjectID**)field->ptr != NULL) {
+                FREE(*(ObjectID**)field->ptr);
+                *(ObjectID**)field->ptr = NULL;
             }
             return true;
         }
-        if (*(ObjectID**)a1->ptr == NULL) {
-            *(ObjectID**)a1->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
+        if (*(ObjectID**)field->ptr == NULL) {
+            *(ObjectID**)field->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
         }
-        if (!objf_read(*(ObjectID**)a1->ptr, sizeof(ObjectID), stream)) {
+        if (!objf_read(*(ObjectID**)field->ptr, sizeof(ObjectID), file)) {
             return false;
         }
         return true;
+
     case SA_TYPE_PTR:
     case SA_TYPE_PTR_ARRAY:
+        // Pointer types are not serialized — invalid to encounter here.
         assert(0);
+
     default:
+        // Unknown or unsupported field type.
         return false;
     }
 }

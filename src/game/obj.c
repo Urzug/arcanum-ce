@@ -3206,7 +3206,7 @@ bool obj_proto_field_read_file(Object* object, int fld)
 
     v1.type = object_fields[fld].type;
     v1.ptr = &(object->data[dword_5D10F4]);
-    if (!sub_4E4360(&v1, dword_5D110C)) {
+    if (!object_field_read_from_file(&v1, dword_5D110C)) {
         return false;
     }
 
