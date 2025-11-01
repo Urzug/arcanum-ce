@@ -1107,23 +1107,49 @@ void ensure_memory_capacity(MemoryWriteBuffer* buffer, int required)
     }
 }
 
-
+// Initialize global storage and lookup tables used for object field metadata.
+//
+// This function allocates and initializes all global buffers and helper tables
+// used by the field metadata system, including:
+// - FieldMetaTable:     stores metadata entries for bitfields
+// - FreeFieldMetaIndices: free-list for released metadata indices
+// - FieldBitData:       contiguous bitfield data for all metadata entries
+// - Popcount16Lookup:   precomputed bit-count table for 16-bit values
+// - BitMaskTable:       precomputed bitmask pairs for efficient partial bit ops
+//
+// Default sizes:
+// - FieldMetaCapacity:     4096 entries
+// - FreeIndexCapacity:     4096 entries
+// - FieldBitDataCapacity:  8192 32-bit words
+//
+// After allocation, initializes lookup tables via InitPopCountLookup()
+// and ObjBitMaskTable_Init(), and marks storage as allocated.
+//
 // 0x4E59B0
-void sub_4E59B0()
+void obj_field_metadata_system_init()
 {
+    // Reset counters and capacities for field metadata management.
     FieldMetaCount = 0;
     FieldMetaCapacity = 4096;
     FreeIndexCount = 0;
     FreeIndexCapacity = 4096;
     FieldBitDataSize = 0;
     FieldBitDataCapacity = 8192;
+
+    // Allocate core metadata structures.
     FieldMetaTable = (ObjFieldMeta*)MALLOC(sizeof(*FieldMetaTable) * FieldMetaCapacity);
     FreeFieldMetaIndices = (int*)MALLOC(sizeof(*FreeFieldMetaIndices) * FreeIndexCapacity);
     FieldBitData = (int*)MALLOC(sizeof(*FieldBitData) * FieldBitDataCapacity);
-    Popcount16Lookup = (uint8_t*)MALLOC(65536);
-    BitMaskTable = (BitMaskPair*)MALLOC(sizeof(*BitMaskTable) * 33);
-    InitPopCountLookup();
-    ObjBitMaskTable_Init();
+
+    // Allocate lookup tables.
+    Popcount16Lookup = (uint8_t*)MALLOC(65536); // 2^16 entries
+    BitMaskTable = (BitMaskPair*)MALLOC(sizeof(*BitMaskTable) * 33); // Masks for 0–32 bits
+
+    // Initialize lookup data.
+    InitPopCountLookup(); // Builds popcount lookup for 16-bit integers.
+    ObjBitMaskTable_Init(); // Builds bitmask table for partial bit operations.
+
+    // Mark system as initialized.
     ObjPrivateStorageAllocated = true;
 }
 

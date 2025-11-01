@@ -68,7 +68,7 @@ int object_field_array_get_count(ObjSa* a1);
 void memory_write_buffer_init(MemoryWriteBuffer* a1);
 void memory_write_buffer_append(const void* data, int size, MemoryWriteBuffer* a3);
 void memory_read_from_cursor(void* buffer, int size, uint8_t** data);
-void sub_4E59B0();
+void obj_field_metadata_system_init();
 void sub_4E5A50();
 int field_metadata_acquire();
 int field_metadata_release(int a1);

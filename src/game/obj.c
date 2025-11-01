@@ -551,7 +551,7 @@ bool obj_init(GameInitInfo* init_info)
     dword_5D1100 = (int*)CALLOC(21, sizeof(int));
     object_fields_count_per_type = (int16_t*)CALLOC(18, sizeof(int16_t));
     obj_editor = init_info->editor;
-    sub_4E59B0();
+    obj_field_metadata_system_init();
     obj_pool_init(sizeof(Object), obj_editor);
     ObjPrivate_Enable();
     obj_find_init();
@@ -595,7 +595,7 @@ void sub_405250()
     obj_pool_exit();
     ObjPrivate_Disable();
     sub_4E5A50();
-    sub_4E59B0();
+    obj_field_metadata_system_init();
     obj_pool_init(sizeof(Object), obj_editor);
     ObjPrivate_Enable();
 }
