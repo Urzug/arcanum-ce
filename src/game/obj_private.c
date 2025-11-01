@@ -1338,30 +1338,38 @@ int field_metadata_count_set_bits_up_to(int metadata_index, int bit_index_limit)
     return total_count;
 }
 
-
-// 0x4E5DB0
+// Iterate all set bits in the bitfield for metadata entry `a1` and call `callback(pos)`.
+//
+// Semantics:
+// - Visits bits in ascending order (0,1,2,...).
+// - For each set bit, calls `callback(bit_index_relative_to_entry)`.
+// - If the callback returns false, iteration stops and the function returns false.
+// - Returns true only if the entire bitfield is scanned without an early stop.
+//
+// Implementation details:
+// - The bitfield is stored as a range of 32-bit words inside the global FieldBitData.
+// - `word_offset` is the start index in FieldBitData; `word_count` is the number of words.
+// - We scan each word and test its 32 bits using a rolling 1-bit mask.
+//
+// Complexity: O(number_of_words * 32).
 bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int))
 {
-    int v1;
-    int v2;
-    int pos;
-    int idx;
-    int bit;
-    unsigned int flags;
+    int start_word = FieldMetaTable[a1].word_offset;
+    int end_word = FieldMetaTable[a1].word_count + start_word;
 
-    v1 = FieldMetaTable[a1].word_offset;
-    v2 = FieldMetaTable[a1].word_count + v1;
+    int pos = 0; // bit index relative to the start of this entry's bitfield
 
-    pos = 0;
-    for (idx = v1; idx < v2; idx++) {
-        flags = 1;
-        for (bit = 0; bit < 32; bit++) {
-            if ((flags & FieldBitData[idx]) != 0) {
+    for (int idx = start_word; idx < end_word; idx++) {
+        unsigned int mask = 1;
+        unsigned int word = FieldBitData[idx];
+
+        for (int bit = 0; bit < 32; bit++) {
+            if (word & mask) {
                 if (!callback(pos)) {
-                    return false;
+                    return false; // early exit on callback failure
                 }
             }
-            flags *= 2;
+            mask <<= 1;
             pos++;
         }
     }
