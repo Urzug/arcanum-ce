@@ -725,13 +725,13 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
 
     // Plain 32-bit integer: copy 4 bytes into the target location.
     case SA_TYPE_INT32:
-        sub_4E4C50(field->ptr, sizeof(int), cursor);
+        memory_read_from_cursor(field->ptr, sizeof(int), cursor);
         return;
 
     // Pointer-backed 64-bit integer:
     // Layout: [has_value:1][int64 payload if has_value==1]
     case SA_TYPE_INT64:
-        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        memory_read_from_cursor(&has_value, sizeof(has_value), cursor);
         if (!has_value) {
             if (*(int64_t**)field->ptr != NULL) {
                 FREE(*(int64_t**)field->ptr);
@@ -742,7 +742,7 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
         if (*(int64_t**)field->ptr == NULL) {
             *(int64_t**)field->ptr = (int64_t*)MALLOC(sizeof(int64_t));
         }
-        sub_4E4C50(*(int64_t**)field->ptr, sizeof(int64_t), cursor);
+        memory_read_from_cursor(*(int64_t**)field->ptr, sizeof(int64_t), cursor);
         return;
 
     // SizeableArray-backed types:
@@ -754,7 +754,7 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
     case SA_TYPE_SCRIPT:
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
-        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        memory_read_from_cursor(&has_value, sizeof(has_value), cursor);
         if (!has_value) {
             if (*(SizeableArray**)field->ptr != NULL) {
                 FREE(*(SizeableArray**)field->ptr);
@@ -768,7 +768,7 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
     // String:
     // Layout: [has_value:1][strlen_bytes:int32][bytes:strlen_bytes+1 including NUL]
     case SA_TYPE_STRING:
-        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        memory_read_from_cursor(&has_value, sizeof(has_value), cursor);
         if (*(char**)field->ptr != NULL) {
             FREE(*(char**)field->ptr);
         }
@@ -776,15 +776,15 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
             *(char**)field->ptr = NULL;
             return;
         }
-        sub_4E4C50(&strlen_bytes, sizeof(strlen_bytes), cursor);
+        memory_read_from_cursor(&strlen_bytes, sizeof(strlen_bytes), cursor);
         *(char**)field->ptr = (char*)MALLOC(strlen_bytes + 1);
-        sub_4E4C50(*(char**)field->ptr, strlen_bytes + 1, cursor);
+        memory_read_from_cursor(*(char**)field->ptr, strlen_bytes + 1, cursor);
         return;
 
     // Pointer-backed ObjectID:
     // Layout: [has_value:1][ObjectID payload if has_value==1]
     case SA_TYPE_HANDLE:
-        sub_4E4C50(&has_value, sizeof(has_value), cursor);
+        memory_read_from_cursor(&has_value, sizeof(has_value), cursor);
         if (!has_value) {
             if (*(ObjectID**)field->ptr != NULL) {
                 FREE(*(ObjectID**)field->ptr);
@@ -795,7 +795,7 @@ void object_field_read_from_memory(ObjSa* field, uint8_t** cursor)
         if (*(ObjectID**)field->ptr == NULL) {
             *(ObjectID**)field->ptr = (ObjectID*)MALLOC(sizeof(ObjectID));
         }
-        sub_4E4C50(*(ObjectID**)field->ptr, sizeof(ObjectID), cursor);
+        memory_read_from_cursor(*(ObjectID**)field->ptr, sizeof(ObjectID), cursor);
         return;
 
     // Non-serializable pointer types: should not appear here.
@@ -1027,46 +1027,86 @@ int object_field_array_get_count(ObjSa* field)
     return 0;
 }
 
+// Initialize a MemoryWriteBuffer with a default capacity of 256 bytes.
+//
+// Allocates an initial heap buffer, sets the write pointer to the start,
+// and initializes tracking fields for total and remaining capacity.
+//
+// Used before writing serialized data into memory.
+//
 // 0x4E4BD0
-void sub_4E4BD0(MemoryWriteBuffer* buffer)
+void memory_write_buffer_init(MemoryWriteBuffer* buffer)
 {
-    buffer->base_pointer = (uint8_t*)MALLOC(256);
-    buffer->write_pointer = buffer->base_pointer;
-    buffer->total_capacity = 256;
-    buffer->remaining_capacity = buffer->total_capacity;
+    buffer->base_pointer = (uint8_t*)MALLOC(256); // Allocate initial 256-byte buffer
+    buffer->write_pointer = buffer->base_pointer; // Start writing at the beginning
+    buffer->total_capacity = 256; // Total allocated size
+    buffer->remaining_capacity = buffer->total_capacity; // All capacity unused
 }
 
+// Append data to a MemoryWriteBuffer, expanding it if necessary.
+//
+// Ensures there is enough space for `size` bytes, then copies them from `data`
+// into the buffer at the current write position. Advances the write pointer
+// and updates the remaining capacity.
+//
 // 0x4E4C00
-void sub_4E4C00(const void* data, int size, MemoryWriteBuffer* buffer)
+void memory_write_buffer_append(const void* data, int size, MemoryWriteBuffer* buffer)
 {
-    ensure_memory_capacity(buffer, size);
-    memcpy(buffer->write_pointer, data, size);
-    buffer->write_pointer += size;
-    buffer->remaining_capacity -= size;
+    ensure_memory_capacity(buffer, size); // Expand if needed
+    memcpy(buffer->write_pointer, data, size); // Copy data to buffer
+    buffer->write_pointer += size; // Advance cursor
+    buffer->remaining_capacity -= size; // Update remaining space
 }
 
+// Read raw bytes from a byte-stream cursor into a destination buffer.
+//
+// Copies `size` bytes from *cursor into `dest` and advances the source pointer.
+// Used for deserializing in-memory data streams.
+//
 // 0x4E4C50
-void sub_4E4C50(void* buffer, int size, uint8_t** data)
+void memory_read_from_cursor(void* dest, int size, uint8_t** cursor)
 {
-    memcpy(buffer, *data, size);
-    (*data) += size;
+    memcpy(dest, *cursor, size); // Copy bytes into destination
+    (*cursor) += size; // Advance read cursor
 }
 
+// Ensure that a MemoryWriteBuffer has enough free capacity for `required` bytes.
+//
+// If the buffer lacks sufficient remaining capacity, it expands the buffer
+// in 256-byte increments until it can accommodate the new data.
+// The function then updates all relevant pointers and capacity fields.
+//
+// Growth policy:
+// - Always round up to the next multiple of 256 bytes.
+// - Keeps existing data intact via REALLOC.
+// - Preserves the current write position.
+//
 // 0x4E4C80
-void ensure_memory_capacity(MemoryWriteBuffer* a1, int size)
+void ensure_memory_capacity(MemoryWriteBuffer* buffer, int required)
 {
-    int extra_size;
-    int new_size;
+    // Calculate how many more bytes are needed beyond current capacity.
+    int deficit = required - buffer->remaining_capacity;
 
-    extra_size = size - a1->remaining_capacity;
-    if (extra_size > 0) {
-        new_size = (extra_size / 256 + 1) * 256;
-        a1->total_capacity += new_size;
-        a1->base_pointer = (uint8_t*)REALLOC(a1->base_pointer, a1->total_capacity);
-        a1->write_pointer = a1->base_pointer + a1->total_capacity - a1->remaining_capacity - new_size;
-        a1->remaining_capacity += new_size;
+    // Only expand when necessary.
+    if (deficit > 0) {
+        // Round up to the nearest multiple of 256 bytes.
+        int grow = ((deficit / 256) + 1) * 256;
+
+        // Increase total capacity and reallocate the underlying buffer.
+        buffer->total_capacity += grow;
+        buffer->base_pointer = (uint8_t*)REALLOC(buffer->base_pointer, buffer->total_capacity);
+
+        // Recalculate write_pointer to point to the same position relative to new base.
+        buffer->write_pointer = buffer->base_pointer
+            + buffer->total_capacity
+            - buffer->remaining_capacity
+            - grow;
+
+        // Update available space after expansion.
+        buffer->remaining_capacity += grow;
     }
 }
+
 
 // 0x4E59B0
 void sub_4E59B0()
@@ -1349,13 +1389,13 @@ void field_metadata_import_from_memory(int* a1, uint8_t** data)
 
     v1 = field_metadata_acquire();
 
-    sub_4E4C50(&v2, sizeof(v2), data);
+    memory_read_from_cursor(&v2, sizeof(v2), data);
 
     if (v2 != FieldMetaTable[v1].field_0) {
         field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].field_0);
     }
 
-    sub_4E4C50(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, data);
+    memory_read_from_cursor(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, data);
 
     *a1 = v1;
 }

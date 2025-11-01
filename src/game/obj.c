@@ -1233,7 +1233,7 @@ void obj_write_mem(uint8_t** data_ptr, int* size_ptr, int64_t obj)
     bool is_proto;
 
     object = obj_lock(obj);
-    sub_4E4BD0(&mem);
+    memory_write_buffer_init(&mem);
     obj_version_write_mem(&mem);
     is_proto = object->prototype_oid.type == OID_TYPE_BLOCKED;
     obj_unlock(obj);
@@ -1258,7 +1258,7 @@ bool obj_read_mem(uint8_t* data, int64_t* obj_ptr)
         return false;
     }
 
-    sub_4E4C50(&oid, sizeof(oid), &data);
+    memory_read_from_cursor(&oid, sizeof(oid), &data);
     data -= sizeof(oid);
 
     if (oid.type == OID_TYPE_BLOCKED) {
@@ -3055,11 +3055,11 @@ void obj_proto_write_mem(S4E4BD0* mem, int64_t obj)
     int cnt;
 
     object = obj_lock(obj);
-    sub_4E4C00(&(object->prototype_oid), sizeof(object->prototype_oid), mem);
-    sub_4E4C00(&(object->oid), sizeof(object->oid), mem);
-    sub_4E4C00(&(object->type), sizeof(object->type), mem);
+    memory_write_buffer_append(&(object->prototype_oid), sizeof(object->prototype_oid), mem);
+    memory_write_buffer_append(&(object->oid), sizeof(object->oid), mem);
+    memory_write_buffer_append(&(object->type), sizeof(object->type), mem);
     cnt = sub_40C030(object->type);
-    sub_4E4C00(object->field_4C, sizeof(object->field_4C[0]) * cnt, mem);
+    memory_write_buffer_append(object->field_4C, sizeof(object->field_4C[0]) * cnt, mem);
     dword_5D10F4 = 0;
     dword_5D1118 = mem;
     obj_enumerate_fields(object, obj_proto_field_write_mem);
@@ -3074,14 +3074,14 @@ bool obj_proto_read_mem(uint8_t* data, int64_t* obj_ptr)
     int size;
 
     object = obj_allocate(&obj);
-    sub_4E4C50(&(object->prototype_oid), sizeof(object->prototype_oid), &data);
+    memory_read_from_cursor(&(object->prototype_oid), sizeof(object->prototype_oid), &data);
     object->prototype_obj = OBJ_HANDLE_NULL;
-    sub_4E4C50(&(object->oid), sizeof(object->oid), &data);
-    sub_4E4C50(&(object->type), sizeof(object->type), &data);
+    memory_read_from_cursor(&(object->oid), sizeof(object->oid), &data);
+    memory_read_from_cursor(&(object->type), sizeof(object->type), &data);
 
     size = sizeof(*object->field_4C) * sub_40C030(object->type);
     object->field_4C = MALLOC(size);
-    sub_4E4C50(object->field_4C, size, &data);
+    memory_read_from_cursor(object->field_4C, size, &data);
 
     object->field_40 = 0;
     object->modified = false;
@@ -3115,12 +3115,12 @@ void obj_inst_write_mem(S4E4BD0* mem, int64_t obj)
     int cnt;
 
     object = obj_lock(obj);
-    sub_4E4C00(&(object->prototype_oid), sizeof(object->prototype_oid), mem);
-    sub_4E4C00(&(object->oid), sizeof(object->oid), mem);
-    sub_4E4C00(&(object->type), sizeof(object->type), mem);
-    sub_4E4C00(&(object->num_fields), sizeof(object->num_fields), mem);
+    memory_write_buffer_append(&(object->prototype_oid), sizeof(object->prototype_oid), mem);
+    memory_write_buffer_append(&(object->oid), sizeof(object->oid), mem);
+    memory_write_buffer_append(&(object->type), sizeof(object->type), mem);
+    memory_write_buffer_append(&(object->num_fields), sizeof(object->num_fields), mem);
     cnt = sub_40C030(object->type);
-    sub_4E4C00(object->field_48, sizeof(object->field_48[0]) * cnt, mem);
+    memory_write_buffer_append(object->field_48, sizeof(object->field_48[0]) * cnt, mem);
     dword_5D1118 = mem;
 
     sub_40CBA0(object, obj_inst_field_write_mem);
@@ -3134,18 +3134,18 @@ bool obj_inst_read_mem(uint8_t* data, int64_t* obj_ptr)
     int64_t obj;
 
     object = obj_allocate(&obj);
-    sub_4E4C50(&(object->prototype_oid), sizeof(object->prototype_oid), &data);
+    memory_read_from_cursor(&(object->prototype_oid), sizeof(object->prototype_oid), &data);
     object->prototype_obj = OBJ_HANDLE_NULL;
-    sub_4E4C50(&(object->oid), sizeof(object->oid), &data);
-    sub_4E4C50(&(object->type), sizeof(object->type), &data);
-    sub_4E4C50(&(object->num_fields), sizeof(object->num_fields), &data);
+    memory_read_from_cursor(&(object->oid), sizeof(object->oid), &data);
+    memory_read_from_cursor(&(object->type), sizeof(object->type), &data);
+    memory_read_from_cursor(&(object->num_fields), sizeof(object->num_fields), &data);
 
     object->field_40 = 0;
     object->modified = false;
     sub_40C580(object);
 
     object->data = (intptr_t*)CALLOC(object->num_fields, sizeof(*object->data));
-    sub_4E4C50(object->field_48, 4 * sub_40C030(object->type), &data);
+    memory_read_from_cursor(object->field_48, 4 * sub_40C030(object->type), &data);
 
     dword_5D111C = data;
     if (!sub_40CBA0(object, obj_inst_field_read_mem)) {
@@ -5067,7 +5067,7 @@ bool obj_version_read_file(TigFile* stream)
 void obj_version_write_mem(S4E4BD0* mem)
 {
     int version = OBJ_FILE_VERSION;
-    sub_4E4C00(&version, sizeof(version), mem);
+    memory_write_buffer_append(&version, sizeof(version), mem);
 }
 
 // 0x40D5F0
@@ -5075,7 +5075,7 @@ bool obj_version_read_mem(uint8_t** data)
 {
     int version;
 
-    sub_4E4C50(&version, sizeof(version), data);
+    memory_read_from_cursor(&version, sizeof(version), data);
     if (version != OBJ_FILE_VERSION) {
         tig_debug_printf("Object file format version mismatch: (read: %d, expected: %d).\n", version, OBJ_FILE_VERSION);
     }
