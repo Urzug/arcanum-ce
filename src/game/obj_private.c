@@ -1541,11 +1541,29 @@ void field_metadata_import_from_memory(int* out_index, uint8_t** cursor)
     *out_index = metadata_index;
 }
 
+// Count the number of set bits in the lower `limit_bits` of a 32-bit word.
+//
+// Semantics:
+// - Only the least-significant `limit_bits` (0..32) of `word` are considered.
+// - Bits above `limit_bits - 1` are ignored.
+// - Implemented via two 16-bit popcount lookups using precomputed masks.
+//
+// Implementation details:
+// - `BitMaskTable[limit_bits]` provides two 16-bit masks:
+//     * lower_mask: mask for the low 16 bits
+//     * upper_mask: mask for the high 16 bits (shifted part of the lower N bits)
+// - `Popcount16Lookup[v]` is the popcount for any 16-bit value `v` (0..65535).
+// - We split `word` into low/high 16-bit halves, apply the corresponding masks,
+//   then sum their 16-bit popcounts.
+//
+// Constraints:
+// - `limit_bits` must be in [0, 32]. (Table is initialized for 0..32.)
+//
 // 0x4E5FE0
-int count_set_bits_in_word_up_to_limit(int a1, int a2)
+int count_set_bits_in_word_up_to_limit(int word, int limit_bits)
 {
-    return Popcount16Lookup[BitMaskTable[a2].lower_mask & (a1 & 0xFFFF)]
-        + Popcount16Lookup[BitMaskTable[a2].upper_mask & ((a1 >> 16) & 0xFFFF)];
+    return Popcount16Lookup[BitMaskTable[limit_bits].lower_mask & (word & 0xFFFF)]
+        + Popcount16Lookup[BitMaskTable[limit_bits].upper_mask & ((word >> 16) & 0xFFFF)];
 }
 
 // 0x4E6040
