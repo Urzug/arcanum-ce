@@ -970,10 +970,18 @@ void sub_4E4990(ObjSa* a1, MemoryWriteBuffer* a2)
     // }
 }
 
+// Remove an element from a SizeableArray-backed ObjSa field at the given index.
+//
+// Supported types: all *_ARRAY, SCRIPT, QUEST, and PTR_ARRAY variants.
+// If the array exists, removes the element at field->idx via sub_4E7760().
+// If the array pointer is NULL, does nothing.
+//
+// This acts as a safe "remove-at-index" helper for dynamic ObjSa arrays.
+//
 // 0x4E4B70
-void sub_4E4B70(ObjSa* a1)
+void object_field_array_remove_element(ObjSa* field)
 {
-    switch (a1->type) {
+    switch (field->type) {
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -982,17 +990,24 @@ void sub_4E4B70(ObjSa* a1)
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
     case SA_TYPE_PTR_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            sub_4E7760((SizeableArray**)a1->ptr, a1->idx);
+        if (*(SizeableArray**)field->ptr != NULL) {
+            // Remove element at index field->idx.
+            sub_4E7760((SizeableArray**)field->ptr, field->idx);
         }
         break;
     }
 }
 
+// Return the number of elements in a SizeableArray-backed ObjSa field.
+//
+// Supported types: all *_ARRAY, SCRIPT, QUEST, and PTR_ARRAY variants.
+// If the array pointer is NULL, returns 0.
+// Otherwise, returns the element count via sa_count().
+//
 // 0x4E4BA0
-int sub_4E4BA0(ObjSa* a1)
+int object_field_array_get_count(ObjSa* field)
 {
-    switch (a1->type) {
+    switch (field->type) {
     case SA_TYPE_INT32_ARRAY:
     case SA_TYPE_INT64_ARRAY:
     case SA_TYPE_UINT32_ARRAY:
@@ -1001,12 +1016,14 @@ int sub_4E4BA0(ObjSa* a1)
     case SA_TYPE_QUEST:
     case SA_TYPE_HANDLE_ARRAY:
     case SA_TYPE_PTR_ARRAY:
-        if (*(SizeableArray**)a1->ptr != NULL) {
-            return sa_count((SizeableArray**)a1->ptr);
+        if (*(SizeableArray**)field->ptr != NULL) {
+            // Return number of elements in the array.
+            return sa_count((SizeableArray**)field->ptr);
         }
         break;
     }
 
+    // No array or unsupported type → return 0.
     return 0;
 }
 

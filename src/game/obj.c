@@ -2560,21 +2560,21 @@ void sub_408D60(Object* object, int fld, int* value_ptr)
 
     if (object->prototype_oid.type == OID_TYPE_BLOCKED) {
         v1.ptr = &(object->data[sub_40CB40(object, fld)]);
-        *value_ptr = sub_4E4BA0(&v1);
+        *value_ptr = object_field_array_get_count(&v1);
     } else {
         if (fld > OBJ_F_TRANSIENT_BEGIN && fld < OBJ_F_TRANSIENT_END) {
             v1.ptr = &(object->transient_properties[fld - OBJ_F_TRANSIENT_BEGIN - 1]);
-            *value_ptr = sub_4E4BA0(&v1);
+            *value_ptr = object_field_array_get_count(&v1);
         }
 
         if (sub_40D320(object, fld)) {
             v1.ptr = &(object->data[sub_40D230(object, fld)]);
-            *value_ptr = sub_4E4BA0(&v1);
+            *value_ptr = object_field_array_get_count(&v1);
         } else {
             proto_handle = obj_get_prototype_handle(object);
             proto = obj_lock(proto_handle);
             v1.ptr = &(proto->data[sub_40CB40(proto, fld)]);
-            *value_ptr = sub_4E4BA0(&v1);
+            *value_ptr = object_field_array_get_count(&v1);
             obj_unlock(proto_handle);
         }
     }
@@ -2604,7 +2604,7 @@ void sub_408E70(Object* object, int fld, int value)
 
     v1.type = object_fields[fld].type;
     v1.idx = value;
-    sub_4E4B70(&v1);
+    object_field_array_remove_element(&v1);
 }
 
 // 0x408F40
