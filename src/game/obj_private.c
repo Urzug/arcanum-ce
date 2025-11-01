@@ -1632,28 +1632,52 @@ void field_metadata_grow_word_array(int metadata_index, int additional_word_coun
 }
 
 
+// Shrink (remove) words from a field metadata entry’s bitfield region.
+//
+// Removes `remove_count` 32-bit words from the metadata entry at `metadata_index`,
+// compacting the global FieldBitData array and adjusting subsequent entries’ offsets.
+//
+// Behavior:
+// - If the entry is not the last one, shifts all following data backward to close the gap.
+// - Updates word offsets for all later entries to reflect the new layout.
+// - Reduces both the per-entry word count and the total global data size.
+//
+// This is the inverse of field_metadata_grow_word_array().
+//
 // 0x4E6130
-void field_metadata_shrink_word_array(int a1, int a2)
+void field_metadata_shrink_word_array(int metadata_index, int remove_count)
 {
-    int* v1;
+    int* next_segment_start;
 
-    if (a1 != FieldMetaCount - 1) {
-        v1 = &(FieldBitData[FieldMetaTable[a1 + 1].word_offset]);
-        memmove(&(v1[-a2]), v1, sizeof(*v1) * (FieldBitDataSize - FieldMetaTable[a1 + 1].word_offset));
-        AdjustFieldOffsets(a1 + 1, FieldMetaCount - 1, -a2);
+    // If this isn’t the last entry, compact all following data.
+    if (metadata_index != FieldMetaCount - 1) {
+        next_segment_start = &(FieldBitData[FieldMetaTable[metadata_index + 1].word_offset]);
+
+        // Move later words backward by remove_count.
+        memmove(&(next_segment_start[-remove_count]),
+            next_segment_start,
+            sizeof(*next_segment_start) * (FieldBitDataSize - FieldMetaTable[metadata_index + 1].word_offset));
+
+        // Adjust all later entries’ offsets accordingly.
+        AdjustFieldOffsets(metadata_index + 1, FieldMetaCount - 1, -remove_count);
     }
 
-    FieldMetaTable[a1].word_count -= a2;
-    FieldBitDataSize -= a2;
+    // Update the current entry’s metadata.
+    FieldMetaTable[metadata_index].word_count -= remove_count;
+    FieldBitDataSize -= remove_count;
 }
 
+// Adjust word offsets for a range of field metadata entries.
+//
+// Adds `offset_delta` to the `word_offset` of all entries between `start_index`
+// and `end_index` inclusive. Used after growing or shrinking a field’s data
+// to keep subsequent entries aligned correctly in FieldBitData.
+//
 // 0x4E61B0
-void AdjustFieldOffsets(int start, int end, int inc)
+void AdjustFieldOffsets(int start_index, int end_index, int offset_delta)
 {
-    int index;
-
-    for (index = start; index <= end; index++) {
-        FieldMetaTable[index].word_offset += inc;
+    for (int i = start_index; i <= end_index; i++) {
+        FieldMetaTable[i].word_offset += offset_delta;
     }
 }
 
