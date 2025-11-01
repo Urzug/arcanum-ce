@@ -579,7 +579,7 @@ void obj_exit()
     obj_find_exit();
     obj_pool_exit();
     ObjPrivate_Disable();
-    sub_4E5A50();
+    obj_field_metadata_system_shutdown();
 
     FREE(object_fields);
     FREE(dword_5D10F0);
@@ -594,7 +594,7 @@ void sub_405250()
 {
     obj_pool_exit();
     ObjPrivate_Disable();
-    sub_4E5A50();
+    obj_field_metadata_system_shutdown();
     obj_field_metadata_system_init();
     obj_pool_init(sizeof(Object), obj_editor);
     ObjPrivate_Enable();

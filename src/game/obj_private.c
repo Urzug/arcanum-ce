@@ -1153,16 +1153,31 @@ void obj_field_metadata_system_init()
     ObjPrivateStorageAllocated = true;
 }
 
+// Free all global allocations used by the object field metadata system.
+//
+// This function releases all memory allocated by obj_field_metadata_system_init(),
+// including lookup tables, bitfield data, and metadata arrays.
+// It resets the system’s allocation flag to indicate that no metadata
+// storage is currently active.
+//
+// Call this during shutdown or when reinitializing object field metadata.
+//
 // 0x4E5A50
-void sub_4E5A50()
+void obj_field_metadata_system_shutdown()
 {
+    // Free lookup tables.
     FREE(BitMaskTable);
     FREE(Popcount16Lookup);
+
+    // Free bitfield and metadata storage arrays.
     FREE(FieldBitData);
     FREE(FreeFieldMetaIndices);
     FREE(FieldMetaTable);
+
+    // Mark system as deallocated.
     ObjPrivateStorageAllocated = false;
 }
+
 
 // 0x4E5AA0
 int field_metadata_acquire()
