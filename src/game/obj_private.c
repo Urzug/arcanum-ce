@@ -1466,42 +1466,79 @@ bool field_metadata_deserialize_from_tig_file(int* out_index, TigFile* stream)
     return true;
 }
 
+// Calculate the number of bytes required to export a field metadata entry.
+//
+// The exported format is identical to the one used in serialization:
+//   [word_count: int32]
+//   [bit_data:   int32[word_count]]
+//
+// So the total size is 4 bytes for the count + 4 bytes per 32-bit word.
+//
 // 0x4E5F10
-int field_metadata_calculate_export_size(int a1)
+int field_metadata_calculate_export_size(int metadata_index)
 {
-    return 4 * (FieldMetaTable[a1].word_count + 1);
+    return sizeof(int) * (FieldMetaTable[metadata_index].word_count + 1);
 }
 
+// Export a field metadata entry into a contiguous memory buffer.
+//
+// Writes the word count followed by the raw bit data for the given
+// metadata entry. This is used when serializing in-memory structures
+// (e.g., saving object state to memory instead of disk).
+//
+// Layout:
+//   [word_count: int32]
+//   [bit_data:   int32[word_count]]
+//
+// Caller must ensure that `buffer` is large enough, typically using
+// field_metadata_calculate_export_size().
+//
 // 0x4E5F30
-void field_metadata_export_to_memory(int a1, void* a2)
+void field_metadata_export_to_memory(int metadata_index, void* buffer)
 {
-    int v1;
-    int v2;
+    int word_offset = FieldMetaTable[metadata_index].word_offset;
+    int word_count = FieldMetaTable[metadata_index].word_count;
 
-    v1 = FieldMetaTable[a1].word_offset;
-    v2 = FieldMetaTable[a1].word_count;
+    // Write word count.
+    *(int*)buffer = word_count;
 
-    *(int*)a2 = FieldMetaTable[a1].word_count;
-    memcpy((int*)a2 + 1, &(FieldBitData[v1]), sizeof(int) * v2);
+    // Write bitfield data immediately after.
+    memcpy((int*)buffer + 1, &(FieldBitData[word_offset]), sizeof(int) * word_count);
 }
 
+// Import a field metadata entry from a raw memory buffer.
+//
+// Reconstructs a bitfield metadata entry previously exported via
+// field_metadata_export_to_memory(). The format must match:
+//
+//   [word_count: int32]
+//   [bit_data:   int32[word_count]]
+//
+// Allocates a new entry, grows its internal storage if needed,
+// and copies data from the byte stream.
+//
 // 0x4E5F70
-void field_metadata_import_from_memory(int* a1, uint8_t** data)
+void field_metadata_import_from_memory(int* out_index, uint8_t** cursor)
 {
-    int v1;
-    int v2;
+    int metadata_index;
+    int word_count;
 
-    v1 = field_metadata_acquire();
+    // Create a new metadata entry.
+    metadata_index = field_metadata_acquire();
 
-    memory_read_from_cursor(&v2, sizeof(v2), data);
+    // Read the number of 32-bit words from the input stream.
+    memory_read_from_cursor(&word_count, sizeof(word_count), cursor);
 
-    if (v2 != FieldMetaTable[v1].word_count) {
-        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].word_count);
+    // Expand the entry’s word array if necessary.
+    if (word_count > FieldMetaTable[metadata_index].word_count) {
+        field_metadata_grow_word_array(metadata_index, word_count - FieldMetaTable[metadata_index].word_count);
     }
 
-    memory_read_from_cursor(&(FieldBitData[FieldMetaTable[v1].word_offset]), 4 * v2, data);
+    // Read the bitfield data directly into the allocated memory.
+    memory_read_from_cursor(&(FieldBitData[FieldMetaTable[metadata_index].word_offset]), sizeof(int) * word_count, cursor);
 
-    *a1 = v1;
+    // Return the index of the reconstructed metadata entry.
+    *out_index = metadata_index;
 }
 
 // 0x4E5FE0
