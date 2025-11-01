@@ -1737,6 +1737,24 @@ void InitPopCountLookup()
     }
 }
 
+// Initialize lookup table for bit masks used in partial popcount operations.
+//
+// The BitMaskTable precomputes 16-bit lower and upper masks for efficiently
+// counting bits up to a given position within a 32-bit word.
+//
+// Table layout (indices 0–32):
+// - Entries [1..16]: masks covering only the lower 16 bits of a 32-bit word.
+//   * lower_mask = (1 << bit_length) - 1
+//   * upper_mask = 0
+//
+// - Entries [17..32]: masks that include all 16 lower bits (0xFFFF)
+//   plus the lower part of the upper 16 bits.
+//   * lower_mask = 0xFFFF
+//   * upper_mask = (1 << (bit_length - 16)) - 1
+//
+// Used by count_set_bits_in_word_up_to_limit() to apply 16-bit popcounts
+// to masked halves of a 32-bit integer efficiently.
+//
 // 0x4E6240
 void ObjBitMaskTable_Init()
 {
@@ -1744,16 +1762,22 @@ void ObjBitMaskTable_Init()
     int bit_value = 1;
     int lower_mask = 0;
 
+    // Initialize the zero-entry masks (0 bits selected).
     BitMaskTable[0].lower_mask = 0;
     BitMaskTable[0].upper_mask = 0;
 
+    // Build masks for 1..16 bits (lower half) and 17..32 bits (upper half).
     for (bit_length = 1; bit_length <= 16; bit_length++) {
+        // Grow the lower mask by setting one more bit each iteration.
         lower_mask += bit_value;
         bit_value *= 2;
 
+        // Lower half entries (0–16 bits)
         BitMaskTable[bit_length].lower_mask = lower_mask;
         BitMaskTable[bit_length].upper_mask = 0;
-        BitMaskTable[bit_length + 16].lower_mask = -1;
+
+        // Upper half entries (17–32 bits)
+        BitMaskTable[bit_length + 16].lower_mask = -1; // 0xFFFF
         BitMaskTable[bit_length + 16].upper_mask = lower_mask;
     }
 }
