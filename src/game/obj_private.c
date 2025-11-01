@@ -7,9 +7,14 @@
 #include "game/object.h"
 #include "game/sector.h"
 
+// Represents metadata for one object field bitfield segment.
+//
+// Each entry corresponds to a logical bitfield belonging to an object,
+// stored within the global FieldBitData array. The struct defines where
+// the bitfield begins and how many 32-bit words it spans.
 typedef struct ObjFieldMeta {
-    /* 0000 */ int field_0;
-    /* 0004 */ int field_4;
+    int word_count; // Number of 32-bit words used by this metadata entry.
+    int word_offset; // Starting index of this entry's bitfield in FieldBitData.
 } ObjFieldMeta;
 
 typedef struct BitMaskPair {
@@ -1195,12 +1200,12 @@ int field_metadata_acquire()
 
     index = FieldMetaCount++;
     if (index == 0) {
-        FieldMetaTable[0].field_4 = index;
+        FieldMetaTable[0].word_offset = index;
     } else {
-        FieldMetaTable[index].field_4 = FieldMetaTable[index - 1].field_0 + FieldMetaTable[index - 1].field_4;
+        FieldMetaTable[index].word_offset = FieldMetaTable[index - 1].word_count + FieldMetaTable[index - 1].word_offset;
     }
 
-    FieldMetaTable[index].field_0 = 0;
+    FieldMetaTable[index].word_count = 0;
     field_metadata_grow_word_array(index, 2);
 
     return index;
@@ -1213,11 +1218,11 @@ int field_metadata_release(int a1)
     int index;
 
     v1 = &(FieldMetaTable[a1]);
-    if (v1->field_0 != 2) {
-        field_metadata_shrink_word_array(a1, v1->field_0 - 2);
+    if (v1->word_count != 2) {
+        field_metadata_shrink_word_array(a1, v1->word_count - 2);
     }
 
-    for (index = v1->field_4; index < v1->field_0 + v1->field_4; index++) {
+    for (index = v1->word_offset; index < v1->word_count + v1->word_offset; index++) {
         FieldBitData[index] = 0;
     }
 
@@ -1239,13 +1244,13 @@ int field_metadata_clone(int a1)
     int index;
 
     v1 = field_metadata_acquire();
-    v2 = FieldMetaTable[a1].field_0 - FieldMetaTable[v1].field_0;
+    v2 = FieldMetaTable[a1].word_count - FieldMetaTable[v1].word_count;
     if (v2 != 0) {
         field_metadata_grow_word_array(v1, v2);
     }
 
-    for (index = 0; index < FieldMetaTable[a1].field_0; index++) {
-        FieldBitData[FieldMetaTable[v1].field_4 + index] = FieldBitData[FieldMetaTable[a1].field_4 + index];
+    for (index = 0; index < FieldMetaTable[a1].word_count; index++) {
+        FieldBitData[FieldMetaTable[v1].word_offset + index] = FieldBitData[FieldMetaTable[a1].word_offset + index];
     }
 
     return v1;
@@ -1258,19 +1263,19 @@ void field_metadata_set_or_clear_bit(int a1, int a2, bool a3)
     int v2;
 
     v1 = convert_bit_index_to_word_index(a2);
-    if (v1 >= FieldMetaTable[a1].field_0) {
+    if (v1 >= FieldMetaTable[a1].word_count) {
         if (!a3) {
             return;
         }
 
-        field_metadata_grow_word_array(a1, v1 - FieldMetaTable[a1].field_0 + 1);
+        field_metadata_grow_word_array(a1, v1 - FieldMetaTable[a1].word_count + 1);
     }
 
     v2 = convert_bit_index_to_mask(a2);
     if (a3) {
-        FieldBitData[v1 + FieldMetaTable[a1].field_4] |= v2;
+        FieldBitData[v1 + FieldMetaTable[a1].word_offset] |= v2;
     } else {
-        FieldBitData[v1 + FieldMetaTable[a1].field_4] &= ~v2;
+        FieldBitData[v1 + FieldMetaTable[a1].word_offset] &= ~v2;
     }
 }
 
@@ -1281,12 +1286,12 @@ int field_metadata_test_bit(int a1, int a2)
     int v2;
 
     v1 = convert_bit_index_to_word_index(a2);
-    if (v1 > FieldMetaTable[a1].field_0 - 1) {
+    if (v1 > FieldMetaTable[a1].word_count - 1) {
         return 0;
     }
 
     v2 = convert_bit_index_to_mask(a2);
-    return v2 & FieldBitData[v1 + FieldMetaTable[a1].field_4];
+    return v2 & FieldBitData[v1 + FieldMetaTable[a1].word_offset];
 }
 
 // 0x4E5D30
@@ -1305,7 +1310,7 @@ int field_metadata_count_set_bits_up_to(int metadata_index, int bit_index_limit)
     int total_count = 0;
 
     // Start of this entry's bitfield in the global word array.
-    int base_word_index = FieldMetaTable[metadata_index].field_4;
+    int base_word_index = FieldMetaTable[metadata_index].word_offset;
 
     // Word index that contains the (exclusive) upper-bound bit.
     int limit_word_index = convert_bit_index_to_word_index(bit_index_limit);
@@ -1315,14 +1320,14 @@ int field_metadata_count_set_bits_up_to(int metadata_index, int bit_index_limit)
 
     // If the limit word exists, count only the lower (bit_index_limit % 32) bits of it.
     // This yields exclusive semantics: we do not include the bit at bit_index_limit.
-    if (limit_word_index < FieldMetaTable[metadata_index].field_0) {
+    if (limit_word_index < FieldMetaTable[metadata_index].word_count) {
         total_count += count_set_bits_in_word_up_to_limit(
             FieldBitData[stop_word_index],
             bit_index_limit % 32 // number of lower bits to include (0..31)
         );
     } else {
         // If the limit is beyond the current words, cap at the end of this entry's region.
-        stop_word_index = base_word_index + FieldMetaTable[metadata_index].field_0;
+        stop_word_index = base_word_index + FieldMetaTable[metadata_index].word_count;
     }
 
     // Count all full words strictly before the limit word.
@@ -1344,8 +1349,8 @@ bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int))
     int bit;
     unsigned int flags;
 
-    v1 = FieldMetaTable[a1].field_4;
-    v2 = FieldMetaTable[a1].field_0 + v1;
+    v1 = FieldMetaTable[a1].word_offset;
+    v2 = FieldMetaTable[a1].word_count + v1;
 
     pos = 0;
     for (idx = v1; idx < v2; idx++) {
@@ -1367,11 +1372,11 @@ bool field_metadata_iterate_set_bits(int a1, bool (*callback)(int))
 // 0x4E5E20
 bool field_metadata_serialize_to_tig_file(int a1, TigFile* stream)
 {
-    if (tig_file_fwrite(&(FieldMetaTable[a1].field_0), sizeof(int), 1, stream) != 1) {
+    if (tig_file_fwrite(&(FieldMetaTable[a1].word_count), sizeof(int), 1, stream) != 1) {
         return false;
     }
 
-    if (tig_file_fwrite(&(FieldBitData[FieldMetaTable[a1].field_4]), sizeof(int) * FieldMetaTable[a1].field_0, 1, stream) != 1) {
+    if (tig_file_fwrite(&(FieldBitData[FieldMetaTable[a1].word_offset]), sizeof(int) * FieldMetaTable[a1].word_count, 1, stream) != 1) {
         return false;
     }
 
@@ -1390,11 +1395,11 @@ bool field_metadata_deserialize_from_tig_file(int* a1, TigFile* stream)
         return false;
     }
 
-    if (v2 != FieldMetaTable[v1].field_0 && v2 - FieldMetaTable[v1].field_0 > 0) {
-        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].field_0);
+    if (v2 != FieldMetaTable[v1].word_count && v2 - FieldMetaTable[v1].word_count > 0) {
+        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].word_count);
     }
 
-    if (tig_file_fread(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, 1, stream) != 1) {
+    if (tig_file_fread(&(FieldBitData[FieldMetaTable[v1].word_offset]), 4 * v2, 1, stream) != 1) {
         return false;
     }
 
@@ -1406,7 +1411,7 @@ bool field_metadata_deserialize_from_tig_file(int* a1, TigFile* stream)
 // 0x4E5F10
 int field_metadata_calculate_export_size(int a1)
 {
-    return 4 * (FieldMetaTable[a1].field_0 + 1);
+    return 4 * (FieldMetaTable[a1].word_count + 1);
 }
 
 // 0x4E5F30
@@ -1415,10 +1420,10 @@ void field_metadata_export_to_memory(int a1, void* a2)
     int v1;
     int v2;
 
-    v1 = FieldMetaTable[a1].field_4;
-    v2 = FieldMetaTable[a1].field_0;
+    v1 = FieldMetaTable[a1].word_offset;
+    v2 = FieldMetaTable[a1].word_count;
 
-    *(int*)a2 = FieldMetaTable[a1].field_0;
+    *(int*)a2 = FieldMetaTable[a1].word_count;
     memcpy((int*)a2 + 1, &(FieldBitData[v1]), sizeof(int) * v2);
 }
 
@@ -1432,11 +1437,11 @@ void field_metadata_import_from_memory(int* a1, uint8_t** data)
 
     memory_read_from_cursor(&v2, sizeof(v2), data);
 
-    if (v2 != FieldMetaTable[v1].field_0) {
-        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].field_0);
+    if (v2 != FieldMetaTable[v1].word_count) {
+        field_metadata_grow_word_array(v1, v2 - FieldMetaTable[v1].word_count);
     }
 
-    memory_read_from_cursor(&(FieldBitData[FieldMetaTable[v1].field_4]), 4 * v2, data);
+    memory_read_from_cursor(&(FieldBitData[FieldMetaTable[v1].word_offset]), 4 * v2, data);
 
     *a1 = v1;
 }
@@ -1480,10 +1485,10 @@ void field_metadata_grow_word_array(int metadata_index, int additional_word_coun
     // to make room for the words we are inserting into this entry.
     if (metadata_index != FieldMetaCount - 1) {
         // Pointer to the start of the next segment's data in the global array.
-        next_segment_data = &(FieldBitData[FieldMetaTable[metadata_index + 1].field_4]);
+        next_segment_data = &(FieldBitData[FieldMetaTable[metadata_index + 1].word_offset]);
 
         // Number of words occupied by all segments after the next segment's start.
-        words_to_move = (size_t)(FieldBitDataSize - FieldMetaTable[metadata_index + 1].field_4);
+        words_to_move = (size_t)(FieldBitDataSize - FieldMetaTable[metadata_index + 1].word_offset);
 
         // Move later data forward by `additional_word_count` words.
         memmove(&(next_segment_data[additional_word_count]),
@@ -1497,16 +1502,16 @@ void field_metadata_grow_word_array(int metadata_index, int additional_word_coun
     }
 
     // Increase this entry's word count and the global size of occupied words.
-    FieldMetaTable[metadata_index].field_0 += additional_word_count;
+    FieldMetaTable[metadata_index].word_count += additional_word_count;
     FieldBitDataSize += additional_word_count;
 
     // Zero-initialize the newly inserted words for this entry.
-    zero_start_index = FieldMetaTable[metadata_index].field_4
-        + FieldMetaTable[metadata_index].field_0
+    zero_start_index = FieldMetaTable[metadata_index].word_offset
+        + FieldMetaTable[metadata_index].word_count
         - additional_word_count;
 
-    zero_end_index = FieldMetaTable[metadata_index].field_4
-        + FieldMetaTable[metadata_index].field_0;
+    zero_end_index = FieldMetaTable[metadata_index].word_offset
+        + FieldMetaTable[metadata_index].word_count;
 
     for (data_index = zero_start_index; data_index < zero_end_index; ++data_index) {
         FieldBitData[data_index] = 0;
@@ -1520,12 +1525,12 @@ void field_metadata_shrink_word_array(int a1, int a2)
     int* v1;
 
     if (a1 != FieldMetaCount - 1) {
-        v1 = &(FieldBitData[FieldMetaTable[a1 + 1].field_4]);
-        memmove(&(v1[-a2]), v1, sizeof(*v1) * (FieldBitDataSize - FieldMetaTable[a1 + 1].field_4));
+        v1 = &(FieldBitData[FieldMetaTable[a1 + 1].word_offset]);
+        memmove(&(v1[-a2]), v1, sizeof(*v1) * (FieldBitDataSize - FieldMetaTable[a1 + 1].word_offset));
         AdjustFieldOffsets(a1 + 1, FieldMetaCount - 1, -a2);
     }
 
-    FieldMetaTable[a1].field_0 -= a2;
+    FieldMetaTable[a1].word_count -= a2;
     FieldBitDataSize -= a2;
 }
 
@@ -1535,7 +1540,7 @@ void AdjustFieldOffsets(int start, int end, int inc)
     int index;
 
     for (index = start; index <= end; index++) {
-        FieldMetaTable[index].field_4 += inc;
+        FieldMetaTable[index].word_offset += inc;
     }
 }
 
