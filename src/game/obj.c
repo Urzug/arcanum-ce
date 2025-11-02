@@ -11,6 +11,8 @@
 #include "game/spell.h"
 #include "game/stat.h"
 #include "game/tech.h"
+#include "tig/memory.h"
+#include "game/sa.h"
 
 #define OBJ_FILE_VERSION 119
 
@@ -40,9 +42,9 @@ static bool obj_proto_write_file(TigFile* stream, int64_t obj);
 static bool obj_proto_read_file(TigFile* stream, int64_t* obj_ptr, ObjectID oid);
 static bool obj_inst_write_file(TigFile* stream, int64_t obj);
 static bool obj_inst_read_file(TigFile* stream, int64_t* obj_ptr, ObjectID oid);
-static void obj_proto_write_mem(S4E4BD0* mem, int64_t obj);
+static void obj_proto_write_mem(MemoryWriteBuffer* mem, int64_t obj);
 static bool obj_proto_read_mem(uint8_t* data, int64_t* obj_ptr);
-static void obj_inst_write_mem(S4E4BD0* mem, int64_t obj);
+static void obj_inst_write_mem(MemoryWriteBuffer* mem, int64_t obj);
 static bool obj_inst_read_mem(uint8_t* data, int64_t* obj_ptr);
 static bool obj_proto_field_write_file(Object* object, int fld);
 static bool obj_proto_field_write_mem(Object* object, int fld);
@@ -101,7 +103,7 @@ static void sub_40D450(Object* object, int fld);
 static void sub_40D470(Object* object, int fld);
 static bool obj_version_write_file(TigFile* stream);
 static bool obj_version_read_file(TigFile* stream);
-static void obj_version_write_mem(S4E4BD0* mem);
+static void obj_version_write_mem(MemoryWriteBuffer* mem);
 static bool obj_version_read_mem(uint8_t** data);
 static bool sub_40D670(Object* object, int a2, ObjectFieldInfo* field_info);
 
@@ -517,7 +519,7 @@ static TigFile* dword_5D110C;
 static Object* dword_5D1110;
 
 // 0x5D1118
-static S4E4BD0* dword_5D1118;
+static MemoryWriteBuffer* dword_5D1118;
 
 // 0x5D111C
 static uint8_t* dword_5D111C;
@@ -1229,7 +1231,7 @@ bool obj_read(TigFile* stream, int64_t* obj_handle_ptr)
 void obj_write_mem(uint8_t** data_ptr, int* size_ptr, int64_t obj)
 {
     Object* object;
-    S4E4BD0 mem;
+    MemoryWriteBuffer mem;
     bool is_proto;
 
     object = obj_lock(obj);
@@ -1243,9 +1245,8 @@ void obj_write_mem(uint8_t** data_ptr, int* size_ptr, int64_t obj)
     } else {
         obj_inst_write_mem(&mem, obj);
     }
-
-    *data_ptr = mem.field_0;
-    *size_ptr = mem.field_4 - mem.field_0;
+*data_ptr = mem.base_pointer;
+*size_ptr = (int)(mem.write_pointer - mem.base_pointer);
 }
 
 // 0x406730
@@ -3049,7 +3050,7 @@ bool obj_inst_read_file(TigFile* stream, int64_t* obj_ptr, ObjectID oid)
 }
 
 // 0x409CB0
-void obj_proto_write_mem(S4E4BD0* mem, int64_t obj)
+void obj_proto_write_mem(MemoryWriteBuffer* mem, int64_t obj)
 {
     Object* object;
     int cnt;
@@ -3109,7 +3110,7 @@ bool obj_proto_read_mem(uint8_t* data, int64_t* obj_ptr)
 }
 
 // 0x409E80
-void obj_inst_write_mem(S4E4BD0* mem, int64_t obj)
+void obj_inst_write_mem(MemoryWriteBuffer* mem, int64_t obj)
 {
     Object* object;
     int cnt;
@@ -5064,7 +5065,7 @@ bool obj_version_read_file(TigFile* stream)
 }
 
 // 0x40D5D0
-void obj_version_write_mem(S4E4BD0* mem)
+void obj_version_write_mem(MemoryWriteBuffer* mem)
 {
     int version = OBJ_FILE_VERSION;
     memory_write_buffer_append(&version, sizeof(version), mem);

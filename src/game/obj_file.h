@@ -1,6 +1,6 @@
 #ifndef ARCANUM_GAME_OBJ_FILE_H_
 #define ARCANUM_GAME_OBJ_FILE_H_
-
+#include <inttypes.h>
 #include "game/context.h"
 
 bool objf_solitary_write(int64_t handle, const char* dir, const char* ext);
