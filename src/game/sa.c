@@ -31,7 +31,7 @@ void sa_allocate(SizeableArray** sa_ptr, int size)
     *sa_ptr = (SizeableArray*)MALLOC(sizeof(SizeableArray));
     (*sa_ptr)->size = size;
     (*sa_ptr)->count = 0;
-    (*sa_ptr)->field_8 = sub_4E5AA0();
+    (*sa_ptr)->field_8 = field_metadata_acquire();
 }
 
 // 0x4E7470
