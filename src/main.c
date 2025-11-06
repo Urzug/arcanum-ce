@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 
 #include <SDL3/SDL_main.h>
 
@@ -333,7 +333,7 @@ void main_loop()
 
     pc_obj = player_get_local_pc_obj();
     location = obj_field_int64_get(pc_obj, OBJ_F_LOCATION);
-    sub_43E770(pc_obj, location, 0, 0);
+    object_move(pc_obj, location, 0, 0);
     location_origin_set(location);
 
     art_id = obj_field_int32_get(pc_obj, OBJ_F_CURRENT_AID);
@@ -342,7 +342,7 @@ void main_loop()
     object_set_current_aid(pc_obj, art_id);
 
     object_flags_unset(pc_obj, OF_OFF);
-    sub_430460();
+    anim_draw_all_overlays();
     iso_interface_refresh();
     intgame_draw_bar(INTGAME_BAR_HEALTH);
     intgame_draw_bar(INTGAME_BAR_FATIGUE);

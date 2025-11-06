@@ -1,4 +1,4 @@
-#include "game/obj_pool.h"
+﻿#include "game/obj_pool.h"
 
 #include "game/map.h"
 #include "game/object.h"
@@ -31,7 +31,7 @@ static int acquire_index();
 static void release_index(int index);
 static bool grow_pool();
 static void recycle_index(int index);
-static bool sub_4E57E0(ObjectID oid, int* index_ptr);
+static bool objp_perm_lookup_find_index(ObjectID oid, int* index_ptr);
 static int64_t make_handle(int index, int seq);
 static int index_from_handle(int64_t obj);
 static ObjPoolEntryHeader* element_hdr_at_index(int index);
@@ -49,13 +49,13 @@ static int obj_pool_next_seq;
 static bool obj_pool_editor;
 
 // 0x6036B8
-static PermOidLookupEntry* dword_6036B8;
+static PermOidLookupEntry* objp_perm_lookup_table;
 
 // 0x6036BC
 static unsigned char** obj_pool_buckets;
 
 // 0x6036C0
-static int dword_6036C0;
+static int objp_perm_lookup_capacity;
 
 // 0x6036C4
 static int obj_pool_num_objects;
@@ -76,7 +76,7 @@ static int obj_pool_bucket_byte_size;
 static int* obj_pool_freed_indexes;
 
 // 0x6036DC
-static int dword_6036DC;
+static int objp_perm_lookup_size;
 
 // 0x6036E0
 static int obj_pool_freed_indexes_capacity;
@@ -109,10 +109,10 @@ void obj_pool_init(int size, bool editor)
     obj_pool_freed_indexes_capacity = 4096;
     obj_pool_freed_indexes = (int*)MALLOC(sizeof(*obj_pool_freed_indexes) * obj_pool_freed_indexes_capacity);
     obj_pool_freed_indexes_size = 0;
-    dword_6036C0 = 1024;
-    dword_6036DC = 0;
+    objp_perm_lookup_capacity = 1024;
+    objp_perm_lookup_size = 0;
     obj_handle_requested = OBJ_HANDLE_NULL;
-    dword_6036B8 = (PermOidLookupEntry*)MALLOC(sizeof(*dword_6036B8) * dword_6036C0);
+    objp_perm_lookup_table = (PermOidLookupEntry*)MALLOC(sizeof(*objp_perm_lookup_table) * objp_perm_lookup_capacity);
     obj_pool_initialized = true;
 }
 
@@ -141,7 +141,7 @@ void obj_pool_exit()
     }
 
     FREE(obj_pool_freed_indexes);
-    FREE(dword_6036B8);
+    FREE(objp_perm_lookup_table);
     FREE(obj_pool_buckets);
     obj_pool_initialized = false;
 }
@@ -207,33 +207,33 @@ void obj_pool_deallocate(int64_t obj)
 }
 
 // 0x4E4FD0
-void sub_4E4FD0(ObjectID oid, int64_t obj)
+void objp_perm_lookup_set(ObjectID oid, int64_t obj)
 {
     int index;
 
-    if (sub_4E57E0(oid, &index)) {
-        dword_6036B8[index].obj = obj;
+    if (objp_perm_lookup_find_index(oid, &index)) {
+        objp_perm_lookup_table[index].obj = obj;
         return;
     }
 
-    if (dword_6036DC == dword_6036C0) {
-        dword_6036C0 += 0x200;
-        if (dword_6036C0 > OBJ_POOL_CAP) {
+    if (objp_perm_lookup_size == objp_perm_lookup_capacity) {
+        objp_perm_lookup_capacity += 0x200;
+        if (objp_perm_lookup_capacity > OBJ_POOL_CAP) {
             return;
         }
 
-        dword_6036B8 = (PermOidLookupEntry*)REALLOC(dword_6036B8, sizeof(*dword_6036B8) * dword_6036C0);
+        objp_perm_lookup_table = (PermOidLookupEntry*)REALLOC(objp_perm_lookup_table, sizeof(*objp_perm_lookup_table) * objp_perm_lookup_capacity);
     }
 
-    if (index != dword_6036DC) {
-        memmove(&(dword_6036B8[index + 1]),
-            &(dword_6036B8[index]),
-            sizeof(*dword_6036B8) * (dword_6036DC - index));
+    if (index != objp_perm_lookup_size) {
+        memmove(&(objp_perm_lookup_table[index + 1]),
+            &(objp_perm_lookup_table[index]),
+            sizeof(*objp_perm_lookup_table) * (objp_perm_lookup_size - index));
     }
 
-    dword_6036B8[index].oid = oid;
-    dword_6036B8[index].obj = obj;
-    dword_6036DC++;
+    objp_perm_lookup_table[index].oid = oid;
+    objp_perm_lookup_table[index].obj = obj;
+    objp_perm_lookup_size++;
 }
 
 // 0x4E50E0
@@ -243,9 +243,9 @@ int64_t objp_perm_lookup(ObjectID oid)
     ObjectList objects;
     ObjectNode* node;
 
-    if (sub_4E57E0(oid, &idx)) {
-        if (obj_handle_is_valid(dword_6036B8[idx].obj)) {
-            return dword_6036B8[idx].obj;
+    if (objp_perm_lookup_find_index(oid, &idx)) {
+        if (obj_handle_is_valid(objp_perm_lookup_table[idx].obj)) {
+            return objp_perm_lookup_table[idx].obj;
         }
     }
 
@@ -278,15 +278,15 @@ int64_t objp_perm_lookup(ObjectID oid)
     }
 
     if (node != NULL) {
-        sub_4E4FD0(oid, node->obj);
+        objp_perm_lookup_set(oid, node->obj);
         object_list_destroy(&objects);
 
-        if (!sub_4E57E0(oid, &idx)) {
+        if (!objp_perm_lookup_find_index(oid, &idx)) {
             tig_debug_println("Error: objp_perm_lookup can't find handle just added with positional id.");
             return OBJ_HANDLE_NULL;
         }
 
-        return dword_6036B8[idx].obj;
+        return objp_perm_lookup_table[idx].obj;
     }
 
     object_list_destroy(&objects);
@@ -294,14 +294,14 @@ int64_t objp_perm_lookup(ObjectID oid)
 }
 
 // 0x4E5280
-ObjectID sub_4E5280(int64_t obj)
+ObjectID objp_perm_get_oid(int64_t obj)
 {
     ObjectID oid;
     int index;
 
-    for (index = 0; index < dword_6036DC; index++) {
-        if (dword_6036B8[index].obj == obj) {
-            return dword_6036B8[index].oid;
+    for (index = 0; index < objp_perm_lookup_size; index++) {
+        if (objp_perm_lookup_table[index].obj == obj) {
+            return objp_perm_lookup_table[index].oid;
         }
     }
 
@@ -311,13 +311,13 @@ ObjectID sub_4E5280(int64_t obj)
 }
 
 // 0x4E52F0
-void sub_4E52F0(ObjectID oid)
+void objp_perm_lookup_remove(ObjectID oid)
 {
     (void)oid;
 }
 
 // 0x4E5300
-void sub_4E5300()
+void objp_perm_lookup_compact()
 {
     PermOidLookupEntry* v1;
     int cnt;
@@ -325,23 +325,23 @@ void sub_4E5300()
     int v3;
 
     cnt = 0;
-    v1 = MALLOC(sizeof(*v1) * dword_6036DC);
+    v1 = MALLOC(sizeof(*v1) * objp_perm_lookup_size);
 
-    v2 = dword_6036DC - 1;
+    v2 = objp_perm_lookup_size - 1;
     v3 = v2;
     while (v2 >= 0) {
-        if (dword_6036B8[v2].oid.type == OID_TYPE_A) {
-            v1[v3] = dword_6036B8[v2];
+        if (objp_perm_lookup_table[v2].oid.type == OID_TYPE_A) {
+            v1[v3] = objp_perm_lookup_table[v2];
             v3--;
             cnt++;
         }
         v2--;
     }
 
-    memset(dword_6036B8, 0, sizeof(*dword_6036B8) * dword_6036DC);
-    memcpy(dword_6036B8, &(v1[v3 + 1]), sizeof(*dword_6036B8) * cnt);
+    memset(objp_perm_lookup_table, 0, sizeof(*objp_perm_lookup_table) * objp_perm_lookup_size);
+    memcpy(objp_perm_lookup_table, &(v1[v3 + 1]), sizeof(*objp_perm_lookup_table) * cnt);
     FREE(v1);
-    dword_6036DC = cnt;
+    objp_perm_lookup_size = cnt;
 }
 
 // 0x4E53C0
@@ -548,20 +548,20 @@ void recycle_index(int index)
 }
 
 // 0x4E57E0
-bool sub_4E57E0(ObjectID oid, int* index_ptr)
+bool objp_perm_lookup_find_index(ObjectID oid, int* index_ptr)
 {
     int l;
     int r;
     int m;
 
     l = 0;
-    r = dword_6036DC - 1;
+    r = objp_perm_lookup_size - 1;
     while (l <= r) {
         m = (l + r) / 2;
         // FIXME: Unnecessary copying.
-        if (objid_compare(dword_6036B8[m].oid, oid)) {
+        if (objid_compare(objp_perm_lookup_table[m].oid, oid)) {
             l = m + 1;
-        } else if (objid_compare(oid, dword_6036B8[m].oid)) {
+        } else if (objid_compare(oid, objp_perm_lookup_table[m].oid)) {
             r = m - 1;
         } else {
             *index_ptr = m;

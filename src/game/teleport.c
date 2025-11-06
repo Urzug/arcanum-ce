@@ -1,4 +1,4 @@
-#include "game/teleport.h"
+﻿#include "game/teleport.h"
 
 #include <stdio.h>
 
@@ -226,7 +226,7 @@ bool teleport_process(TeleportData* teleport_data)
 
     if (teleport_data->map != map && player_is_pc_obj(teleport_data->obj)) {
         sub_459F50();
-        sub_437980();
+        anim_init_run_info_params();
         timeevent_notify_pc_teleported(teleport_data->map);
     }
 
@@ -480,7 +480,7 @@ bool sub_4D39A0(TeleportData* teleport_data)
 
             if (tig_net_is_active()
                 && tig_net_is_host()) {
-                sub_424070(node->obj, 5, false, false);
+                anim_set_priority_level(node->obj, 5, false, false);
             }
 
             sub_4EDF20(node->obj, node->loc, 0, 0, 1);
@@ -499,7 +499,7 @@ void sub_4D3D60(int64_t obj)
     int type;
 
     type = obj_field_int32_get(obj, OBJ_F_TYPE);
-    sub_424070(obj, 5, 0, 1);
+    anim_set_priority_level(obj, 5, 0, 1);
 
     // NOTE: Conditions looks odd, check (note fallthrough from npc block).
     switch (type) {
@@ -530,7 +530,7 @@ void sub_4D3E20(int64_t obj)
     }
     ai_timeevent_clear(obj);
     sub_4601D0(obj);
-    sub_43CF70(obj);
+    object_remove_from_sector(obj);
 }
 
 // 0x4D3E80

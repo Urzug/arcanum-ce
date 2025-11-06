@@ -1,4 +1,4 @@
-#include "ui/spell_ui.h"
+﻿#include "ui/spell_ui.h"
 
 #include "game/critter.h"
 #include "game/item.h"
@@ -327,7 +327,7 @@ void spell_ui_apply(S4F2810* a1)
     if (a1->is_loc) {
         mt_invocation.target_loc = a1->loc;
     } else {
-        sub_4440E0(a1->obj, &(mt_invocation.target_obj));
+        follower_info_init(a1->obj, &(mt_invocation.target_obj));
     }
 
     if (!magictech_check_los(&mt_invocation)) {

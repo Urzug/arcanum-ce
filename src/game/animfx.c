@@ -1,4 +1,4 @@
-#include "game/animfx.h"
+﻿#include "game/animfx.h"
 
 #include "game/anim.h"
 #include "game/gsound.h"
@@ -223,7 +223,7 @@ bool animfx_has(AnimFxNode* node)
     }
 
     if ((node->flags & ANIMFX_PLAY_CHECK_ALREADY) != 0
-        && sub_424560(node->obj, entry->eye_candy_art_id, node->mt_id)) {
+        && anim_play_eye_candy_on_obj_ex(node->obj, entry->eye_candy_art_id, node->mt_id)) {
         return false;
     }
 
@@ -328,7 +328,7 @@ bool animfx_add(AnimFxNode* node)
         tig_art_id_t art_id;
 
         if ((node->flags & ANIMFX_PLAY_CHECK_ALREADY) != 0
-            && sub_424560(node->obj, entry->eye_candy_art_id, node->mt_id)) {
+            && anim_play_eye_candy_on_obj_ex(node->obj, entry->eye_candy_art_id, node->mt_id)) {
             return false;
         }
 
@@ -817,7 +817,7 @@ void animfx_remove(AnimFxList* list, int64_t obj, int fx_id, int mt_id)
     }
 
     if ((list->entries[fx_id].flags & ANIMFX_LIST_ENTRY_ANIMATES) != 0) {
-        sub_4243E0(obj, list->entries[fx_id].eye_candy_art_id, mt_id);
+        anim_play_eye_candy_on_obj(obj, list->entries[fx_id].eye_candy_art_id, mt_id);
     } else {
         sub_4CD9C0(&(list->entries[fx_id]), obj);
     }

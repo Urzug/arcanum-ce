@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_OBJECT_H_
+﻿#ifndef ARCANUM_GAME_OBJECT_H_
 #define ARCANUM_GAME_OBJECT_H_
 
 #include "game/context.h"
@@ -76,13 +76,13 @@ typedef struct ObjectList {
     /* 0050 */ ObjectNode* head;
 } ObjectList;
 
-extern int dword_5E2E68;
-extern int dword_5E2E6C;
-extern bool dword_5E2E94;
+extern int g_object_hover_overlay_art_slot;
+extern int g_object_hover_underlay_art_slot;
+extern bool g_object_hover_is_critter;
 extern tig_art_id_t object_hover_underlay_art_id;
 extern tig_color_t object_hover_color;
 extern tig_art_id_t object_hover_overlay_art_id;
-extern Ryan stru_5E2F60;
+extern Ryan g_object_hover_save_ref;
 extern int64_t object_hover_obj;
 
 bool object_init(GameInitInfo* init_info);
@@ -97,7 +97,7 @@ void object_type_toggle(int obj_type);
 void object_draw(GameDrawInfo* draw_info);
 void object_hover_obj_set(int64_t obj);
 int64_t object_hover_obj_get();
-void sub_43C690(GameDrawInfo* draw_info);
+void object_draw_hover_overlay(GameDrawInfo* draw_info);
 void object_invalidate_rect(TigRect* rect);
 void object_flush();
 bool object_create(int64_t proto_obj, int64_t loc, int64_t* obj_ptr);
@@ -105,7 +105,7 @@ bool object_create_ex(int64_t proto_obj, int64_t loc, ObjectID oid, int64_t* obj
 bool object_duplicate(int64_t proto_obj, int64_t loc, int64_t* obj_ptr);
 bool object_duplicate_ex(int64_t proto_obj, int64_t loc, ObjectID* oids, int64_t* obj_ptr);
 void object_destroy(int64_t obj);
-void sub_43CF70(int64_t obj);
+void object_remove_from_sector(int64_t obj);
 void object_delete(int64_t obj);
 void object_flags_set(int64_t obj, unsigned int flags);
 void object_flags_unset(int64_t obj, unsigned int flags);
@@ -119,11 +119,11 @@ int object_hp_max(int64_t obj);
 int object_hp_current(int64_t obj);
 int object_get_resistance(int64_t obj, int resistance_type, bool a2);
 int object_get_ac(int64_t obj, bool a2);
-bool sub_43D940(int64_t obj);
+bool object_is_static_type(int64_t obj);
 bool object_is_static(int64_t obj);
-bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags);
+bool object_find_by_screen_coords(int x, int y, int64_t* obj_ptr, unsigned int flags);
 void object_get_rect(int64_t obj, unsigned int flags, TigRect* rect);
-void sub_43E770(int64_t obj, int64_t loc, int offset_x, int offset_y);
+void object_move(int64_t obj, int64_t loc, int offset_x, int offset_y);
 bool object_teleported_timeevent_process(TimeEvent* timeevent);
 void object_set_offset(int64_t obj, int offset_x, int offset_y);
 void object_set_current_aid(int64_t obj, tig_art_id_t aid);
@@ -134,11 +134,11 @@ void object_set_overlay_light(int64_t obj, int index, unsigned int flags, tig_ar
 void object_set_blit_scale(int64_t obj, int value);
 void object_add_flags(int64_t obj, unsigned int flags);
 void object_remove_flags(int64_t obj, unsigned int flags);
-void sub_43F030(int64_t obj);
+void object_invalidate_render_flags(int64_t obj);
 void object_cycle_palette(int64_t obj);
 void object_bust(int64_t obj, int64_t triggerer_obj);
 bool object_is_busted(int64_t obj);
-void sub_43F710(int64_t obj);
+void object_scenery_update_animation(int64_t obj);
 void object_inc_current_aid(int64_t obj);
 void object_dec_current_aid(int64_t obj);
 void object_eye_candy_aid_inc(int64_t obj, int fld, int index);
@@ -148,9 +148,9 @@ void object_overlay_light_frame_set_last(int64_t obj, int index);
 void object_overlay_light_frame_inc(int64_t obj, int index);
 void object_overlay_light_frame_dec(int64_t obj, int index);
 void object_cycle_rotation(int64_t obj);
-bool sub_43FD70(int64_t a1, int64_t a2, int rotation, unsigned int flags, int* a5);
-int sub_43FDC0(int64_t a1, int64_t a2, int rotation, unsigned int flags, int64_t* a5, int* a6, int* a7);
-bool sub_440700(int64_t obj, int64_t loc, int rot, unsigned int flags, int64_t* block_obj_ptr);
+bool object_is_los_blocked(int64_t a1, int64_t a2, int rotation, unsigned int flags, int* a5);
+int object_check_los(int64_t a1, int64_t a2, int rotation, unsigned int flags, int64_t* a5, int* a6, int* a7);
+bool object_is_portal_blocked(int64_t obj, int64_t loc, int rot, unsigned int flags, int64_t* block_obj_ptr);
 void object_list_location(int64_t loc, unsigned int flags, ObjectList* objects);
 void object_list_rect(LocRect* loc_rect, unsigned int flags, ObjectList* objects);
 void object_list_vicinity(int64_t obj, unsigned int flags, ObjectList* objects);
@@ -173,23 +173,23 @@ bool object_locked_get(int64_t obj);
 bool object_locked_set(int64_t obj, bool locked);
 bool object_lock_timeevent_process(TimeEvent* timeevent);
 bool object_jammed_set(int64_t obj, bool jammed);
-void sub_441FC0(int64_t obj, int a2);
+void object_notify_npc_seen(int64_t obj, int a2);
 void object_blit_flags_set(unsigned int flags);
 int object_blit_flags_get();
-void sub_442050(uint8_t** data_ptr, int* size_ptr, int64_t obj);
-bool sub_4420D0(uint8_t* data, int64_t* obj_ptr, int64_t loc);
-void sub_442520(int64_t obj);
-void sub_443770(int64_t obj);
-bool sub_4437E0(TigRect* rect);
+void object_serialize_to_memory(uint8_t** data_ptr, int* size_ptr, int64_t obj);
+bool object_deserialize_from_memory(uint8_t* data, int64_t* obj_ptr, int64_t loc);
+void object_update_render_state(int64_t obj);
+void object_clear_render_data(int64_t obj);
+bool object_get_hover_rect_total(TigRect* rect);
 bool object_save_obj_handle_safe(int64_t* obj_ptr, Ryan* a2, TigFile* stream);
 bool object_load_obj_handle_safe(int64_t* obj_ptr, Ryan* a2, TigFile* stream);
-void sub_443EB0(int64_t obj, Ryan* a2);
-bool sub_443F80(int64_t* obj_ptr, Ryan* a2);
-bool sub_444020(int64_t* obj_ptr, Ryan* a2);
-void sub_4440E0(int64_t obj, FollowerInfo* a2);
-bool sub_444110(FollowerInfo* a1);
-bool sub_444130(FollowerInfo* a1);
+void object_save_ref_init(int64_t obj, Ryan* a2);
+bool object_save_ref_find(int64_t* obj_ptr, Ryan* a2);
+bool object_save_ref_validate(int64_t* obj_ptr, Ryan* a2);
+void follower_info_init(int64_t obj, FollowerInfo* a2);
+bool follower_info_find(FollowerInfo* a1);
+bool follower_info_validate(FollowerInfo* a1);
 int64_t get_fire_at_location(int64_t loc);
-void sub_4445A0(int64_t a1, int64_t a2);
+void object_move_to_actor(int64_t a1, int64_t a2);
 
 #endif /* ARCANUM_GAME_OBJECT_H_ */

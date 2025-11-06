@@ -1,4 +1,4 @@
-#include "game/curse.h"
+﻿#include "game/curse.h"
 
 #include "game/effect.h"
 #include "game/mes.h"
@@ -173,7 +173,7 @@ void curse_add(int64_t obj, int curse)
         }
 
         pkt.type = 43;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.curse = curse;
         pkt.add = true;
         tig_net_send_app_all(&pkt, sizeof(pkt));
@@ -240,7 +240,7 @@ void curse_remove(int64_t obj, int curse)
         }
 
         pkt.type = 43;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.curse = curse;
         pkt.add = false;
         tig_net_send_app_all(&pkt, sizeof(pkt));

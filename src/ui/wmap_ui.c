@@ -1,4 +1,4 @@
-#include "ui/wmap_ui.h"
+﻿#include "ui/wmap_ui.h"
 
 #include <stdio.h>
 
@@ -1228,7 +1228,7 @@ void wmap_ui_open_internal()
         return;
     }
 
-    sub_424070(player_get_local_pc_obj(), 4, false, true);
+    anim_set_priority_level(player_get_local_pc_obj(), 4, false, true);
 
     if (!wmap_ui_create()) {
         wmap_ui_close();
@@ -2174,17 +2174,17 @@ bool wmap_ui_message_filter(TigMessage* msg)
                         }
                     } else {
                         if (wmap_ui_mode == WMAP_UI_MODE_TOWN && wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].length > 0) {
-                            sub_433640(player_get_local_pc_obj(),
+                            anim_is_obj_convinced_to_move(player_get_local_pc_obj(),
                                 wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].waypoints[0].loc);
 
                             for (int idx = 1; idx < wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].length; idx++) {
-                                sub_433A00(player_get_local_pc_obj(),
+                                anim_goal_move_to(player_get_local_pc_obj(),
                                     wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].waypoints[idx].loc,
                                     tig_net_is_active()
                                         && !tig_net_is_host());
                             }
 
-                            sub_436D20(0x80000, 0);
+                            anim_set_flags(0x80000, 0);
                             wmap_ui_close();
                         }
                     }
@@ -4088,7 +4088,7 @@ int wmap_ui_compass_arrow_frame_get()
 // 0x565140
 bool sub_565140()
 {
-    if (!sub_424070(player_get_local_pc_obj(), 3, 0, 1)) {
+    if (!anim_set_priority_level(player_get_local_pc_obj(), 3, 0, 1)) {
         return false;
     }
 

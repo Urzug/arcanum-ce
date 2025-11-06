@@ -1,4 +1,4 @@
-#include "game/magictech.h"
+﻿#include "game/magictech.h"
 
 #include <stdio.h>
 
@@ -1872,15 +1872,15 @@ void magictech_effect_summon(MagicTechSummonInfo* summon_info)
             pkt.type = 73;
             pkt.summon_info = *summon_info;
             pkt.summon_info.field_88 = obj_get_id(obj);
-            sub_443EB0(pkt.summon_info.field_0.obj, &(pkt.summon_info.field_0.field_8));
-            sub_443EB0(pkt.summon_info.field_30.obj, &(pkt.summon_info.field_30.field_8));
+            object_save_ref_init(pkt.summon_info.field_0.obj, &(pkt.summon_info.field_0.field_8));
+            object_save_ref_init(pkt.summon_info.field_30.obj, &(pkt.summon_info.field_30.field_8));
             summon_info->field_A0 = qword_5E75B8;
             sub_4F0640(qword_5E75B8, &(pkt.summon_info.field_A8));
             tig_net_send_app_all(&pkt, sizeof(pkt));
 
             if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_SCENERY) {
-                sub_424070(obj, 5, false, false);
-                sub_43F710(obj);
+                anim_set_priority_level(obj, 5, false, false);
+                object_scenery_update_animation(obj);
             }
         } else {
             if (!multiplayer_is_locked()) {
@@ -1955,7 +1955,7 @@ void magictech_effect_summon(MagicTechSummonInfo* summon_info)
             }
         }
     } else {
-        sub_4372B0(obj, summon_info->field_0.obj);
+        anim_can_move(obj, summon_info->field_0.obj);
     }
 
     sub_463630(obj);
@@ -2179,8 +2179,8 @@ void MTComponentCast_ProcFunc()
     MagicTechInvocation mt_invocation;
 
     magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, magictech_cur_component->data.cast.spell);
-    sub_4440E0(stru_5E6D28.field_20, &(mt_invocation.target_obj));
-    sub_4440E0(magictech_cur_run_info->parent_obj.obj, &(mt_invocation.parent_obj));
+    follower_info_init(stru_5E6D28.field_20, &(mt_invocation.target_obj));
+    follower_info_init(magictech_cur_run_info->parent_obj.obj, &(mt_invocation.parent_obj));
     mt_invocation.flags |= MAGICTECH_INVOCATION_FRIENDLY;
     mt_invocation.target_loc = stru_5E6D28.field_28;
 
@@ -2227,7 +2227,7 @@ void MTComponentDamage_ProcFunc()
         return;
     }
 
-    sub_4B2210(magictech_cur_run_info->parent_obj.obj, stru_5E6D28.field_20, &combat);
+    combat_context_init(magictech_cur_run_info->parent_obj.obj, stru_5E6D28.field_20, &combat);
 
     combat.dam_flags |= magictech_cur_component->data.damage.damage_flags;
 
@@ -2559,7 +2559,7 @@ void MTComponentHeal_ProcFunc()
     int heal_max;
 
     if (stru_5E6D28.field_20 != OBJ_HANDLE_NULL) {
-        sub_4B2210(magictech_cur_run_info->parent_obj.obj, stru_5E6D28.field_20, &combat);
+        combat_context_init(magictech_cur_run_info->parent_obj.obj, stru_5E6D28.field_20, &combat);
         combat.dam_flags |= magictech_cur_component->data.heal.damage_flags;
         if ((combat.dam_flags & CDF_FULL) == 0) {
             heal_min = magictech_cur_component->data.heal.damage_min;
@@ -2608,7 +2608,7 @@ void MTComponentInterrupt_ProcFunc()
     MagicTechInvocation mt_invocation;
 
     magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, magictech_cur_component->data.interrupt.magictech);
-    sub_4440E0(stru_5E6D28.field_20, &(mt_invocation.target_obj));
+    follower_info_init(stru_5E6D28.field_20, &(mt_invocation.target_obj));
     mt_invocation.target_loc = stru_5E6D28.field_28;
     if (mt_invocation.target_obj.obj != OBJ_HANDLE_NULL || mt_invocation.target_loc != OBJ_HANDLE_NULL) {
         sub_4573D0(&mt_invocation);
@@ -4112,7 +4112,7 @@ void magictech_component_obj_flag(int64_t obj, int64_t a2, int fld, int a4, int 
             } else if ((a4 & OSF_WATER_WALKING) != 0) {
                 object_flags_unset(obj, OF_WATER_WALKING);
                 if (tile_is_blocking(obj_field_int64_get(obj, OBJ_F_LOCATION), false)) {
-                    sub_4B2210(OBJ_HANDLE_NULL, obj, &combat);
+                    combat_context_init(OBJ_HANDLE_NULL, obj, &combat);
                     combat.dam_flags |= CDF_FULL;
                     combat_dmg(&combat);
 
@@ -4332,8 +4332,8 @@ void sub_455350(int64_t obj, int64_t target_loc)
             tile_script_exec(source_loc, obj);
         }
 
-        sub_424070(obj, 5, false, true);
-        sub_43E770(obj, source_loc, 0, 0);
+        anim_set_priority_level(obj, 5, false, true);
+        object_move(obj, source_loc, 0, 0);
 
         if (player_is_local_pc_obj(obj)) {
             location_origin_set(source_loc);
@@ -4362,7 +4362,7 @@ void sub_4554B0(MagicTechRunInfo* run_info, int64_t obj)
         run_info->summoned_obj->aptitude = stat_level_get(obj, STAT_MAGICK_TECH_APTITUDE);
     }
 
-    sub_443EB0(obj, &(run_info->summoned_obj->field_8));
+    object_save_ref_init(obj, &(run_info->summoned_obj->field_8));
 }
 
 // 0x455550
@@ -4504,17 +4504,17 @@ bool sub_455820(MagicTechRunInfo* run_info)
     bool success = true;
     MagicTechObjectNode* node;
 
-    if (!sub_444020(&(run_info->source_obj.obj), &(run_info->source_obj.field_8))) {
+    if (!object_save_ref_validate(&(run_info->source_obj.obj), &(run_info->source_obj.field_8))) {
         success = false;
     }
 
-    if (!sub_444020(&(run_info->parent_obj.obj), &(run_info->parent_obj.field_8))) {
+    if (!object_save_ref_validate(&(run_info->parent_obj.obj), &(run_info->parent_obj.field_8))) {
         success = false;
     }
 
     node = run_info->objlist;
     while (node != NULL) {
-        if (!sub_444020(&(node->obj), &(node->field_8))) {
+        if (!object_save_ref_validate(&(node->obj), &(node->field_8))) {
             success = false;
         }
         node = node->next;
@@ -4522,7 +4522,7 @@ bool sub_455820(MagicTechRunInfo* run_info)
 
     node = run_info->summoned_obj;
     while (node != NULL) {
-        if (!sub_444020(&(node->obj), &(node->field_8))) {
+        if (!object_save_ref_validate(&(node->obj), &(node->field_8))) {
             success = false;
         }
         node = node->next;
@@ -4603,16 +4603,16 @@ void sub_4559E0(MagicTechRunInfo* run_info)
 void magictech_invocation_init(MagicTechInvocation* mt_invocation, int64_t obj, int spell)
 {
     mt_invocation->spell = spell;
-    sub_4440E0(obj, &(mt_invocation->source_obj));
+    follower_info_init(obj, &(mt_invocation->source_obj));
     if (obj != OBJ_HANDLE_NULL) {
         mt_invocation->loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
     } else {
         mt_invocation->loc = 0;
     }
-    sub_4440E0(OBJ_HANDLE_NULL, &(mt_invocation->target_obj));
+    follower_info_init(OBJ_HANDLE_NULL, &(mt_invocation->target_obj));
     mt_invocation->target_loc = 0;
-    sub_4440E0(sub_450A50(obj), &(mt_invocation->parent_obj));
-    sub_4440E0(OBJ_HANDLE_NULL, &(mt_invocation->field_A0));
+    follower_info_init(sub_450A50(obj), &(mt_invocation->parent_obj));
+    follower_info_init(OBJ_HANDLE_NULL, &(mt_invocation->field_A0));
     mt_invocation->trigger = 0;
     mt_invocation->flags = 0;
 }
@@ -4630,10 +4630,10 @@ void magictech_invocation_run(MagicTechInvocation* mt_invocation)
 
             pkt.type = 58;
             pkt.player = multiplayer_find_slot_from_obj(mt_invocation->source_obj.obj);
-            sub_4440E0(mt_invocation->source_obj.obj, &(mt_invocation->source_obj));
-            sub_4440E0(mt_invocation->parent_obj.obj, &(mt_invocation->parent_obj));
-            sub_4440E0(mt_invocation->target_obj.obj, &(mt_invocation->target_obj));
-            sub_4440E0(mt_invocation->field_A0.obj, &(mt_invocation->field_A0));
+            follower_info_init(mt_invocation->source_obj.obj, &(mt_invocation->source_obj));
+            follower_info_init(mt_invocation->parent_obj.obj, &(mt_invocation->parent_obj));
+            follower_info_init(mt_invocation->target_obj.obj, &(mt_invocation->target_obj));
+            follower_info_init(mt_invocation->field_A0.obj, &(mt_invocation->field_A0));
             pkt.invocation = *mt_invocation;
             tig_net_send_app_all(&pkt, sizeof(pkt));
             sub_455C30(mt_invocation);
@@ -4642,10 +4642,10 @@ void magictech_invocation_run(MagicTechInvocation* mt_invocation)
 
             pkt.type = 57;
             pkt.player = multiplayer_find_slot_from_obj(mt_invocation->source_obj.obj);
-            sub_4440E0(mt_invocation->source_obj.obj, &(mt_invocation->source_obj));
-            sub_4440E0(mt_invocation->parent_obj.obj, &(mt_invocation->parent_obj));
-            sub_4440E0(mt_invocation->target_obj.obj, &(mt_invocation->target_obj));
-            sub_4440E0(mt_invocation->field_A0.obj, &(mt_invocation->field_A0));
+            follower_info_init(mt_invocation->source_obj.obj, &(mt_invocation->source_obj));
+            follower_info_init(mt_invocation->parent_obj.obj, &(mt_invocation->parent_obj));
+            follower_info_init(mt_invocation->target_obj.obj, &(mt_invocation->target_obj));
+            follower_info_init(mt_invocation->field_A0.obj, &(mt_invocation->field_A0));
             pkt.invocation = *mt_invocation;
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
@@ -4674,7 +4674,7 @@ void sub_455C30(MagicTechInvocation* mt_invocation)
     magictech_id_new_lock(&run_info);
 
     run_info->source_obj.obj = mt_invocation->source_obj.obj;
-    sub_443EB0(run_info->source_obj.obj, &(run_info->source_obj.field_8));
+    object_save_ref_init(run_info->source_obj.obj, &(run_info->source_obj.field_8));
     if (run_info->source_obj.obj != OBJ_HANDLE_NULL) {
         run_info->source_obj.type = obj_field_int32_get(run_info->source_obj.obj, OBJ_F_TYPE);
         if (obj_type_is_critter(run_info->source_obj.type)) {
@@ -4686,7 +4686,7 @@ void sub_455C30(MagicTechInvocation* mt_invocation)
     run_info->source_obj.loc = mt_invocation->loc;
 
     run_info->parent_obj.obj = mt_invocation->parent_obj.obj;
-    sub_443EB0(run_info->parent_obj.obj, &(run_info->parent_obj.field_8));
+    object_save_ref_init(run_info->parent_obj.obj, &(run_info->parent_obj.field_8));
     if (run_info->parent_obj.obj != OBJ_HANDLE_NULL) {
         run_info->parent_obj.type = obj_field_int32_get(run_info->parent_obj.obj, OBJ_F_TYPE);
         if (obj_type_is_critter(run_info->parent_obj.type)) {
@@ -4698,7 +4698,7 @@ void sub_455C30(MagicTechInvocation* mt_invocation)
     run_info->parent_obj.loc = mt_invocation->loc;
 
     run_info->target_obj.obj = mt_invocation->target_obj.obj;
-    sub_443EB0(run_info->target_obj.obj, &(run_info->target_obj.field_8));
+    object_save_ref_init(run_info->target_obj.obj, &(run_info->target_obj.field_8));
     if (run_info->target_obj.obj != OBJ_HANDLE_NULL) {
         run_info->target_obj.type = obj_field_int32_get(run_info->target_obj.obj, OBJ_F_TYPE);
         if (obj_type_is_critter(run_info->target_obj.type)) {
@@ -4710,7 +4710,7 @@ void sub_455C30(MagicTechInvocation* mt_invocation)
     run_info->target_obj.loc = mt_invocation->target_loc;
 
     run_info->field_E8.obj = mt_invocation->field_A0.obj;
-    sub_443EB0(run_info->field_E8.obj, &(run_info->field_E8.field_8));
+    object_save_ref_init(run_info->field_E8.obj, &(run_info->field_E8.field_8));
     if (run_info->field_E8.obj != OBJ_HANDLE_NULL) {
         run_info->field_E8.type = obj_field_int32_get(run_info->field_E8.obj, OBJ_F_TYPE);
         if (obj_type_is_critter(run_info->field_E8.type)) {
@@ -5467,7 +5467,7 @@ void sub_457530(int mt_id)
 
     if (magictech_id_to_run_info(mt_id, &run_info)) {
         run_info->source_obj.obj = OBJ_HANDLE_NULL;
-        sub_443EB0(OBJ_HANDLE_NULL, &(run_info->source_obj.field_8));
+        object_save_ref_init(OBJ_HANDLE_NULL, &(run_info->source_obj.field_8));
         run_info->source_obj.type = -1;
     }
 }

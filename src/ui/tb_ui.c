@@ -1,4 +1,4 @@
-#include "ui/tb_ui.h"
+﻿#include "ui/tb_ui.h"
 
 #include <stdio.h>
 
@@ -323,13 +323,13 @@ void sub_57CE10()
     intgame_mode_set(INTGAME_MODE_MAIN);
 
     if (object_hover_obj != OBJ_HANDLE_NULL) {
-        dword_5E2E94 = false;
+        g_object_hover_is_critter = false;
         object_hover_obj = OBJ_HANDLE_NULL;
 
         object_hover_color = tig_color_make(255, 255, 255);
-        tig_art_interface_id_create(467, dword_5E2E6C, 1, 0, &object_hover_underlay_art_id);
-        tig_art_interface_id_create(468, dword_5E2E68, 1, 0, &object_hover_overlay_art_id);
-        sub_443EB0(OBJ_HANDLE_NULL, &stru_5E2F60);
+        tig_art_interface_id_create(467, g_object_hover_underlay_art_slot, 1, 0, &object_hover_underlay_art_id);
+        tig_art_interface_id_create(468, g_object_hover_overlay_art_slot, 1, 0, &object_hover_overlay_art_id);
+        object_save_ref_init(OBJ_HANDLE_NULL, &g_object_hover_save_ref);
     }
 }
 

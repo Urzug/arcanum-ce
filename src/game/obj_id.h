@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_OBJ_ID_H_
+﻿#ifndef ARCANUM_GAME_OBJ_ID_H_
 #define ARCANUM_GAME_OBJ_ID_H_
 
 #include "game/context.h"
@@ -36,7 +36,7 @@ void objid_id_perm_by_load_order(ObjectID* oid, int64_t obj);
 bool objid_is_valid(ObjectID a);
 bool objid_compare(ObjectID a, ObjectID b);
 bool objid_is_equal(ObjectID a, ObjectID b);
-ObjectID sub_4E6540(int a1);
+ObjectID objid_create_a(int a1);
 void objid_id_to_str(char* buffer, ObjectID oid);
 bool objid_id_from_str(ObjectID* oid, const char* str);
 

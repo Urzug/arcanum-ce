@@ -1,4 +1,4 @@
-#include "game/stat.h"
+﻿#include "game/stat.h"
 
 #include "game/a_name.h"
 #include "game/anim.h"
@@ -1046,7 +1046,7 @@ bool stat_poison_timeevent_process(TimeEvent* timeevent)
         if (poison > 0) {
             if (!tig_net_is_active()
                 || (obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_OFF) == 0) {
-                sub_4B2210(OBJ_HANDLE_NULL, obj, &combat);
+                combat_context_init(OBJ_HANDLE_NULL, obj, &combat);
 
                 // Determine damage based on poison severity.
                 if (poison >= 550) {

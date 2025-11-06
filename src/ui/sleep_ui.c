@@ -1,4 +1,4 @@
-#include "ui/sleep_ui.h"
+﻿#include "ui/sleep_ui.h"
 
 #include "game/combat.h"
 #include "game/critter.h"
@@ -358,7 +358,7 @@ void sleep_ui_toggle(int64_t bed_obj)
 
         if (bed_obj != OBJ_HANDLE_NULL) {
             sleep_ui_using_bed = true;
-            sub_443EB0(bed_obj, &sleep_ui_bed_obj_safe);
+            object_save_ref_init(bed_obj, &sleep_ui_bed_obj_safe);
         } else {
             sleep_ui_using_bed = false;
         }
@@ -399,7 +399,7 @@ void sleep_ui_close()
         sleep_ui_destroy();
 
         if (sleep_ui_using_bed) {
-            if (sub_443F80(&bed_obj, &sleep_ui_bed_obj_safe)
+            if (object_save_ref_find(&bed_obj, &sleep_ui_bed_obj_safe)
                 && bed_obj != OBJ_HANDLE_NULL) {
                 critter_leave_bed(sleep_ui_obj, bed_obj);
             }

@@ -1,4 +1,4 @@
-#include "ui/intgame.h"
+﻿#include "ui/intgame.h"
 
 #include <stdio.h>
 
@@ -2697,13 +2697,13 @@ void intgame_process_event(TigMessage* msg)
                             if ((tig_kb_get_modifier(SDL_KMOD_CTRL)
                                     || tig_kb_get_modifier(SDL_KMOD_NUM))
                                 && !settings_get_value(&settings, ALWAYS_RUN_KEY)) {
-                                sub_433C80(pc_obj, v1.loc);
+                                anim_goal_run_to(pc_obj, v1.loc);
                             } else {
-                                sub_433640(pc_obj, v1.loc);
+                                anim_is_obj_convinced_to_move(pc_obj, v1.loc);
                             }
 
                             if (dword_64C6D8) {
-                                sub_436CF0();
+                                anim_goals_clear_current();
                             }
                             dword_64C6D8 = true;
                         }
@@ -2728,18 +2728,18 @@ void intgame_process_event(TigMessage* msg)
                         && !critter_is_prone(pc_obj)) {
                         if (combat_critter_is_combat_mode_active(pc_obj)) {
                             if (anim_is_current_goal_type(pc_obj, AG_ANIM_FIDGET, NULL)
-                                || !sub_423300(pc_obj, 0)) {
+                                || !anim_get_current_id(pc_obj, 0)) {
                                 intgame_combat_mode_toggle();
                             }
                         } else {
                             if (critter_is_concealed(pc_obj)
-                                && !sub_423300(pc_obj, NULL)) {
+                                && !anim_get_current_id(pc_obj, NULL)) {
                                 critter_set_concealed(pc_obj, false);
                             }
                         }
 
-                        if (sub_424070(pc_obj, 3, 0, 0)) {
-                            sub_4B4320(pc_obj);
+                        if (anim_set_priority_level(pc_obj, 3, 0, 0)) {
+                            combat_fidget_check(pc_obj);
 
                             tig_mouse_get_state(&mouse_state);
                             if (location_at(mouse_state.x, mouse_state.y, &loc)
@@ -2751,7 +2751,7 @@ void intgame_process_event(TigMessage* msg)
                                 pc_loc = obj_field_int64_get(pc_obj, OBJ_F_LOCATION);
                                 aid = obj_field_int32_get(pc_obj, OBJ_F_CURRENT_AID);
                                 rot = location_rot(pc_loc, loc);
-                                if (!sub_423300(pc_obj, 0)) {
+                                if (!anim_get_current_id(pc_obj, 0)) {
                                     anim_goal_rotate(pc_obj, rot);
                                 } else if (anim_is_current_goal_type(pc_obj, AG_ANIM_FIDGET, NULL)) {
                                     object_set_current_aid(pc_obj, tig_art_id_rotation_set(aid, rot));
@@ -2930,13 +2930,13 @@ void intgame_process_event(TigMessage* msg)
                     if ((tig_kb_get_modifier(SDL_KMOD_CTRL)
                             || tig_kb_get_modifier(SDL_KMOD_NUM))
                         && !settings_get_value(&settings, ALWAYS_RUN_KEY)) {
-                        sub_433C80(pc_obj, v1.loc);
+                        anim_goal_run_to(pc_obj, v1.loc);
                     } else {
-                        sub_433640(pc_obj, v1.loc);
+                        anim_is_obj_convinced_to_move(pc_obj, v1.loc);
                     }
 
                     if (dword_64C6D8) {
-                        sub_436CF0();
+                        anim_goals_clear_current();
                     }
                     dword_64C6D8 = true;
                 }
@@ -3393,7 +3393,7 @@ void sub_54ED30(S4F2810* a1)
                 }
 
                 if (tig_kb_get_modifier(SDL_KMOD_ALT)) {
-                    sub_4445A0(pc_obj, a1->obj);
+                    object_move_to_actor(pc_obj, a1->obj);
                     return;
                 }
 
@@ -3417,7 +3417,7 @@ void sub_54ED30(S4F2810* a1)
                     }
 
                     if (tig_kb_get_modifier(SDL_KMOD_ALT)) {
-                        sub_4445A0(pc_obj, a1->obj);
+                        object_move_to_actor(pc_obj, a1->obj);
                         return;
                     }
 
@@ -3483,7 +3483,7 @@ void sub_54ED30(S4F2810* a1)
 
     if (combat_auto_attack_get(pc_obj)) {
         if (sub_44E6F0(pc_obj, &goal_data)
-            || !sub_424070(pc_obj, 3, 0, 0)) {
+            || !anim_set_priority_level(pc_obj, 3, 0, 0)) {
             return;
         }
 
@@ -3509,7 +3509,7 @@ void sub_54ED30(S4F2810* a1)
         if (tig_net_is_active()) {
             return;
         }
-    } else if (sub_423300(pc_obj, &anim_id)) {
+    } else if (anim_get_current_id(pc_obj, &anim_id)) {
         // 0x54F68E
         if (combat_turn_based_is_active()) {
             AnimID fidget_anim_id;
@@ -3517,7 +3517,7 @@ void sub_54ED30(S4F2810* a1)
                 && anim_id_is_equal(&anim_id, &fidget_anim_id)
                 && num_goal_subslots_in_use(&anim_id) < 4) {
                 if (is_anim_forever(&anim_id)) {
-                    if (sub_424070(pc_obj, 3, false, false)) {
+                    if (anim_set_priority_level(pc_obj, 3, false, false)) {
                         if (!sub_44D520(&goal_data, &anim_id)) {
                             return;
                         }
@@ -3534,7 +3534,7 @@ void sub_54ED30(S4F2810* a1)
             if (anim == AG_ATTACK || anim == AG_ATTEMPT_ATTACK) {
                 if (num_goal_subslots_in_use(&anim_id) < 4) {
                     if (is_anim_forever(&anim_id)) {
-                        if (sub_424070(pc_obj, 3, 0, 0)
+                        if (anim_set_priority_level(pc_obj, 3, 0, 0)
                             && !sub_44D520(&goal_data, &anim_id)) {
                             return;
                         }
@@ -3547,10 +3547,10 @@ void sub_54ED30(S4F2810* a1)
                     }
                 }
             } else {
-                if (sub_424070(pc_obj, 3, false, false)
+                if (anim_set_priority_level(pc_obj, 3, false, false)
                     && sub_44D520(&goal_data, &anim_id)) {
                     if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-                        sub_436C50(anim_id);
+                        anim_goals_set_current(anim_id);
                     } else if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
                         turn_on_running(anim_id);
                     } else {
@@ -3567,11 +3567,11 @@ void sub_54ED30(S4F2810* a1)
                     }
 
                     if (v26) {
-                        sub_436ED0(anim_id);
+                        anim_run(anim_id);
                     }
                 }
             }
-        } else if (sub_424070(pc_obj, 3, false, false)) {
+        } else if (anim_set_priority_level(pc_obj, 3, false, false)) {
             if (tig_net_is_active()
                 && !tig_kb_get_modifier(SDL_KMOD_SHIFT)
                 && !tig_kb_get_modifier(SDL_KMOD_CTRL)) {
@@ -3581,7 +3581,7 @@ void sub_54ED30(S4F2810* a1)
             if (sub_44D520(&goal_data, &anim_id)
                 && !tig_net_is_active()) {
                 if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-                    sub_436C50(anim_id);
+                    anim_goals_set_current(anim_id);
                 } else if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
                     turn_on_running(anim_id);
                 } else {
@@ -3598,7 +3598,7 @@ void sub_54ED30(S4F2810* a1)
                 }
 
                 if (v26) {
-                    sub_436ED0(anim_id);
+                    anim_run(anim_id);
                 }
             }
         }
@@ -3610,7 +3610,7 @@ void sub_54ED30(S4F2810* a1)
 
     // 0x54FB19
     if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-        sub_436C50(anim_id);
+        anim_goals_set_current(anim_id);
     } else {
         if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
             turn_on_running(anim_id);
@@ -3629,7 +3629,7 @@ void sub_54ED30(S4F2810* a1)
     }
 
     if (v26) {
-        sub_436ED0(anim_id);
+        anim_run(anim_id);
     }
 }
 
@@ -3665,7 +3665,7 @@ void sub_54FCF0(Hotkey* hotkey)
     switch (hotkey->type) {
     case HOTKEY_ITEM:
         intgame_mode_set(INTGAME_MODE_MAIN);
-        sub_444130(&(hotkey->item_obj));
+        follower_info_validate(&(hotkey->item_obj));
         if (obj_field_handle_get(hotkey->item_obj.obj, OBJ_F_ITEM_PARENT) == pc_obj) {
             v2 = hotkey->item_obj.obj;
             if (obj_field_int32_get(v2, OBJ_F_TYPE) != OBJ_TYPE_WRITTEN
@@ -3714,7 +3714,7 @@ void sub_54FCF0(Hotkey* hotkey)
         spell_ui_activate(pc_obj, hotkey->data);
         break;
     case HOTKEY_ITEM_SPELL:
-        sub_444130(&(hotkey->item_obj));
+        follower_info_validate(&(hotkey->item_obj));
 
         weapon_obj = item_wield_get(pc_obj, ITEM_INV_LOC_WEAPON);
         if (obj_field_handle_get(hotkey->item_obj.obj, OBJ_F_ITEM_PARENT) == pc_obj) {
@@ -6637,9 +6637,9 @@ void sub_554830(int64_t a1, int64_t a2)
     }
 
     skill_invocation_init(&skill_invocation);
-    sub_4440E0(a1, &(skill_invocation.source));
-    sub_4440E0(a2, &(skill_invocation.target));
-    sub_4440E0(weapon_obj, &(skill_invocation.item));
+    follower_info_init(a1, &(skill_invocation.source));
+    follower_info_init(a2, &(skill_invocation.target));
+    follower_info_init(weapon_obj, &(skill_invocation.item));
     skill_invocation.skill = skill;
 
     effectiveness -= skill_invocation_difficulty(&skill_invocation);

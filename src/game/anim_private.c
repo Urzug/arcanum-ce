@@ -1,4 +1,4 @@
-#include "game/anim_private.h"
+﻿#include "game/anim_private.h"
 
 #include "game/anim.h"
 #include "game/critter.h"
@@ -510,7 +510,7 @@ bool mp_deallocate_run_index(AnimID* anim_id)
         run_info->path.flags = 1;
 
         dword_5E3500--;
-        sub_423E60("Free Run Index");
+        anim_set_debug_error_msg("Free Run Index");
 
         if (animNumActiveGoals == 0) {
             if (dword_5E34F8 != NULL) {
@@ -686,7 +686,7 @@ bool sub_44D3B0(AnimGoalData* goal_data, int64_t obj, int goal_type, bool a4)
 
     ASSERT(goal_node != NULL); // pGoalNode != NULL
 
-    return sub_424070(obj, goal_node->priority_level, goal_node->field_8, 1);
+    return anim_set_priority_level(obj, goal_node->priority_level, goal_node->field_8, 1);
 }
 
 // 0x44D4E0
@@ -736,7 +736,7 @@ bool sub_44D540(AnimGoalData* anim_data, AnimID* anim_id, unsigned int flags)
     pkt.field_1A4 = flags;
     anim_id_init(&(pkt.field_198));
     for (index = 0; index < 5; index++) {
-        sub_443EB0(anim_data->params[index].obj, &(anim_data->field_B0[index]));
+        object_save_ref_init(anim_data->params[index].obj, &(anim_data->field_B0[index]));
     }
 
     pkt.field_10 = *anim_data;
@@ -817,10 +817,10 @@ bool sub_44D730(AnimGoalData* goal_data, AnimID* anim_id, bool a3, unsigned int 
     run_info->goals[0] = *goal_data;
     run_info->cur_stack_data = &(run_info->goals[0]);
     for (idx = 0; idx < 5; idx++) {
-        sub_443EB0(run_info->goals[0].params[idx].obj, &(run_info->goals[0].field_B0[idx]));
+        object_save_ref_init(run_info->goals[0].params[idx].obj, &(run_info->goals[0].field_B0[idx]));
     }
     sub_44C840(run_info, anim_goal_nodes[run_info->goals[0].type]);
-    sub_423E60("GoalAdd");
+    anim_set_debug_error_msg("GoalAdd");
     if ((goal_data->type == AG_ATTACK
             || goal_data->type == AG_ATTEMPT_ATTACK)
         && player_is_local_pc_obj(run_info->anim_obj)) {
@@ -882,7 +882,7 @@ bool anim_subgoal_add_func(AnimID anim_id, AnimGoalData* goal_data)
 
     run_info->goals[0] = *goal_data;
     for (idx = 0; idx < 5; idx++) {
-        sub_443EB0(run_info->goals[0].params[idx].obj, &(run_info->goals[0].field_B0[idx]));
+        object_save_ref_init(run_info->goals[0].params[idx].obj, &(run_info->goals[0].field_B0[idx]));
     }
 
     if (run_info->path_attached_to_stack_index != -1) {
@@ -890,7 +890,7 @@ bool anim_subgoal_add_func(AnimID anim_id, AnimGoalData* goal_data)
     }
 
     sub_44C840(run_info, anim_goal_nodes[goal_data->type]);
-    sub_423E60("SubGoal Add");
+    anim_set_debug_error_msg("SubGoal Add");
 
     return true;
 }
@@ -923,7 +923,7 @@ bool sub_44DBE0(AnimID anim_id, AnimGoalData* goal_data, const char* file, int l
     pkt.offset_y = obj_field_int32_get(obj, OBJ_F_OFFSET_Y);
 
     for (idx = 0; idx < 5; idx++) {
-        sub_443EB0(goal_data->params[idx].obj, &(goal_data->field_B0[idx]));
+        object_save_ref_init(goal_data->params[idx].obj, &(goal_data->field_B0[idx]));
     }
 
     pkt.goal_data = *goal_data;
@@ -959,7 +959,7 @@ bool anim_recover_handles(AnimRunInfo* run_info, AnimGoalSubNode* goal_subnode)
             }
 
             if (!obj_handle_is_valid(obj)) {
-                if (!sub_443F80(&obj, &(run_info->cur_stack_data->field_B0[idx]))) {
+                if (!object_save_ref_find(&obj, &(run_info->cur_stack_data->field_B0[idx]))) {
                     tig_debug_printf("Anim: ERROR: Object validate recovery FAILED!\n");
                     run_info->cur_stack_data->params[idx].obj = OBJ_HANDLE_NULL;
                     ASSERT(0); // 3808, "0"
@@ -1037,7 +1037,7 @@ void sub_44E050(int64_t a1, int64_t a2)
     AnimID anim_id;
     AnimRunInfo* run_info;
 
-    if (sub_423300(a1, &anim_id)) {
+    if (anim_get_current_id(a1, &anim_id)) {
         run_info = &(anim_run_info[anim_id.slot_num]);
         if (run_info->goals[0].type == AG_ATTACK
             || run_info->goals[1].type == AG_ATTEMPT_ATTACK) {
@@ -1055,7 +1055,7 @@ void sub_44E0E0(int64_t a1, int64_t a2)
     AnimID anim_id;
     AnimRunInfo* run_info;
 
-    if (sub_423300(a1, &anim_id)) {
+    if (anim_get_current_id(a1, &anim_id)) {
         run_info = &(anim_run_info[anim_id.slot_num]);
         if (run_info->goals[0].type == AG_ATTACK
             || run_info->goals[1].type == AG_ATTEMPT_ATTACK) {
@@ -1196,7 +1196,7 @@ bool sub_44E2C0(AnimID* anim_id, int priority)
     }
 
     freed = anim_free_run_index(anim_id);
-    sub_423E60("Interrupt Slot");
+    anim_set_debug_error_msg("Interrupt Slot");
 
     return freed;
 }
@@ -1541,7 +1541,7 @@ bool sub_44EB40(int64_t obj, int64_t from, int64_t to)
         return false;
     }
 
-    if (!sub_426560(obj, from, to, &stru_5E33F8, 0)) {
+    if (!anim_path_find(obj, from, to, &stru_5E33F8, 0)) {
         return false;
     }
 

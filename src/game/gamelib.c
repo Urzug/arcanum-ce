@@ -1,4 +1,4 @@
-#include "game/gamelib.h"
+﻿#include "game/gamelib.h"
 
 #include <stdio.h>
 
@@ -1692,7 +1692,7 @@ void gamelib_draw_game(GameDrawInfo* draw_info)
     if (tig_video_3d_begin_scene() == TIG_OK) {
         light_draw(draw_info);
         tile_draw(draw_info);
-        sub_43C690(draw_info);
+        object_draw_hover_overlay(draw_info);
         object_draw(draw_info);
         roof_draw(draw_info);
         tb_draw(draw_info);

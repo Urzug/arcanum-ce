@@ -1,4 +1,4 @@
-#include "game/path.h"
+﻿#include "game/path.h"
 
 #include "game/critter.h"
 #include "game/location.h"
@@ -257,7 +257,7 @@ int sub_41F840(PathCreateInfo* path_create_info)
                     break;
                 }
 
-                if (sub_43FD70(path_create_info->obj, loc, rot, flags, &v2)) {
+                if (object_is_los_blocked(path_create_info->obj, loc, rot, flags, &v2)) {
                     break;
                 }
 
@@ -447,7 +447,7 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
 
                     int64_t block_obj;
                     int block_obj_type;
-                    if (sub_43FDC0(path_create_info->obj, loc, rot, flags, &block_obj, &block_obj_type, &v46)
+                    if (object_check_los(path_create_info->obj, loc, rot, flags, &block_obj, &block_obj_type, &v46)
                         || block_obj != OBJ_HANDLE_NULL) {
                         if ((rot & 1) != 0
                             && block_obj != OBJ_HANDLE_NULL

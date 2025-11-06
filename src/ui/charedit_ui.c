@@ -1,4 +1,4 @@
-#include "ui/charedit_ui.h"
+﻿#include "ui/charedit_ui.h"
 
 #include <stdio.h>
 
@@ -1189,7 +1189,7 @@ bool charedit_open(int64_t obj, ChareditMode mode)
         ui_toggle_primary_button(UI_PRIMARY_BUTTON_CHAR, false);
     }
 
-    sub_424070(obj, 4, 0, 1);
+    anim_set_priority_level(obj, 4, 0, 1);
 
     charedit_created = true;
 
@@ -1612,7 +1612,7 @@ bool charedit_window_message_filter(TigMessage* msg)
             && (!combat_turn_based_is_active()
                 || combat_turn_based_whos_turn_get() == player_get_local_pc_obj())) {
             gamelib_save("ExportSave", "Export-Save");
-            sub_4A6470(player_get_local_pc_obj());
+            multiplayer_save_char_with_prompt(player_get_local_pc_obj());
             gamelib_load("ExportSave");
             gamelib_delete("ExportSave");
             return true;
@@ -4021,7 +4021,7 @@ void mp_charedit_cache_traits(int player)
     int64_t obj;
     int index;
 
-    obj = sub_4A2B60(player);
+    obj = multiplayer_get_player_obj_by_slot(player);
     if (obj == OBJ_HANDLE_NULL) {
         return;
     }
@@ -4055,7 +4055,7 @@ void mp_charedit_trait_inc(int player, int trait, int param)
     int cost;
     int unspent_points;
 
-    obj = sub_4A2B60(player);
+    obj = multiplayer_get_player_obj_by_slot(player);
     if (obj == OBJ_HANDLE_NULL) {
         return;
     }
@@ -4116,7 +4116,7 @@ void mp_charedit_trait_dec(int player, int trait, int param)
     int cost;
     int unspent_points;
 
-    obj = sub_4A2B60(player);
+    obj = multiplayer_get_player_obj_by_slot(player);
     if (obj == OBJ_HANDLE_NULL) {
         return;
     }

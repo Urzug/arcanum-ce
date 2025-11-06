@@ -1,4 +1,4 @@
-#include "game/mp_utils.h"
+﻿#include "game/mp_utils.h"
 
 #include "game/a_name.h"
 #include "game/area.h"
@@ -125,10 +125,10 @@ bool sub_4ED780(int64_t obj, int quest, int state, int64_t a4)
     objid_id_to_str(v1, obj_get_id(a4));
 
     pkt.type = 39;
-    sub_4440E0(obj, &(pkt.field_8));
+    follower_info_init(obj, &(pkt.field_8));
     pkt.quest = quest;
     pkt.state = state;
-    sub_4440E0(a4, &(pkt.field_40));
+    follower_info_init(a4, &(pkt.field_40));
     tig_net_send_app_except(&pkt, sizeof(pkt), player);
 
     return true;
@@ -334,7 +334,7 @@ void sub_4EDF20(int64_t obj, int64_t location, int dx, int dy, bool a7)
         if (a7 && player_is_local_pc_obj(obj)) {
             location_origin_set(location);
         }
-        sub_43E770(obj, location, dx, dy);
+        object_move(obj, location, dx, dy);
     }
 
     if (tig_net_is_active()
@@ -356,7 +356,7 @@ void sub_4EDFF0(Packet99* pkt)
 
     if (tig_net_is_host()) {
         obj = objp_perm_lookup(pkt->oid);
-        sub_43E770(obj, pkt->location, pkt->dx, pkt->dy);
+        object_move(obj, pkt->location, pkt->dx, pkt->dy);
 
         if (pkt->field_30 && player_is_local_pc_obj(obj)) {
             location_origin_set(pkt->location);
@@ -1087,7 +1087,7 @@ void sub_4EF830(int64_t a1, int64_t a2)
 
     if (!tig_net_is_active()
         || tig_net_is_host()) {
-        sub_4445A0(a1, a2);
+        object_move_to_actor(a1, a2);
         return;
     }
 
@@ -1106,7 +1106,7 @@ void sub_4EF8B0(Packet118* pkt)
     if (tig_net_is_host()) {
         sub_4F0690(pkt->field_8, &v1);
         sub_4F0690(pkt->field_20, &v2);
-        sub_4445A0(v1, v2);
+        object_move_to_actor(v1, v2);
     }
 }
 

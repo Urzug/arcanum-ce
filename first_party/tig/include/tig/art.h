@@ -1,4 +1,4 @@
-#ifndef TIG_ART_H_
+﻿#ifndef TIG_ART_H_
 #define TIG_ART_H_
 
 #include "tig/color.h"
@@ -414,14 +414,14 @@ int tig_art_misc_id_create(unsigned int num, unsigned int palette, tig_art_id_t*
 void tig_art_flush();
 int tig_art_exists(tig_art_id_t art_id);
 int tig_art_touch(tig_art_id_t art_id);
-void sub_5022B0(TigArtBlitPaletteAdjustCallback* callback);
-TigArtBlitPaletteAdjustCallback* sub_5022C0();
-void sub_5022D0();
+void tig_art_set_palette_adjust_callback(TigArtBlitPaletteAdjustCallback* callback);
+TigArtBlitPaletteAdjustCallback* tig_art_get_palette_adjust_callback();
+void tig_art_cache_invalidate_palettes();
 int tig_art_blit(TigArtBlitInfo* blit_info);
 int tig_art_type(tig_art_id_t art_id);
 unsigned int tig_art_num_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_num_set(tig_art_id_t art_id, unsigned int value);
-unsigned int sub_502830(tig_art_id_t art_id);
+unsigned int tig_art_item_id_get_max_num(tig_art_id_t art_id);
 int tig_art_id_rotation_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_id_rotation_inc(tig_art_id_t art_id);
 tig_art_id_t tig_art_id_rotation_set(tig_art_id_t, int rotation);
@@ -432,21 +432,21 @@ tig_art_id_t tig_art_id_frame_set(tig_art_id_t art_id, int value);
 tig_art_id_t tig_art_id_flags_set(tig_art_id_t art_id, int value);
 int tig_art_id_palette_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_id_palette_set(tig_art_id_t art_id, int value);
-int sub_502E00(tig_art_id_t art_id);
-int sub_502E50(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr);
-int sub_502FD0(tig_art_id_t art_id, int x, int y);
+int tig_art_palette_exists(tig_art_id_t art_id);
+int tig_art_frame_get_pixel_color(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr);
+int tig_art_frame_hit_test(tig_art_id_t art_id, int x, int y);
 int tig_art_anim_data(tig_art_id_t art_id, TigArtAnimData* data);
 int tig_art_frame_data(tig_art_id_t art_id, TigArtFrameData* data);
-int sub_503340(tig_art_id_t art_id, uint8_t* dst, int pitch);
-int sub_5033E0(tig_art_id_t art_id, int a2, int a3);
+int tig_art_frame_get_raw_pixels(tig_art_id_t art_id, uint8_t* dst, int pitch);
+int tig_art_anim_get_frames_for_distance(tig_art_id_t art_id, int a2, int a3);
 int tig_art_size(tig_art_id_t art_id, int* width_ptr, int* height_ptr);
 int tig_art_tile_id_create(unsigned int a1, unsigned int a2, unsigned int a3, unsigned int a4, unsigned int a5, unsigned int a6, unsigned int a7, unsigned int a8, tig_art_id_t* art_id_ptr);
 int tig_art_tile_id_num1_get(tig_art_id_t art_id);
 int tig_art_tile_id_num2_get(tig_art_id_t art_id);
-int sub_503700(tig_art_id_t art_id);
-tig_art_id_t sub_503740(tig_art_id_t art_id, int value);
-int sub_5037B0(tig_art_id_t art_id);
-tig_art_id_t sub_503800(tig_art_id_t art_id, int value);
+int tig_art_tile_id_get_edge_data(tig_art_id_t art_id);
+tig_art_id_t tig_art_tile_id_set_edge_data(tig_art_id_t art_id, int value);
+int tig_art_tile_id_get_variation_data(tig_art_id_t art_id);
+tig_art_id_t tig_art_tile_id_set_variation_data(tig_art_id_t art_id, int value);
 int tig_art_tile_id_type_get(tig_art_id_t art_id);
 int tig_art_tile_id_flippable_get(tig_art_id_t art_id);
 int tig_art_tile_id_flippable1_get(tig_art_id_t art_id);
@@ -467,8 +467,8 @@ tig_art_id_t tig_art_id_anim_set(tig_art_id_t art_id, int value);
 int tig_art_critter_id_body_type_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_critter_id_body_type_set(tig_art_id_t art_id, int value);
 int tig_art_monster_id_specie_get(tig_art_id_t art_id);
-int sub_503F50(int a1);
-int sub_503F60(tig_art_id_t art_id);
+int tig_art_anim_get_property(int a1);
+int tig_art_critter_get_size_class(tig_art_id_t art_id);
 int tig_art_critter_id_gender_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_critter_id_gender_set(tig_art_id_t art_id, int value);
 int tig_art_critter_id_armor_get(tig_art_id_t art_id);
@@ -482,7 +482,7 @@ int tig_art_portal_id_type_get(tig_art_id_t art_id);
 int tig_art_scenery_id_create(unsigned int num, int type, unsigned int frame, int rotation, unsigned int palette, tig_art_id_t* art_id_ptr);
 int tig_art_scenery_id_type_get(tig_art_id_t art_id);
 int tig_art_interface_id_create(unsigned int num, unsigned int frame, unsigned char a3, unsigned int a4, tig_art_id_t* art_id_ptr);
-int sub_504390(tig_art_id_t art_id);
+int tig_art_interface_id_get_flag(tig_art_id_t art_id);
 int tig_art_item_id_create(int num, int disposition, int damaged, int destroyed, int subtype, int type, int armor_coverage, unsigned int palette, tig_art_id_t* art_id_ptr);
 int tig_art_item_id_disposition_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_item_id_disposition_set(tig_art_id_t art_id, int value);
@@ -495,9 +495,9 @@ tig_art_id_t tig_art_item_id_destroyed_set(tig_art_id_t art_id, int value);
 int tig_art_container_id_create(unsigned int num, int type, unsigned int frame, int rotation, unsigned int a5, tig_art_id_t* art_id_ptr);
 int tig_art_container_id_type_get(tig_art_id_t art_id);
 int tig_art_light_id_create(unsigned int num, unsigned int frame, unsigned int rotation, int a4, tig_art_id_t* art_id_ptr);
-int sub_504700(tig_art_id_t art_id);
-tig_art_id_t sub_504730(tig_art_id_t art_id, int rotation);
-int sub_504790(tig_art_id_t art_id);
+int tig_art_light_id_rotation_get(tig_art_id_t art_id);
+tig_art_id_t tig_art_light_id_rotation_set(tig_art_id_t art_id, int rotation);
+int tig_art_light_id_get_rotation_mode_flag(tig_art_id_t art_id);
 int tig_art_roof_id_create(unsigned int num, int piece, unsigned int fill, unsigned int fade, tig_art_id_t* art_id_ptr);
 int tig_art_roof_id_piece_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_roof_id_piece_set(tig_art_id_t art_id, int piece);
@@ -517,7 +517,7 @@ tig_art_id_t tig_art_eye_candy_id_translucency_set(tig_art_id_t art_id, int valu
 int tig_art_eye_candy_id_scale_get(tig_art_id_t art_id);
 tig_art_id_t tig_art_eye_candy_id_scale_set(tig_art_id_t art_id, int value);
 int tig_art_id_flags_get(tig_art_id_t art_id);
-void sub_505000(tig_art_id_t art_id, TigPalette src_palette, TigPalette dst_palette);
+void tig_art_apply_palette_adjustment(tig_art_id_t art_id, TigPalette src_palette, TigPalette dst_palette);
 void tig_art_cache_set_video_memory_fullness(int fullness);
 tig_art_id_t tig_art_id_reset(tig_art_id_t art_id);
 

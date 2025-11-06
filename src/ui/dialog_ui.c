@@ -1,4 +1,4 @@
-#include "ui/dialog_ui.h"
+﻿#include "ui/dialog_ui.h"
 
 #include <stdio.h>
 
@@ -210,7 +210,7 @@ void dialog_ui_start_dialog(int64_t pc_obj, int64_t npc_obj, int script_num, int
                 }
             }
 
-            sub_424070(pc_obj, 3, 0, true);
+            anim_set_priority_level(pc_obj, 3, 0, true);
             anim_goal_rotate(pc_obj, object_rot(pc_obj, npc_obj));
 
             if (critter_is_concealed(pc_obj)) {
@@ -736,8 +736,8 @@ void sub_568540(int64_t npc_obj, int64_t pc_obj, int type, int expires_in, const
 
     if (pc_obj != OBJ_HANDLE_NULL
         && !critter_is_dead(npc_obj)
-        && !sub_423300(npc_obj, NULL)) {
-        sub_424070(npc_obj, 3, 0, 1);
+        && !anim_get_current_id(npc_obj, NULL)) {
+        anim_set_priority_level(npc_obj, 3, 0, 1);
         anim_goal_rotate(npc_obj, object_rot(npc_obj, pc_obj));
     }
 
@@ -771,8 +771,8 @@ void sub_5686C0(int64_t pc_obj, int64_t npc_obj, int type, int expires_in, const
 
     if (npc_obj != OBJ_HANDLE_NULL
         && !critter_is_dead(pc_obj)
-        && !sub_423300(pc_obj, NULL)) {
-        sub_424070(pc_obj, 3, 0, 1);
+        && !anim_get_current_id(pc_obj, NULL)) {
+        anim_set_priority_level(pc_obj, 3, 0, 1);
         anim_goal_rotate(pc_obj, object_rot(pc_obj, npc_obj));
     }
 

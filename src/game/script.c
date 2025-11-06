@@ -1,4 +1,4 @@
-#include "game/script.h"
+﻿#include "game/script.h"
 
 #include "game/ai.h"
 #include "game/anim.h"
@@ -1964,7 +1964,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
         return NEXT;
     }
@@ -2105,7 +2105,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int damage = script_get_value(action->op_type[1], action->op_value[1], state);
         int type = script_get_value(action->op_type[2], action->op_value[2], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[type] = damage;
             combat_dmg(&combat);
         }
@@ -2118,7 +2118,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
 
         return NEXT;
@@ -2172,7 +2172,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int x = script_get_value(action->op_type[1], action->op_value[1], state);
         int y = script_get_value(action->op_type[2], action->op_value[2], state);
-        sub_4341C0(obj, location_make(x, y), AG_MOVE_TO_TILE);
+        anim_goal_move_near_loc(obj, location_make(x, y), AG_MOVE_TO_TILE);
         return NEXT;
     }
     case SAT_GET_WEAPON_TYPE: {
@@ -2213,14 +2213,14 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int x = script_get_value(action->op_type[1], action->op_value[1], state);
         int y = script_get_value(action->op_type[2], action->op_value[2], state);
-        sub_434400(obj, location_make(x, y), AG_MOVE_TO_TILE);
+        anim_goal_move_near_loc_combat(obj, location_make(x, y), AG_MOVE_TO_TILE);
         return NEXT;
     }
     case SAT_HEAL_HP: {
         int cnt = script_resolve_focus_obj(action->op_type[0], action->op_value[0], state, handles, &objects);
         int value = script_get_value(action->op_type[1], action->op_value[1], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[DAMAGE_TYPE_NORMAL] = value;
             combat_heal(&combat);
         }
@@ -2648,7 +2648,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_FREE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2674,7 +2674,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2685,7 +2685,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_FREE;
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
@@ -2806,7 +2806,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2825,7 +2825,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int damage = script_get_value(action->op_type[1], action->op_value[1], state);
         int type = script_get_value(action->op_type[2], action->op_value[2], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[type] = damage;
             combat.dam_flags |= CDF_IGNORE_RESISTANCE;
             combat_dmg(&combat);

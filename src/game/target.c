@@ -1,4 +1,4 @@
-#include "game/target.h"
+﻿#include "game/target.h"
 
 #include "game/critter.h"
 #include "game/material.h"
@@ -270,7 +270,7 @@ bool sub_4F28A0(int x, int y, S4F2810* a3)
         }
     }
 
-    if (sub_43D9F0(x, y, &v2, 0x3)) {
+    if (object_find_by_screen_coords(x, y, &v2, 0x3)) {
         sub_4F2C60(&v2);
         sub_4F2810(a3, v2);
         if (sub_4F2680(&v1)) {
@@ -1405,7 +1405,7 @@ void sub_4F40B0(S603CB8* a1)
                 if (v1->entries[idx].obj != OBJ_HANDLE_NULL) {
                     mt_obj_node->obj = v1->entries[idx].obj;
                     mt_obj_node->next = *a1->field_54;
-                    sub_443EB0(mt_obj_node->obj, &(mt_obj_node->field_8));
+                    object_save_ref_init(mt_obj_node->obj, &(mt_obj_node->field_8));
                     if (mt_obj_node->obj != OBJ_HANDLE_NULL) {
                         mt_obj_node->type = obj_field_int32_get(mt_obj_node->obj, OBJ_F_TYPE);
                         if (obj_type_is_critter(mt_obj_node->type)) {

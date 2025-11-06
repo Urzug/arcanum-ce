@@ -1,4 +1,4 @@
-#include "ui/wmap_rnd.h"
+﻿#include "ui/wmap_rnd.h"
 
 #include "game/area.h"
 #include "game/map.h"
@@ -947,7 +947,7 @@ void sub_559260(WmapRndEncounterTableEntry* entry)
                     object_destroy(obj);
                     obj = OBJ_HANDLE_NULL;
                 } else {
-                    sub_43E770(obj, loc, 0, 0);
+                    object_move(obj, loc, 0, 0);
                 }
             }
 

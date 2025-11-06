@@ -1,4 +1,4 @@
-#include "game/ai.h"
+﻿#include "game/ai.h"
 
 #include "game/anim.h"
 #include "game/anim_private.h"
@@ -364,7 +364,7 @@ bool sub_4A8570(Ai* ai)
         return false;
     }
 
-    if (sub_4233D0(ai->obj) > 2) {
+    if (anim_get_priority_level(ai->obj) > 2) {
         return false;
     }
 
@@ -1079,7 +1079,7 @@ void sub_4A9AD0(int64_t attacker_obj, int64_t target_obj)
         }
     }
 
-    if (!sub_423300(attacker_obj, NULL) || sub_423470(attacker_obj)) {
+    if (!anim_get_current_id(attacker_obj, NULL) || anim_is_running(attacker_obj)) {
         if (combat_auto_attack_get(attacker_obj)) {
             if (!anim_is_current_goal_type(attacker_obj, AG_ATTEMPT_ATTACK, NULL)) {
                 anim_goal_attack(attacker_obj, target_obj);
@@ -1360,7 +1360,7 @@ void ai_stop_attacking(int64_t obj)
         combat_focus_obj = obj_field_handle_get(obj, OBJ_F_NPC_COMBAT_FOCUS);
         if (combat_focus_obj != OBJ_HANDLE_NULL) {
             sub_4AA300(obj, combat_focus_obj);
-            sub_424070(obj, 3, 0, 0);
+            anim_set_priority_level(obj, 3, 0, 0);
             combat_critter_deactivate_combat_mode(obj);
         }
         if (critter_pc_leader_get(obj) != OBJ_HANDLE_NULL) {
@@ -2388,7 +2388,7 @@ void ai_action_perform_cast(Ai* ai)
         magictech_invocation_init(&mt_invocation, ai->obj, ai->spell);
     }
 
-    sub_4440E0(ai->danger_source, &(mt_invocation.target_obj));
+    follower_info_init(ai->danger_source, &(mt_invocation.target_obj));
 
     if (magictech_invocation_check(&mt_invocation)) {
         magictech_invocation_run(&mt_invocation);
@@ -2443,7 +2443,7 @@ void ai_action_perform_non_combat(Ai* ai)
 
         anim_goal_follow_obj(ai->obj, ai->leader_obj);
 
-        if (!sub_423300(ai->obj, NULL)) {
+        if (!anim_get_current_id(ai->obj, NULL)) {
             rc = ai_check_follow(ai->obj, ai->leader_obj, true);
             if (rc != AI_FOLLOW_OK && critter_disband(ai->obj, false)) {
                 npc_flags = obj_field_int32_get(ai->obj, OBJ_F_NPC_FLAGS);
@@ -2469,8 +2469,8 @@ void ai_action_perform_non_combat(Ai* ai)
             }
         }
     } else if (!ai_waypoints_process(ai->obj, false) && !ai_standpoints_process(ai->obj, false)) {
-        sub_435CE0(ai->obj);
-        sub_4364D0(ai->obj);
+        anim_goal_is_projectile(ai->obj);
+        anim_goal_death(ai->obj);
     }
 
     if (!critter_is_sleeping(ai->obj)) {
@@ -2547,7 +2547,7 @@ void ai_action_perform_baking_off(Ai* ai)
             path_create_info.flags = PATH_FLAG_0x0800;
             path_create_info.field_24 = combat_min_dist;
             if (sub_41F3C0(&path_create_info)) {
-                sub_433C80(ai->obj, path_create_info.to);
+                anim_goal_run_to(ai->obj, path_create_info.to);
             } else {
                 obj_field_int32_set(ai->obj, OBJ_F_NPC_FLAGS, npc_flags & ~(ONF_BACKING_OFF));
             }
@@ -2679,8 +2679,8 @@ bool ai_waypoints_process(int64_t obj, bool a2)
 
     if (a2) {
         if (next_map == map) {
-            sub_424070(obj, 4, false, true);
-            sub_43E770(obj, next_loc, 0, 0);
+            anim_set_priority_level(obj, 4, false, true);
+            object_move(obj, next_loc, 0, 0);
         } else {
             teleport_data.flags = 0;
             teleport_data.map = next_map;
@@ -2790,8 +2790,8 @@ bool ai_standpoints_process(int64_t obj, bool a2)
 
     if (a2) {
         if (next_map == map) {
-            sub_424070(obj, 4, 0, 1);
-            sub_43E770(obj, standpoint_loc, 0, 0);
+            anim_set_priority_level(obj, 4, 0, 1);
+            object_move(obj, standpoint_loc, 0, 0);
         } else {
             teleport_data.flags = 0;
             teleport_data.map = next_map;
@@ -2875,9 +2875,9 @@ int64_t ai_find_nearest_bed(int64_t loc)
 void ai_move_to(int64_t obj, int64_t loc, int range)
 {
     if (range != 0) {
-        sub_4341C0(obj, loc, range);
+        anim_goal_move_near_loc(obj, loc, range);
     } else {
-        sub_433640(obj, loc);
+        anim_is_obj_convinced_to_move(obj, loc);
     }
 }
 
@@ -2940,7 +2940,7 @@ bool ai_timeevent_process(TimeEvent* timeevent)
         }
     } else {
         if (!combat_turn_based_is_active() && !critter_is_dead(obj)) {
-            sub_424070(obj, 4, false, true);
+            anim_set_priority_level(obj, 4, false, true);
         }
 
         loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
@@ -3040,8 +3040,8 @@ bool sub_4AD4D0(int64_t obj)
         }
     }
 
-    sub_424070(obj, 4, false, true);
-    sub_43E770(obj, obj_field_int64_get(pc_leader_obj, OBJ_F_LOCATION), 0, 0);
+    anim_set_priority_level(obj, 4, false, true);
+    object_move(obj, obj_field_int64_get(pc_leader_obj, OBJ_F_LOCATION), 0, 0);
 
     return true;
 }
@@ -3182,7 +3182,7 @@ int ai_can_speak(int64_t npc_obj, int64_t pc_obj, bool a3)
                 return AI_SPEAK_COMBAT;
             }
 
-            if (!sub_424070(npc_obj, 2, false, false)) {
+            if (!anim_set_priority_level(npc_obj, 2, false, false)) {
                 return AI_SPEAK_ANIM;
             }
         }
@@ -3422,7 +3422,7 @@ int sub_4ADE00(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr)
                 flags |= 0x10;
             }
 
-            v1 += sub_43FDC0(OBJ_HANDLE_NULL, source_loc, rot, flags, &block_obj, &block_obj_type, NULL);
+            v1 += object_check_los(OBJ_HANDLE_NULL, source_loc, rot, flags, &block_obj, &block_obj_type, NULL);
 
             if (block_obj != OBJ_HANDLE_NULL
                 && block_obj_ptr != NULL) {
@@ -4113,8 +4113,8 @@ int ai_can_see(int64_t source_obj, int64_t target_obj)
 
         prowling = basic_skill_effectiveness(target_obj, BASIC_SKILL_PROWLING, source_obj);
         skill_invocation_init(&skill_invocation);
-        sub_4440E0(target_obj, &(skill_invocation.source));
-        sub_4440E0(source_obj, &(skill_invocation.target));
+        follower_info_init(target_obj, &(skill_invocation.source));
+        follower_info_init(source_obj, &(skill_invocation.target));
         skill_invocation.flags |= SKILL_INVOCATION_CHECK_SEEING;
         skill_invocation.skill = BASIC_SKILL_PROWLING;
 
@@ -4183,8 +4183,8 @@ int ai_can_hear(int64_t source_obj, int64_t target_obj, int loudness)
 
         prowling = basic_skill_effectiveness(target_obj, BASIC_SKILL_PROWLING, source_obj);
         skill_invocation_init(&skill_invocation);
-        sub_4440E0(target_obj, &(skill_invocation.source));
-        sub_4440E0(source_obj, &(skill_invocation.target));
+        follower_info_init(target_obj, &(skill_invocation.source));
+        follower_info_init(source_obj, &(skill_invocation.target));
         skill_invocation.flags |= SKILL_INVOCATION_CHECK_HEARING;
         skill_invocation.skill = BASIC_SKILL_PROWLING;
 
@@ -4256,7 +4256,7 @@ int sub_4AF640(int64_t source_obj, int64_t target_obj)
                 flags |= 0x10;
             }
 
-            cnt += sub_43FDC0(OBJ_HANDLE_NULL,
+            cnt += object_check_los(OBJ_HANDLE_NULL,
                 source_loc,
                 rot,
                 flags,

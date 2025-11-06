@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_OBJ_H_
+﻿#ifndef ARCANUM_GAME_OBJ_H_
 #define ARCANUM_GAME_OBJ_H_
 
 #include "game/context.h"
@@ -406,7 +406,7 @@ void obj_deallocate(int64_t obj);
 void sub_405CC0(int64_t obj);
 void sub_405D60(int64_t* new_obj_ptr, int64_t obj);
 void obj_perm_dup(int64_t* copy_obj_ptr, int64_t existing_obj);
-void sub_406210(int64_t* copy, int64_t obj, ObjectID* oids);
+void ai_strategy_flee_from_object(int64_t* copy, int64_t obj, ObjectID* oids);
 void sub_4063A0(int64_t obj, ObjectID** oids_ptr, int* cnt_ptr);
 void sub_4064B0(int64_t obj);
 void sub_406520(int64_t obj);

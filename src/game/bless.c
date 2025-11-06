@@ -1,4 +1,4 @@
-#include "game/bless.h"
+﻿#include "game/bless.h"
 
 #include "game/effect.h"
 #include "game/mes.h"
@@ -174,7 +174,7 @@ void bless_add(int64_t obj, int bless)
         }
 
         pkt.type = 42;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.bless = bless;
         pkt.add = true;
         tig_net_send_app_all(&pkt, sizeof(pkt));
@@ -241,7 +241,7 @@ void bless_remove(int64_t obj, int bless)
         }
 
         pkt.type = 42;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.bless = bless;
         pkt.add = false;
         tig_net_send_app_all(&pkt, sizeof(pkt));

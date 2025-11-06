@@ -1,4 +1,4 @@
-#include "game/proto.h"
+﻿#include "game/proto.h"
 
 #include <stdio.h>
 
@@ -479,7 +479,7 @@ void sub_468800()
 // 0x468860
 ObjectID sub_468860(int a1)
 {
-    return sub_4E6540(a1 + 20);
+    return objid_create_a(a1 + 20);
 }
 
 // 0x468890

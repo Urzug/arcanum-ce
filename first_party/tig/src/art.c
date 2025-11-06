@@ -1,4 +1,4 @@
-#include "tig/art.h"
+﻿#include "tig/art.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -158,10 +158,10 @@ typedef struct TigArtCacheEntry {
 } TigArtCacheEntry;
 
 static int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuffer** video_buffer_ptr);
-static int sub_505940(unsigned int art_blt_flags, unsigned int* vb_blt_flags_ptr);
-static int sub_5059F0(int cache_entry_index, TigArtBlitInfo* blit_info);
+static int art_blit_flags_to_video_blit_flags(unsigned int art_blt_flags, unsigned int* vb_blt_flags_ptr);
+static int art_blit_software(int cache_entry_index, TigArtBlitInfo* blit_info);
 static int art_blit(int cache_entry_index, TigArtBlitInfo* blit_info);
-static int sub_51AA90(tig_art_id_t art_id);
+static int tig_art_cache_get_or_load_entry(tig_art_id_t art_id);
 static void tig_art_cache_check_fullness();
 static int tig_art_cache_entry_compare_time(const void* a1, const void* a2);
 static int tig_art_cache_entry_compare_name(const void* a1, const void* a2);
@@ -170,15 +170,15 @@ static bool tig_art_cache_find(const char* path, int* index);
 static bool tig_art_cache_entry_load(tig_art_id_t art_id, const char* path, int index);
 static void tig_art_cache_entry_unload(int cache_entry_index);
 static void art_invalidate(int cache_entry_index);
-static void sub_51B650(int cache_entry_index);
-static int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, void** palettes, int a5, art_size_t* size_ptr);
-static int sub_51BE30(TigArtHeader* hdr);
-static void sub_51BE50(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl);
-static void sub_51BF20(TigArtHeader* hdr);
+static void tig_art_cache_entry_free_video_buffers(int cache_entry_index);
+static int tig_art_file_load(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, void** palettes, int a5, art_size_t* size_ptr);
+static int art_header_get_num_rotations(TigArtHeader* hdr);
+static void tig_art_file_load_cleanup(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl);
+static void art_header_free_frame_data(TigArtHeader* hdr);
 static bool art_read_header(TigArtHeader* hdr, TigFile* stream);
 
 // 0x5BE880
-static int dword_5BE880[16] = {
+static int tig_art_tile_edge_map_1[16] = {
     0,
     1,
     8,
@@ -198,7 +198,7 @@ static int dword_5BE880[16] = {
 };
 
 // 0x5BE8C0
-static int dword_5BE8C0[16] = {
+static int tig_art_tile_edge_map_2[16] = {
     0,
     1,
     2,
@@ -218,7 +218,7 @@ static int dword_5BE8C0[16] = {
 };
 
 // 0x5BE900
-static int dword_5BE900[32] = {
+static int tig_art_anim_properties[32] = {
     0,
     0,
     1,
@@ -254,7 +254,7 @@ static int dword_5BE900[32] = {
 };
 
 // 0x5BE980
-static int dword_5BE980[5] = {
+static int tig_art_critter_body_type_properties[5] = {
     1,
     0,
     0,
@@ -263,7 +263,7 @@ static int dword_5BE980[5] = {
 };
 
 // 0x5BE994
-static int dword_5BE994[TIG_ART_MONSTER_SPECIE_COUNT] = {
+static int tig_art_monster_specie_properties[TIG_ART_MONSTER_SPECIE_COUNT] = {
     0,
     0,
     1,
@@ -302,7 +302,7 @@ static int dword_5BE994[TIG_ART_MONSTER_SPECIE_COUNT] = {
 static bool tig_art_mirroring_enabled = true;
 
 // 0x5BEA18
-static int dword_5BEA18[4] = {
+static int tig_art_wall_rotation_map_1[4] = {
     6,
     1,
     3,
@@ -310,7 +310,7 @@ static int dword_5BEA18[4] = {
 };
 
 // 0x5BEA28
-static int dword_5BEA28[4] = {
+static int tig_art_wall_rotation_map_2[4] = {
     2,
     4,
     1,
@@ -324,10 +324,10 @@ float tig_art_cache_video_memory_fullness = 0.3f;
 static TigArtFilePathResolver* tig_art_file_path_resolver;
 
 // 0x604714
-static int dword_604714;
+static int tig_art_cache_last_index;
 
 // 0x604718
-static bool dword_604718;
+static bool tig_art_use_3d_textures;
 
 // 0x60471C
 static int tig_art_cache_entries_length;
@@ -345,7 +345,7 @@ static int tig_art_cache_entries_capacity;
 static art_size_t tig_art_available_video_memory;
 
 // 0x604744
-static TigArtBlitPaletteAdjustCallback* dword_604744;
+static TigArtBlitPaletteAdjustCallback* tig_art_palette_adjust_callback;
 
 // 0x604738
 static int tig_art_bytes_per_pixel;
@@ -366,7 +366,7 @@ static int tig_art_bits_per_pixel;
 static TigArtIdResetFunc* tig_art_id_reset_func;
 
 // 0x604754
-static int dword_604754;
+static int tig_art_check_stretch_blit_divide_by_zero;
 
 // 0x500590
 int tig_art_init(TigInitInfo* init_info)
@@ -403,7 +403,7 @@ int tig_art_init(TigInitInfo* init_info)
 
     tig_art_initialized = true;
 
-    dword_604718 = tig_video_3d_check_initialized() == TIG_OK;
+    tig_art_use_3d_textures = tig_video_3d_check_initialized() == TIG_OK;
 
     return TIG_OK;
 }
@@ -481,7 +481,7 @@ int tig_art_touch(tig_art_id_t art_id)
 {
     int cache_entry_index;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -490,19 +490,19 @@ int tig_art_touch(tig_art_id_t art_id)
 }
 
 // 0x5022B0
-void sub_5022B0(TigArtBlitPaletteAdjustCallback* callback)
+void tig_art_set_palette_adjust_callback(TigArtBlitPaletteAdjustCallback* callback)
 {
-    dword_604744 = callback;
+    tig_art_palette_adjust_callback = callback;
 }
 
 // 0x5022C0
-TigArtBlitPaletteAdjustCallback* sub_5022C0()
+TigArtBlitPaletteAdjustCallback* tig_art_get_palette_adjust_callback()
 {
-    return dword_604744;
+    return tig_art_palette_adjust_callback;
 }
 
 // 0x5022D0
-void sub_5022D0()
+void tig_art_cache_invalidate_palettes()
 {
     int index;
     unsigned int palette;
@@ -510,7 +510,7 @@ void sub_5022D0()
     for (index = 0; index < tig_art_cache_entries_length; index++) {
         for (palette = 0; palette < MAX_PALETTES; palette++) {
             if (tig_art_cache_entries[index].hdr.palette_tbl[palette] != NULL) {
-                sub_505000(tig_art_cache_entries[index].art_id,
+                tig_art_apply_palette_adjustment(tig_art_cache_entries[index].art_id,
                     tig_art_cache_entries[index].hdr.palette_tbl[palette],
                     tig_art_cache_entries[index].palette_tbl[palette]);
             }
@@ -532,7 +532,7 @@ int tig_art_blit(TigArtBlitInfo* blit_info)
 
     mut_art_blit_info = *blit_info;
 
-    cache_entry_index = sub_51AA90(mut_art_blit_info.art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(mut_art_blit_info.art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -567,7 +567,7 @@ int tig_art_blit(TigArtBlitInfo* blit_info)
         }
     }
 
-    if (sub_505940(mut_art_blit_info.flags, &(vb_blit_info.flags)) == TIG_OK
+    if (art_blit_flags_to_video_blit_flags(mut_art_blit_info.flags, &(vb_blit_info.flags)) == TIG_OK
         && sub_520FB0(mut_art_blit_info.dst_video_buffer, vb_blit_info.flags) == TIG_OK
         && art_get_video_buffer(cache_entry_index, mut_art_blit_info.art_id, &video_buffer) == TIG_OK) {
         if ((mut_art_blit_info.flags & TIG_ART_BLT_BLEND_COLOR_CONST) != 0) {
@@ -709,7 +709,7 @@ tig_art_id_t tig_art_num_set(tig_art_id_t art_id, unsigned int value)
         shift = UNIQUE_NPC_ID_NUM_SHIFT;
         break;
     case TIG_ART_TYPE_ITEM:
-        max = sub_502830(art_id);
+        max = tig_art_item_id_get_max_num(art_id);
         mask = 0xFFE0000;
         shift = 17;
         break;
@@ -735,7 +735,7 @@ tig_art_id_t tig_art_num_set(tig_art_id_t art_id, unsigned int value)
 }
 
 // 0x502830
-unsigned int sub_502830(tig_art_id_t art_id)
+unsigned int tig_art_item_id_get_max_num(tig_art_id_t art_id)
 {
     unsigned int max;
     int type;
@@ -818,7 +818,7 @@ tig_art_id_t tig_art_id_rotation_set(tig_art_id_t art_id, int rotation)
         return art_id;
     }
 
-    if (sub_504790(art_id)) {
+    if (tig_art_light_id_get_rotation_mode_flag(art_id)) {
         return art_id;
     }
 
@@ -852,14 +852,14 @@ tig_art_id_t tig_art_id_rotation_set(tig_art_id_t art_id, int rotation)
         cardinal_direction = rotation / 2;
 
         if (old_cardinal_direction != cardinal_direction) {
-            if (dword_5BEA18[old_cardinal_direction] == v1) {
-                v1 = dword_5BEA18[cardinal_direction];
-            } else if (dword_5BEA28[old_cardinal_direction] == v1) {
-                v1 = dword_5BEA28[cardinal_direction];
-            } else if (dword_5BEA18[(old_cardinal_direction + 2) % 4] == v1) {
-                v1 = dword_5BEA18[(cardinal_direction + 2) % 4];
-            } else if (dword_5BEA28[(old_cardinal_direction + 2) % 4] == v1) {
-                v1 = dword_5BEA28[(cardinal_direction + 2) % 4];
+            if (tig_art_wall_rotation_map_1[old_cardinal_direction] == v1) {
+                v1 = tig_art_wall_rotation_map_1[cardinal_direction];
+            } else if (tig_art_wall_rotation_map_2[old_cardinal_direction] == v1) {
+                v1 = tig_art_wall_rotation_map_2[cardinal_direction];
+            } else if (tig_art_wall_rotation_map_1[(old_cardinal_direction + 2) % 4] == v1) {
+                v1 = tig_art_wall_rotation_map_1[(cardinal_direction + 2) % 4];
+            } else if (tig_art_wall_rotation_map_2[(old_cardinal_direction + 2) % 4] == v1) {
+                v1 = tig_art_wall_rotation_map_2[(cardinal_direction + 2) % 4];
             }
 
             art_id = tig_art_wall_id_p_piece_set(art_id, v1);
@@ -1056,12 +1056,12 @@ tig_art_id_t tig_art_id_palette_set(tig_art_id_t art_id, int value)
 }
 
 // 0x502E00
-int sub_502E00(tig_art_id_t art_id)
+int tig_art_palette_exists(tig_art_id_t art_id)
 {
     int cache_entry_index;
     int palette;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -1075,7 +1075,7 @@ int sub_502E00(tig_art_id_t art_id)
 }
 
 // 0x502E50
-int sub_502E50(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr)
+int tig_art_frame_get_pixel_color(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr)
 {
     TigArtCacheEntry* cache_entry;
     int cache_entry_index;
@@ -1085,7 +1085,7 @@ int sub_502E50(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr)
     int palette;
     uint8_t byte;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -1132,7 +1132,7 @@ int sub_502E50(tig_art_id_t art_id, int x, int y, unsigned int* color_ptr)
 }
 
 // 0x502FD0
-int sub_502FD0(tig_art_id_t art_id, int x, int y)
+int tig_art_frame_hit_test(tig_art_id_t art_id, int x, int y)
 {
     int cache_entry_index;
     int rotation;
@@ -1140,7 +1140,7 @@ int sub_502FD0(tig_art_id_t art_id, int x, int y)
     int type;
     int index;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -1175,7 +1175,7 @@ int tig_art_anim_data(tig_art_id_t art_id, TigArtAnimData* data)
     TigArtCacheEntry* cache_entry;
     int palette;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_GENERIC;
     }
@@ -1228,7 +1228,7 @@ int tig_art_frame_data(tig_art_id_t art_id, TigArtFrameData* data)
     bool mirrored;
     int type;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_GENERIC;
     }
@@ -1282,7 +1282,7 @@ int tig_art_frame_data(tig_art_id_t art_id, TigArtFrameData* data)
 }
 
 // 0x503340
-int sub_503340(tig_art_id_t art_id, uint8_t* dst, int pitch)
+int tig_art_frame_get_raw_pixels(tig_art_id_t art_id, uint8_t* dst, int pitch)
 {
     int cache_entry_index;
     int rotation;
@@ -1291,7 +1291,7 @@ int sub_503340(tig_art_id_t art_id, uint8_t* dst, int pitch)
     int width;
     int height;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_IO;
     }
@@ -1312,7 +1312,7 @@ int sub_503340(tig_art_id_t art_id, uint8_t* dst, int pitch)
 }
 
 // 0x5033E0
-int sub_5033E0(tig_art_id_t art_id, int a2, int a3)
+int tig_art_anim_get_frames_for_distance(tig_art_id_t art_id, int a2, int a3)
 {
     int cache_entry_index;
     int rotation;
@@ -1325,7 +1325,7 @@ int sub_5033E0(tig_art_id_t art_id, int a2, int a3)
     int v3;
     int v4;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return 0;
     }
@@ -1408,7 +1408,7 @@ int tig_art_size(tig_art_id_t art_id, int* width_ptr, int* height_ptr)
     int width = 0;
     int height = 0;
 
-    cache_entry_index = sub_51AA90(art_id);
+    cache_entry_index = tig_art_cache_get_or_load_entry(art_id);
     if (cache_entry_index == -1) {
         return TIG_ERR_GENERIC;
     }
@@ -1470,8 +1470,8 @@ int tig_art_tile_id_create(unsigned int num1, unsigned int num2, unsigned int a3
         | ((flippable2 & 1) << TILE_ID_FLIPPABLE2_SHIFT)
         | ((a8 & 3) << 4);
 
-    *art_id_ptr = sub_503740(*art_id_ptr, a3);
-    *art_id_ptr = sub_503800(*art_id_ptr, a4);
+    *art_id_ptr = tig_art_tile_id_set_edge_data(*art_id_ptr, a3);
+    *art_id_ptr = tig_art_tile_id_set_variation_data(*art_id_ptr, a4);
 
     return TIG_OK;
 }
@@ -1500,7 +1500,7 @@ int tig_art_tile_id_num2_get(tig_art_id_t art_id)
 }
 
 // 0x503700
-int sub_503700(tig_art_id_t art_id)
+int tig_art_tile_id_get_edge_data(tig_art_id_t art_id)
 {
     if (tig_art_type(art_id) != TIG_ART_TYPE_TILE) {
         return 0;
@@ -1508,13 +1508,13 @@ int sub_503700(tig_art_id_t art_id)
 
     int v1 = (art_id >> 12) & 0xF;
     if ((tig_art_id_flags_get(art_id) & 1) != 0) {
-        v1 = dword_5BE8C0[v1];
+        v1 = tig_art_tile_edge_map_2[v1];
     }
     return v1;
 }
 
 // 0x503740
-tig_art_id_t sub_503740(tig_art_id_t art_id, int value)
+tig_art_id_t tig_art_tile_id_set_edge_data(tig_art_id_t art_id, int value)
 {
     if (tig_art_type(art_id) != TIG_ART_TYPE_TILE) {
         return art_id;
@@ -1525,10 +1525,10 @@ tig_art_id_t sub_503740(tig_art_id_t art_id, int value)
         value = 0;
     }
 
-    if (value != dword_5BE880[value]) {
+    if (value != tig_art_tile_edge_map_1[value]) {
         if (tig_art_tile_id_flippable_get(art_id)) {
             art_id = tig_art_id_flags_set(art_id, tig_art_id_flags_get(art_id) | 1);
-            value = dword_5BE880[value];
+            value = tig_art_tile_edge_map_1[value];
         }
     }
 
@@ -1538,15 +1538,15 @@ tig_art_id_t sub_503740(tig_art_id_t art_id, int value)
 }
 
 // 0x5037B0
-int sub_5037B0(tig_art_id_t art_id)
+int tig_art_tile_id_get_variation_data(tig_art_id_t art_id)
 {
     if (tig_art_type(art_id) != TIG_ART_TYPE_TILE) {
         return 0;
     }
 
     int v1 = (art_id >> 9) & 7;
-    int v2 = sub_503700(art_id);
-    if (dword_5BE8C0[v2] == dword_5BE880[v2]) {
+    int v2 = tig_art_tile_id_get_edge_data(art_id);
+    if (tig_art_tile_edge_map_2[v2] == tig_art_tile_edge_map_1[v2]) {
         if ((tig_art_id_flags_get(art_id) & 1) != 0) {
             v1 += 8;
         }
@@ -1555,7 +1555,7 @@ int sub_5037B0(tig_art_id_t art_id)
 }
 
 // 0x503800
-tig_art_id_t sub_503800(tig_art_id_t art_id, int value)
+tig_art_id_t tig_art_tile_id_set_variation_data(tig_art_id_t art_id, int value)
 {
     int v1;
 
@@ -1568,14 +1568,14 @@ tig_art_id_t sub_503800(tig_art_id_t art_id, int value)
         value = 0;
     }
 
-    v1 = sub_503700(art_id);
+    v1 = tig_art_tile_id_get_edge_data(art_id);
     if (value < 8) {
-        if (dword_5BE8C0[v1] == dword_5BE880[v1]) {
+        if (tig_art_tile_edge_map_2[v1] == tig_art_tile_edge_map_1[v1]) {
             art_id = tig_art_id_flags_set(art_id, tig_art_id_flags_get(art_id) & ~1);
         }
         art_id = (art_id & ~0xE00) | (value << 9);
     } else {
-        if (dword_5BE8C0[v1] == dword_5BE880[v1]) {
+        if (tig_art_tile_edge_map_2[v1] == tig_art_tile_edge_map_1[v1]) {
             if (tig_art_tile_id_flippable_get(art_id)) {
                 art_id = tig_art_id_flags_set(art_id, tig_art_id_flags_get(art_id) | 1);
             }
@@ -1909,22 +1909,22 @@ int tig_art_monster_id_specie_get(tig_art_id_t art_id)
 }
 
 // 0x503F50
-int sub_503F50(int a1)
+int tig_art_anim_get_property(int a1)
 {
-    return dword_5BE900[a1];
+    return tig_art_anim_properties[a1];
 }
 
 // 0x503F60
-int sub_503F60(tig_art_id_t art_id)
+int tig_art_critter_get_size_class(tig_art_id_t art_id)
 {
     int v1;
     switch (tig_art_type(art_id)) {
     case TIG_ART_TYPE_CRITTER:
         v1 = tig_art_num_get(art_id);
-        return dword_5BE980[v1];
+        return tig_art_critter_body_type_properties[v1];
     case TIG_ART_TYPE_MONSTER:
         v1 = tig_art_monster_id_specie_get(art_id);
-        return dword_5BE994[v1];
+        return tig_art_monster_specie_properties[v1];
     default:
         return 1;
     }
@@ -2134,7 +2134,7 @@ int tig_art_interface_id_create(unsigned int num, unsigned int frame, unsigned c
 }
 
 // 0x504390
-int sub_504390(tig_art_id_t art_id)
+int tig_art_interface_id_get_flag(tig_art_id_t art_id)
 {
     if (tig_art_type(art_id) == TIG_ART_TYPE_INTERFACE) {
         return (art_id >> 7) & 1;
@@ -2169,7 +2169,7 @@ int tig_art_item_id_create(int num, int disposition, int damaged, int destroyed,
         | destroyed;
 
     // NOTE: Signed compare.
-    if ((int)num >= (int)sub_502830(*art_id_ptr)) {
+    if ((int)num >= (int)tig_art_item_id_get_max_num(*art_id_ptr)) {
         return TIG_ERR_INVALID_PARAM;
     }
 
@@ -2323,9 +2323,9 @@ int tig_art_light_id_create(unsigned int num, unsigned int frame, unsigned int r
 }
 
 // 0x504700
-int sub_504700(tig_art_id_t art_id)
+int tig_art_light_id_rotation_get(tig_art_id_t art_id)
 {
-    if (sub_504790(art_id) != 0) {
+    if (tig_art_light_id_get_rotation_mode_flag(art_id) != 0) {
         return (art_id >> 4) & 0x1F;
     } else {
         return tig_art_id_rotation_get(art_id);
@@ -2333,9 +2333,9 @@ int sub_504700(tig_art_id_t art_id)
 }
 
 // 0x504730
-tig_art_id_t sub_504730(tig_art_id_t art_id, int rotation)
+tig_art_id_t tig_art_light_id_rotation_set(tig_art_id_t art_id, int rotation)
 {
-    if (!sub_504790(art_id)) {
+    if (!tig_art_light_id_get_rotation_mode_flag(art_id)) {
         return tig_art_id_rotation_set(art_id, rotation);
     }
 
@@ -2351,7 +2351,7 @@ tig_art_id_t sub_504730(tig_art_id_t art_id, int rotation)
 }
 
 // 0x504790
-int sub_504790(tig_art_id_t art_id)
+int tig_art_light_id_get_rotation_mode_flag(tig_art_id_t art_id)
 {
     if (tig_art_type(art_id) == TIG_ART_TYPE_LIGHT) {
         return art_id & 1;
@@ -2659,11 +2659,11 @@ int tig_art_id_flags_get(tig_art_id_t art_id)
 }
 
 // 0x505000
-void sub_505000(tig_art_id_t art_id, TigPalette src_palette, TigPalette dst_palette)
+void tig_art_apply_palette_adjustment(tig_art_id_t art_id, TigPalette src_palette, TigPalette dst_palette)
 {
     TigPaletteModifyInfo modify_info;
 
-    if (dword_604744 != NULL && dword_604744(art_id, &modify_info)) {
+    if (tig_art_palette_adjust_callback != NULL && tig_art_palette_adjust_callback(art_id, &modify_info)) {
         modify_info.src_palette = src_palette;
         modify_info.dst_palette = dst_palette;
         tig_palette_modify(&modify_info);
@@ -2694,17 +2694,17 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
         }
         break;
     case TIG_ART_TYPE_INTERFACE:
-        if (sub_504390(art_id) == 0) {
+        if (tig_art_interface_id_get_flag(art_id) == 0) {
             return TIG_ERR_GENERIC;
         }
         break;
     case TIG_ART_TYPE_MISC:
         return TIG_ERR_GENERIC;
     case TIG_ART_TYPE_LIGHT:
-        if (!dword_604718) {
+        if (!tig_art_use_3d_textures) {
             return TIG_ERR_GENERIC;
         }
-        if (sub_504790(art_id) == 0) {
+        if (tig_art_light_id_get_rotation_mode_flag(art_id) == 0) {
             return TIG_ERR_GENERIC;
         }
         break;
@@ -2722,7 +2722,7 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
 
             vb_create_info.color_key = tig_color_make(0, 255, 0);
             vb_create_info.background_color = vb_create_info.color_key;
-            if (dword_604718) {
+            if (tig_art_use_3d_textures) {
                 vb_create_info.flags = TIG_VIDEO_BUFFER_CREATE_TEXTURE;
                 vb_create_info.color_key = 0;
             } else {
@@ -2779,8 +2779,8 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
                 art_blit_info.art_id = tig_art_roof_id_piece_set(art_id, frame);
                 art_blit_info.dst_video_buffer = tig_art_cache_entries[cache_entry_index].video_buffers[palette][rotation][frame];
 
-                if (dword_604718) {
-                    rc = sub_5059F0(cache_entry_index, &art_blit_info);
+                if (tig_art_use_3d_textures) {
+                    rc = art_blit_software(cache_entry_index, &art_blit_info);
                 } else {
                     rc = art_blit(cache_entry_index, &art_blit_info);
                 }
@@ -2797,8 +2797,8 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
                 art_blit_info.art_id = tig_art_roof_id_piece_set(art_id, frame);
                 art_blit_info.dst_video_buffer = tig_art_cache_entries[cache_entry_index].video_buffers[palette][rotation][frame];
 
-                if (dword_604718) {
-                    rc = sub_5059F0(cache_entry_index, &art_blit_info);
+                if (tig_art_use_3d_textures) {
+                    rc = art_blit_software(cache_entry_index, &art_blit_info);
                 } else {
                     rc = art_blit(cache_entry_index, &art_blit_info);
                 }
@@ -2842,7 +2842,7 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
             vb_create_info.color_key = tig_color_make(0, 255, 0);
             vb_create_info.background_color = vb_create_info.color_key;
 
-            if (dword_604718) {
+            if (tig_art_use_3d_textures) {
                 vb_create_info.flags = TIG_VIDEO_BUFFER_CREATE_TEXTURE;
                 vb_create_info.color_key = 0;
             } else {
@@ -2884,8 +2884,8 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
                 art_blit_info.art_id = tig_art_id_frame_set(art_id, frame);
                 art_blit_info.dst_video_buffer = tig_art_cache_entries[cache_entry_index].video_buffers[palette][rotation][frame];
 
-                if (dword_604718) {
-                    rc = sub_5059F0(cache_entry_index, &art_blit_info);
+                if (tig_art_use_3d_textures) {
+                    rc = art_blit_software(cache_entry_index, &art_blit_info);
                 } else {
                     rc = art_blit(cache_entry_index, &art_blit_info);
                 }
@@ -2913,7 +2913,7 @@ int art_get_video_buffer(int cache_entry_index, tig_art_id_t art_id, TigVideoBuf
 }
 
 // 0x505940
-int sub_505940(unsigned int art_blt_flags, unsigned int* vb_blt_flags_ptr)
+int art_blit_flags_to_video_blit_flags(unsigned int art_blt_flags, unsigned int* vb_blt_flags_ptr)
 {
     if ((art_blt_flags & 0x1802C) != 0) {
         return TIG_ERR_INVALID_PARAM;
@@ -2977,7 +2977,7 @@ int sub_505940(unsigned int art_blt_flags, unsigned int* vb_blt_flags_ptr)
 }
 
 // 0x5059F0
-int sub_5059F0(int cache_entry_index, TigArtBlitInfo* blit_info)
+int art_blit_software(int cache_entry_index, TigArtBlitInfo* blit_info)
 {
     TigVideoBufferData video_buffer_data;
     TigPalette plt;
@@ -3175,7 +3175,7 @@ int art_blit(int cache_entry_index, TigArtBlitInfo* blit_info)
     } else {
         stretched = true;
 
-        if (dword_604754) {
+        if (tig_art_check_stretch_blit_divide_by_zero) {
             if (blit_info->dst_rect->width < 1 || blit_info->dst_rect->height < 1) {
                 SDL_Window* window;
 
@@ -5361,7 +5361,7 @@ int art_blit(int cache_entry_index, TigArtBlitInfo* blit_info)
 }
 
 // 0x51AA90
-int sub_51AA90(tig_art_id_t art_id)
+int tig_art_cache_get_or_load_entry(tig_art_id_t art_id)
 {
     char path[TIG_MAX_PATH];
     int cache_entry_index;
@@ -5370,10 +5370,10 @@ int sub_51AA90(tig_art_id_t art_id)
         return -1;
     }
 
-    if (dword_604714 < tig_art_cache_entries_length
-        && strcmp(path, tig_art_cache_entries[dword_604714].path) == 0) {
-        tig_art_cache_entries[dword_604714].time = tig_ping_timestamp;
-        return dword_604714;
+    if (tig_art_cache_last_index < tig_art_cache_entries_length
+        && strcmp(path, tig_art_cache_entries[tig_art_cache_last_index].path) == 0) {
+        tig_art_cache_entries[tig_art_cache_last_index].time = tig_ping_timestamp;
+        return tig_art_cache_last_index;
     }
 
     // Called twice to check both system and video memory.
@@ -5393,7 +5393,7 @@ int sub_51AA90(tig_art_id_t art_id)
 
     tig_art_cache_entries[cache_entry_index].time = tig_ping_timestamp;
     tig_art_cache_entries[cache_entry_index].art_id = art_id;
-    dword_604714 = cache_entry_index;
+    tig_art_cache_last_index = cache_entry_index;
 
     return cache_entry_index;
 }
@@ -5638,7 +5638,7 @@ bool tig_art_cache_entry_load(tig_art_id_t art_id, const char* path, int cache_e
     memset(art, 0, sizeof(TigArtCacheEntry));
     strcpy(art->path, path);
 
-    rc = sub_51B710(art_id,
+    rc = tig_art_file_load(art_id,
         path,
         &(art->hdr),
         art->palette_tbl,
@@ -5710,7 +5710,7 @@ void tig_art_cache_entry_unload(int cache_entry_index)
     tig_art_available_system_memory += cache_entry->system_memory_usage;
     tig_art_available_video_memory += cache_entry->video_memory_usage;
 
-    sub_51B650(cache_entry_index);
+    tig_art_cache_entry_free_video_buffers(cache_entry_index);
 
     type = tig_art_type(cache_entry->art_id);
 
@@ -5762,7 +5762,7 @@ void art_invalidate(int cache_entry_index)
 }
 
 // 0x51B650
-void sub_51B650(int cache_entry_index)
+void tig_art_cache_entry_free_video_buffers(int cache_entry_index)
 {
     TigArtCacheEntry* art;
     int num_frames;
@@ -5793,7 +5793,7 @@ void sub_51B650(int cache_entry_index)
 }
 
 // 0x51B710
-int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, void** palette_tbl, int a5, art_size_t* size_ptr)
+int tig_art_file_load(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, void** palette_tbl, int a5, art_size_t* size_ptr)
 {
     TigFile* stream;
     int rotation;
@@ -5852,7 +5852,7 @@ int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, voi
     for (palette = 0; palette < MAX_PALETTES; palette++) {
         if (saved_palette_tbl[palette] != NULL) {
             if (tig_file_fread(temp_palette_entries, sizeof(uint32_t), 256, stream) != 256) {
-                sub_51BE50(stream, hdr, palette_tbl);
+                tig_art_file_load_cleanup(stream, hdr, palette_tbl);
                 return TIG_ERR_GENERIC;
             }
 
@@ -5894,18 +5894,18 @@ int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, voi
                 }
             }
 
-            sub_505000(art_id, hdr->palette_tbl[palette], palette_tbl[palette]);
+            tig_art_apply_palette_adjustment(art_id, hdr->palette_tbl[palette], palette_tbl[palette]);
         }
     }
 
-    num_rotations = sub_51BE30(hdr);
+    num_rotations = art_header_get_num_rotations(hdr);
 
     for (rotation = 0; rotation < num_rotations; rotation++) {
         hdr->frames_tbl[rotation] = (TigArtFileFrameData*)MALLOC(sizeof(TigArtFileFrameData) * hdr->num_frames);
         *size_ptr += sizeof(TigArtFileFrameData) * hdr->num_frames;
 
         if (tig_file_fread(hdr->frames_tbl[rotation], sizeof(TigArtFileFrameData), hdr->num_frames, stream) != (size_t)hdr->num_frames) {
-            sub_51BE50(stream, hdr, palette_tbl);
+            tig_art_file_load_cleanup(stream, hdr, palette_tbl);
             return TIG_ERR_GENERIC;
         }
     }
@@ -5933,7 +5933,7 @@ int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, voi
             if (hdr->frames_tbl[index][frame].data_size == hdr->frames_tbl[index][frame].width * hdr->frames_tbl[index][frame].height) {
                 // Pixels are not compressed, read everything in one go.
                 if (tig_file_fread(bytes, 1, hdr->frames_tbl[index][frame].data_size, stream) != (size_t)hdr->frames_tbl[index][frame].data_size) {
-                    sub_51BE50(stream, hdr, palette_tbl);
+                    tig_art_file_load_cleanup(stream, hdr, palette_tbl);
                     return TIG_ERR_GENERIC;
                 }
                 bytes += hdr->frames_tbl[index][frame].data_size;
@@ -5946,20 +5946,20 @@ int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, voi
 
                 while (cnt < hdr->frames_tbl[index][frame].data_size) {
                     if (tig_file_fread(&value, 1, 1, stream) != 1) {
-                        sub_51BE50(stream, hdr, palette_tbl);
+                        tig_art_file_load_cleanup(stream, hdr, palette_tbl);
                         return TIG_ERR_GENERIC;
                     }
 
                     len = value & 0x7F;
                     if ((value & 0x80) != 0) {
                         if (tig_file_fread(bytes, 1, len, stream) != (size_t)len) {
-                            sub_51BE50(stream, hdr, palette_tbl);
+                            tig_art_file_load_cleanup(stream, hdr, palette_tbl);
                             return TIG_ERR_GENERIC;
                         }
                         cnt += 1 + len;
                     } else {
                         if (tig_file_fread(&color, 1, 1, stream) != 1) {
-                            sub_51BE50(stream, hdr, palette_tbl);
+                            tig_art_file_load_cleanup(stream, hdr, palette_tbl);
                             return TIG_ERR_GENERIC;
                         }
 
@@ -6002,13 +6002,13 @@ int sub_51B710(tig_art_id_t art_id, const char* filename, TigArtHeader* hdr, voi
 }
 
 // 0x51BE30
-int sub_51BE30(TigArtHeader* hdr)
+int art_header_get_num_rotations(TigArtHeader* hdr)
 {
     return (hdr->flags & TIG_ART_0x01) != 0 ? 1 : MAX_ROTATIONS;
 }
 
 // 0x51BE50
-void sub_51BE50(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl)
+void tig_art_file_load_cleanup(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl)
 {
     int palette;
 
@@ -6016,7 +6016,7 @@ void sub_51BE50(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl)
         tig_file_fclose(stream);
     }
 
-    sub_51BF20(hdr);
+    art_header_free_frame_data(hdr);
 
     for (palette = 0; palette < MAX_PALETTES; ++palette) {
         if (hdr->palette_tbl[palette] != NULL) {
@@ -6030,12 +6030,12 @@ void sub_51BE50(TigFile* stream, TigArtHeader* hdr, TigPalette* palette_tbl)
 }
 
 // 0x51BF20
-void sub_51BF20(TigArtHeader* hdr)
+void art_header_free_frame_data(TigArtHeader* hdr)
 {
     int num_rotations;
     int rotation;
 
-    num_rotations = sub_51BE30(hdr);
+    num_rotations = art_header_get_num_rotations(hdr);
     for (rotation = 0; rotation < num_rotations; rotation++) {
         if (hdr->pixels_tbl[rotation] != NULL) {
             FREE(hdr->pixels_tbl[rotation]);

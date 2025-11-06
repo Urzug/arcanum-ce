@@ -1,4 +1,4 @@
-#include "game/critter.h"
+﻿#include "game/critter.h"
 
 #include "game/ai.h"
 #include "game/anim.h"
@@ -657,7 +657,7 @@ void critter_kill(int64_t obj)
 
     multiplayer_lock();
 
-    sub_4B2210(OBJ_HANDLE_NULL, obj, &combat);
+    combat_context_init(OBJ_HANDLE_NULL, obj, &combat);
     combat.dam_flags |= CDF_DEATH;
     combat_dmg(&combat);
 
@@ -675,7 +675,7 @@ void critter_kill(int64_t obj)
         }
         object_set_current_aid(obj, art_id);
         object_flags_set(obj, OF_FLAT | OF_NO_BLOCK);
-        sub_432D90(obj);
+        anim_process_obj_goals(obj);
     }
 
     multiplayer_unlock();
@@ -1048,7 +1048,7 @@ void critter_disband_internal(int64_t obj)
     critter_leader_set(obj, OBJ_HANDLE_NULL);
 
     // Update animations.
-    sub_424070(obj, PRIORITY_5, false, true);
+    anim_set_priority_level(obj, PRIORITY_5, false, true);
     anim_speed_recalc(obj);
 
     // Remove forced follower flag if present.
@@ -1798,12 +1798,12 @@ void critter_set_concealed_internal(int64_t obj, bool concealed)
         }
 
         pkt.type = 33;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.concealed = concealed;
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 
-    sub_424070(obj, PRIORITY_5, false, false);
+    anim_set_priority_level(obj, PRIORITY_5, false, false);
 
     // Update animation based on concealed state.
     art_id = obj_field_int32_get(obj, OBJ_F_CURRENT_AID);
@@ -1830,7 +1830,7 @@ void critter_set_concealed_internal(int64_t obj, bool concealed)
     // Apply new animation if active.
     if (critter_is_active(obj)) {
         object_set_current_aid(obj, new_art_id);
-        sub_43F030(obj);
+        object_invalidate_render_flags(obj);
     }
 
     // Trigger fidget animation if revealed in combat.
@@ -2044,7 +2044,7 @@ bool critter_enter_bed(int64_t obj, int64_t bed)
     obj_location = obj_field_int64_get(bed, OBJ_F_LOCATION);
     if (bed_location == obj_location
         && location_in_dir(obj_location, 4, &location)) {
-        sub_43E770(obj, location, 0, 0);
+        object_move(obj, location, 0, 0);
     }
 
     return true;

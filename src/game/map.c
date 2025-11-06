@@ -1,4 +1,4 @@
-#include "game/map.h"
+﻿#include "game/map.h"
 
 #include <stdio.h>
 
@@ -1565,14 +1565,14 @@ void map_clear_objects()
         if (obj_inst_first(&obj, &iter)) {
             do {
                 if (!object_is_static(obj)) {
-                    sub_43CF70(obj);
+                    object_remove_from_sector(obj);
                     object_delete(obj);
                 }
             } while (obj_inst_next(&obj, &iter));
         }
 
         sub_4D0B40();
-        sub_4E5300();
+        objp_perm_lookup_compact();
 
         map_in_map_clear_objects = false;
     }

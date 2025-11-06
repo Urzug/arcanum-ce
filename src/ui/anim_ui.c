@@ -1,4 +1,4 @@
-#include "ui/anim_ui.h"
+﻿#include "ui/anim_ui.h"
 
 #include "game/critter.h"
 #include "game/gamelib.h"
@@ -197,7 +197,7 @@ bool anim_ui_bkg_process_callback(TimeEvent* timeevent)
                 gfade_run(&fade_data);
 
                 if (sub_460BB0()) {
-                    sub_4A4320();
+                    multiplayer_save_local_char();
                 }
             }
 

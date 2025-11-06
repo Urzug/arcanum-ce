@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_WALLCHECK_H_
+﻿#ifndef ARCANUM_GAME_WALLCHECK_H_
 #define ARCANUM_GAME_WALLCHECK_H_
 
 #include "game/context.h"
@@ -11,6 +11,6 @@ void wallcheck_recalc(int64_t loc);
 void wallcheck_flush();
 void wallcheck_set_enabled(bool enabled);
 bool wallcheck_is_enabled();
-void sub_438530(int64_t obj);
+void wallcheck_notify_player_moved(int64_t obj);
 
 #endif /* ARCANUM_GAME_WALLCHECK_H_ */

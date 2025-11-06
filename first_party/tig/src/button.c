@@ -1,4 +1,4 @@
-#include "tig/button.h"
+﻿#include "tig/button.h"
 
 #include "tig/art.h"
 #include "tig/debug.h"
@@ -412,7 +412,7 @@ tig_button_handle_t tig_button_get_at_position(int x, int y)
                 return window_buttons[index];
             }
 
-            if (sub_502E50(btn->art_id, x - btn->rect.x, y - btn->rect.y, &color) == TIG_OK
+            if (tig_art_frame_get_pixel_color(btn->art_id, x - btn->rect.x, y - btn->rect.y, &color) == TIG_OK
                 && tig_art_anim_data(btn->art_id, &art_anim_data) == TIG_OK
                 && color != art_anim_data.color_key) {
                 return window_buttons[index];

@@ -1,4 +1,4 @@
-#include "game/quest.h"
+﻿#include "game/quest.h"
 
 #include "game/critter.h"
 #include "game/mes.h"
@@ -262,7 +262,7 @@ bool quest_parse(const char* path, int start, int end)
             // seven numbers in each bank is the dialog entry point for the
             // quest in each of its seven states. The number refers to a PC
             // dialog line which will be used in place of the Q: line based on
-            // the associated quest state. You can use a –1 to indicate no
+            // the associated quest state. You can use a â€“1 to indicate no
             // dialog line, meaning no message will be printed."
             strcpy(temp, mes_file_entry.str);
 
@@ -407,7 +407,7 @@ int quest_state_set(int64_t pc_obj, int num, int state, int64_t npc_obj)
                 // Iterate through all possible players, and mark quest as
                 // botched for everyone.
                 for (player = 0; player < 8; player++) {
-                    player_obj = sub_4A2B60(player);
+                    player_obj = multiplayer_get_player_obj_by_slot(player);
                     if (player_obj != OBJ_HANDLE_NULL) {
                         quest_state_set_internal(player_obj, num, state, npc_obj);
                     }
@@ -449,10 +449,10 @@ int quest_state_set_internal(int64_t pc_obj, int num, int state, int64_t npc_obj
         }
 
         pkt.type = 39;
-        sub_4440E0(pc_obj, &(pkt.field_8));
+        follower_info_init(pc_obj, &(pkt.field_8));
         pkt.quest = num;
         pkt.state = state;
-        sub_4440E0(npc_obj, &(pkt.field_40));
+        follower_info_init(npc_obj, &(pkt.field_40));
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 
@@ -548,7 +548,7 @@ int quest_unbotch(int64_t obj, int num)
         }
 
         pkt.type = 40;
-        sub_4440E0(obj, &(pkt.field_8));
+        follower_info_init(obj, &(pkt.field_8));
         pkt.quest = num;
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }

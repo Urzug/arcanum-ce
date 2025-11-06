@@ -1,4 +1,4 @@
-#include "game/anim.h"
+﻿#include "game/anim.h"
 
 #include <stdio.h>
 
@@ -3043,7 +3043,7 @@ bool anim_load(GameLoadInfo* load_info)
     loaded = anim_load_internal(load_info);
     in_anim_load = false;
 
-    sub_423E60("Anim Load");
+    anim_set_debug_error_msg("Anim Load");
 
     return loaded;
 }
@@ -3457,7 +3457,7 @@ void anim_debug_enable()
 }
 
 // 0x423300
-bool sub_423300(int64_t obj, AnimID* anim_id)
+bool anim_get_current_id(int64_t obj, AnimID* anim_id)
 {
     int prev = -1;
     int slot;
@@ -3488,7 +3488,7 @@ bool sub_423300(int64_t obj, AnimID* anim_id)
 }
 
 // 0x4233D0
-int sub_4233D0(int64_t obj)
+int anim_get_priority_level(int64_t obj)
 {
     int prev = -1;
     int slot;
@@ -3512,7 +3512,7 @@ int sub_4233D0(int64_t obj)
 }
 
 // 0x423470
-bool sub_423470(int64_t obj)
+bool anim_is_running(int64_t obj)
 {
     int index;
     AnimRunInfo* run_info;
@@ -3541,7 +3541,7 @@ bool sub_423470(int64_t obj)
 }
 
 // 0x4234F0
-bool sub_4234F0(int64_t obj)
+bool anim_is_combat_anim(int64_t obj)
 {
     return anim_is_current_goal_type(obj, AG_ANIM_FIDGET, NULL);
 }
@@ -3719,7 +3719,7 @@ bool anim_timeevent_process(TimeEvent* timeevent)
                     goal_data->type = state_change & 0xFFF;
                     goal_node = anim_goal_nodes[goal_data->type];
                     sub_44C840(run_info, goal_node);
-                    sub_423E60("Running: PushGoal");
+                    anim_set_debug_error_msg("Running: PushGoal");
                 } else {
                     anim_id_to_str(&(run_info->id), str);
                     tig_debug_printf("Anim: ERROR: Attempt to PushGoal: Goal Stack too LARGE!!!  Killing the Animation Slot: AnimID: %s!\n", str);
@@ -3742,7 +3742,7 @@ bool anim_timeevent_process(TimeEvent* timeevent)
                 }
 
                 for (int idx = 1; idx <= run_info->current_goal; idx++) {
-                    sub_423E60("Running: Goal Terminate");
+                    anim_set_debug_error_msg("Running: Goal Terminate");
 
                     goal_subnode = &(anim_goal_nodes[run_info->goals[idx].type]->subnodes[14]);
                     if (goal_subnode->func != NULL
@@ -3807,16 +3807,16 @@ bool anim_timeevent_process(TimeEvent* timeevent)
         bool rc = sub_44E2C0(&(run_info->id), PRIORITY_HIGHEST);
 
         if (!combat_turn_based_is_active()) {
-            sub_4B4320(anim_obj);
+            combat_fidget_check(anim_obj);
             return rc;
         }
 
         if (obj_type_is_critter(obj_field_int32_get(anim_obj, OBJ_F_TYPE))) {
-            sub_4B7010(anim_obj);
+            combat_tb_process_npc_turn(anim_obj);
         }
 
         if (combat_action_points_get() > 0) {
-            sub_4B4320(anim_obj);
+            combat_fidget_check(anim_obj);
         }
 
         return rc;
@@ -3890,7 +3890,7 @@ void sub_423D10(AnimRunInfo* run_info, unsigned int* flags_ptr, AnimGoalNode** g
 }
 
 // 0x423E60
-void sub_423E60(const char* msg)
+void anim_set_debug_error_msg(const char* msg)
 {
     int cnt;
 
@@ -3960,13 +3960,13 @@ void anim_catch_up_disable()
 }
 
 // 0x423FE0
-void sub_423FE0(void (*func)())
+void anim_set_completion_callback(void (*func)())
 {
     dword_5E34F8 = func;
 }
 
 // 0x423FF0
-bool sub_423FF0(int64_t obj)
+bool anim_clear_goals(int64_t obj)
 {
     int prev = -1;
     int slot;
@@ -3989,7 +3989,7 @@ bool sub_423FF0(int64_t obj)
 }
 
 // 0x424070
-bool sub_424070(int64_t obj, int priority_level, bool a3, bool a4)
+bool anim_set_priority_level(int64_t obj, int priority_level, bool a3, bool a4)
 {
     int prev = -1;
     int slot;
@@ -4004,7 +4004,7 @@ bool sub_424070(int64_t obj, int priority_level, bool a3, bool a4)
             pkt.field_4 = 0;
 
             if (tig_net_is_host()) {
-                sub_4440E0(obj, &(pkt.field_18));
+                follower_info_init(obj, &(pkt.field_18));
                 pkt.priority_level = priority_level;
                 pkt.field_48 = a3;
                 pkt.loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
@@ -4013,7 +4013,7 @@ bool sub_424070(int64_t obj, int priority_level, bool a3, bool a4)
                 pkt.offset_y = obj_field_int32_get(obj, OBJ_F_OFFSET_Y);
                 tig_net_send_app_all(&pkt, sizeof(pkt));
             } else {
-                sub_4440E0(obj, &(pkt.field_18));
+                follower_info_init(obj, &(pkt.field_18));
                 pkt.priority_level = priority_level;
                 pkt.field_48 = a3;
                 pkt.loc = 0;
@@ -4095,7 +4095,7 @@ bool anim_goal_interrupt_all_for_tb_combat()
 }
 
 // 0x4243E0
-bool sub_4243E0(int64_t obj, tig_art_id_t eye_candy_id, int mt_id)
+bool anim_play_eye_candy_on_obj(int64_t obj, tig_art_id_t eye_candy_id, int mt_id)
 {
     AnimID prev_anim_id;
     AnimID cur_anim_id;
@@ -4143,7 +4143,7 @@ bool sub_4243E0(int64_t obj, tig_art_id_t eye_candy_id, int mt_id)
 }
 
 // 0x424560
-bool sub_424560(int64_t obj, tig_art_id_t eye_candy_id, int mt_id)
+bool anim_play_eye_candy_on_obj_ex(int64_t obj, tig_art_id_t eye_candy_id, int mt_id)
 {
     AnimID prev_anim_id;
     AnimID cur_anim_id;
@@ -4744,7 +4744,7 @@ bool sub_425760(int64_t obj, int64_t loc, int64_t adjacent_loc, int rot)
         return true;
     }
 
-    return sub_43FD70(obj, loc, rot, flags, NULL);
+    return object_is_los_blocked(obj, loc, rot, flags, NULL);
 }
 
 // 0x4257E0
@@ -4783,7 +4783,7 @@ bool sub_425840(int64_t a1, int64_t a2, int64_t a3, int a4, int64_t a5)
         v1 = false;
     }
 
-    if ((sub_43FDC0(a1, a2, a4, flags, &v3, &v4, 0) || v3) && !v4) {
+    if ((object_check_los(a1, a2, a4, flags, &v3, &v4, 0) || v3) && !v4) {
         v2 = true;
     }
 
@@ -5055,7 +5055,7 @@ bool sub_426040(AnimRunInfo* run_info)
 }
 
 // 0x4261E0
-int sub_4261E0(int64_t a1, int64_t a2)
+int anim_path_get_dist(int64_t a1, int64_t a2)
 {
     AnimPath path;
 
@@ -5075,7 +5075,7 @@ int sub_4261E0(int64_t a1, int64_t a2)
 }
 
 // 0x426250
-int sub_426250(int64_t a1, int64_t a2)
+int anim_path_get_rot_to(int64_t a1, int64_t a2)
 {
     AnimPath path;
 
@@ -5171,11 +5171,11 @@ int sub_426500(int64_t obj, int64_t to, AnimPath* path, unsigned int flags)
 {
     ASSERT(obj != OBJ_HANDLE_NULL); // 4493, "obj != OBJ_HANDLE_NULL"
 
-    return sub_426560(obj, obj_field_int64_get(obj, OBJ_F_LOCATION), to, path, flags);
+    return anim_path_find(obj, obj_field_int64_get(obj, OBJ_F_LOCATION), to, path, flags);
 }
 
 // 0x426560
-bool sub_426560(int64_t obj, int64_t from, int64_t to, AnimPath* path, unsigned int flags)
+bool anim_path_find(int64_t obj, int64_t from, int64_t to, AnimPath* path, unsigned int flags)
 {
     int v1;
     uint8_t* rotations;
@@ -5228,7 +5228,7 @@ bool sub_426560(int64_t obj, int64_t from, int64_t to, AnimPath* path, unsigned 
         }
 
         if (!tile_is_blocking(adjacent_loc, false)
-            && !sub_43FD70(obj, from, rot, sub_41F570(flags), NULL)) {
+            && !object_is_los_blocked(obj, from, rot, sub_41F570(flags), NULL)) {
             from = adjacent_loc;
         } else {
             if (from != adjacent_loc) {
@@ -5588,7 +5588,7 @@ bool sub_426F60(AnimRunInfo* run_info)
 }
 
 // 0x427000
-bool sub_427000(int64_t obj)
+bool anim_path_is_clear(int64_t obj)
 {
     AnimID anim_id;
     AnimRunInfo* run_info;
@@ -5714,7 +5714,7 @@ bool sub_4272E0(AnimRunInfo* run_info)
         rotation = run_info->path.rotations[run_info->path.curr];
     }
 
-    if (!sub_440700(obj, loc, rotation, 0, &v1)) {
+    if (!object_is_portal_blocked(obj, loc, rotation, 0, &v1)) {
         return false;
     }
 
@@ -6365,7 +6365,7 @@ bool sub_4284F0(AnimRunInfo* run_info)
         return false;
     }
 
-    if (sub_423300(obj, NULL)) {
+    if (anim_get_current_id(obj, NULL)) {
         return false;
     }
 
@@ -6633,7 +6633,7 @@ bool sub_428A10(AnimRunInfo* run_info)
     if (sub_425840(source_obj, source_loc, target_loc, rot, target_obj)) {
         if (tig_net_is_active()
             && tig_net_is_host()) {
-            sub_424070(source_obj, 2, false, false);
+            anim_set_priority_level(source_obj, 2, false, false);
         }
         return false;
     }
@@ -6651,14 +6651,14 @@ bool sub_428A10(AnimRunInfo* run_info)
             mp_ui_show_inven_loot(source_obj, target_obj);
 
             if (tig_net_is_active()) {
-                sub_424070(source_obj, 2, false, false);
+                anim_set_priority_level(source_obj, 2, false, false);
             }
         }
         return true;
     case OBJ_TYPE_SCENERY:
         if (tig_net_is_active()
             && tig_net_is_host()) {
-            sub_424070(source_obj, 2, false, false);
+            anim_set_priority_level(source_obj, 2, false, false);
         }
         if (tig_art_scenery_id_type_get(obj_field_int32_get(target_obj, OBJ_F_CURRENT_AID)) == TIG_ART_SCENERY_TYPE_BEDS) {
             ui_sleep_toggle(target_obj);
@@ -6671,7 +6671,7 @@ bool sub_428A10(AnimRunInfo* run_info)
     case OBJ_TYPE_PC:
     case OBJ_TYPE_NPC:
         if ((spell_flags & OSF_POLYMORPHED) != 0
-            || sub_423300(target_obj, NULL)) {
+            || anim_get_current_id(target_obj, NULL)) {
             return false;
         }
         if (!tig_net_is_active()
@@ -6679,14 +6679,14 @@ bool sub_428A10(AnimRunInfo* run_info)
             mp_ui_show_inven_loot(source_obj, target_obj);
 
             if (tig_net_is_active()) {
-                sub_424070(source_obj, 2, false, false);
+                anim_set_priority_level(source_obj, 2, false, false);
             }
         }
         return true;
     default:
         if (tig_net_is_active()
             && tig_net_is_host()) {
-            sub_424070(source_obj, 2, false, false);
+            anim_set_priority_level(source_obj, 2, false, false);
         }
         if (!object_script_execute(source_obj, target_obj, source_obj, SAP_USE, 0)) {
             return false;
@@ -6774,12 +6774,12 @@ bool sub_428E10(AnimRunInfo* run_info)
         target_obj = OBJ_HANDLE_NULL;
     }
 
-    sub_4440E0(source_obj, &(skill_invocation.source));
-    sub_4440E0(target_obj, &(skill_invocation.target));
-    sub_4440E0(item_obj, &(skill_invocation.item));
+    follower_info_init(source_obj, &(skill_invocation.source));
+    follower_info_init(target_obj, &(skill_invocation.target));
+    follower_info_init(item_obj, &(skill_invocation.item));
 
     if (item_obj != -1) {
-        sub_4440E0(item_obj, &(skill_invocation.item));
+        follower_info_init(item_obj, &(skill_invocation.item));
     }
 
     flags = run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data;
@@ -6853,12 +6853,12 @@ bool sub_429160(AnimRunInfo* run_info)
     skill_invocation_init(&skill_invocation);
     skill_invocation.skill = run_info->cur_stack_data->params[AGDATA_SKILL_DATA].data;
     skill_invocation.modifier = run_info->cur_stack_data->params[AGDATA_SCRATCH_VAL4].data;
-    sub_4440E0(source_obj, &(skill_invocation.source));
+    follower_info_init(source_obj, &(skill_invocation.source));
     skill_invocation.target_loc = target_loc;
-    sub_4440E0(item_obj, &(skill_invocation.item));
+    follower_info_init(item_obj, &(skill_invocation.item));
 
     if (item_obj != -1) {
-        sub_4440E0(item_obj, &(skill_invocation.item));
+        follower_info_init(item_obj, &(skill_invocation.item));
     }
 
     if ((run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data & 0x01) != 0) {
@@ -7411,7 +7411,7 @@ bool sub_429CD0(AnimRunInfo* run_info)
         art_id = tig_art_id_frame_set(art_id, 0);
         object_set_current_aid(obj, art_id);
 
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
     }
 
     return true;
@@ -7639,11 +7639,11 @@ bool sub_42A2A0(AnimRunInfo* run_info)
         target_obj = OBJ_HANDLE_NULL;
     }
 
-    sub_4440E0(source_obj, &(skill_invocation.source));
-    sub_4440E0(target_obj, &(skill_invocation.target));
+    follower_info_init(source_obj, &(skill_invocation.source));
+    follower_info_init(target_obj, &(skill_invocation.target));
 
     if (run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj != -1) {
-        sub_4440E0(run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj, &(skill_invocation.item));
+        follower_info_init(run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj, &(skill_invocation.item));
     }
 
     if ((run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data & 0x1) != 0) {
@@ -7726,11 +7726,11 @@ bool sub_42A4E0(AnimRunInfo* run_info)
         target_obj = OBJ_HANDLE_NULL;
     }
 
-    sub_4440E0(source_obj, &(skill_invocation.source));
-    sub_4440E0(target_obj, &(skill_invocation.target));
+    follower_info_init(source_obj, &(skill_invocation.source));
+    follower_info_init(target_obj, &(skill_invocation.target));
 
     if (run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj != -1) {
-        sub_4440E0(run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj, &(skill_invocation.item));
+        follower_info_init(run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj, &(skill_invocation.item));
     }
 
     if ((run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data & 0x1) != 0) {
@@ -7770,7 +7770,7 @@ bool sub_42A630(AnimRunInfo* run_info)
     }
 
     if ((obj_field_int32_get(target_obj, OBJ_F_FLAGS) & (OF_DESTROYED | OF_OFF)) == 0) {
-        sub_4B3BB0(source_obj, target_obj, hit_loc);
+        combat_attack(source_obj, target_obj, hit_loc);
     }
 
     return true;
@@ -7804,7 +7804,7 @@ bool AGapplyFireDmg(AnimRunInfo* run_info)
     object_list_location(source_loc, OBJ_TM_CRITTER | OBJ_TM_ITEM, &objects);
     node = objects.head;
     while (node != NULL) {
-        sub_4B2210(source_obj, node->obj, &combat);
+        combat_context_init(source_obj, node->obj, &combat);
         combat.field_30 = parent_obj;
         if ((run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data & 0x4000) != 0) {
             dam = 1;
@@ -8139,7 +8139,7 @@ bool sub_42AFB0(AnimRunInfo* run_info)
     object_set_current_aid(obj, art_id);
 
     if (obj_type_is_critter(type)) {
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
 
         leader_obj = critter_leader_get(obj);
         if (leader_obj == OBJ_HANDLE_NULL
@@ -8189,7 +8189,7 @@ bool sub_42B090(AnimRunInfo* run_info)
 
         art_id = tig_art_id_frame_set(art_id, 0);
         object_set_current_aid(obj, art_id);
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
     }
 
     if (tig_net_is_active()
@@ -8250,7 +8250,7 @@ bool sub_42B250(AnimRunInfo* run_info)
         art_id = tig_art_id_frame_set(art_id, 0);
         object_set_current_aid(obj, art_id);
 
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
 
         if (!tig_net_is_active()
             || tig_net_is_host()) {
@@ -8321,7 +8321,7 @@ bool sub_42B440(AnimRunInfo* run_info)
         art_id = tig_art_id_frame_set(art_id, 0);
         object_set_current_aid(obj, art_id);
 
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
 
         if (obj_type == OBJ_TYPE_PC) {
             item_obj = run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj;
@@ -8496,7 +8496,7 @@ void anim_goal_reset_position_mp(AnimID* anim_id, int64_t obj, int64_t loc, tig_
         object_set_current_aid(obj, art_id);
     }
 
-    sub_43E770(obj, loc, offset_x, offset_y);
+    object_move(obj, loc, offset_x, offset_y);
 
     if (anim_id_to_run_info(anim_id, &run_info)) {
         run_info->flags = flags;
@@ -8578,7 +8578,7 @@ bool sub_42B9C0(AnimRunInfo* run_info)
             new_anim = 21;
             break;
         default:
-            new_anim = sub_503F60(art_id) != 0 ? 20 : 21;
+            new_anim = tig_art_critter_get_size_class(art_id) != 0 ? 20 : 21;
             break;
         }
     }
@@ -8980,7 +8980,7 @@ bool sub_42C440(AnimRunInfo* run_info)
         return true;
     }
 
-    if (sub_4B8040(obj)) {
+    if (combat_tb_npc_should_fidget(obj)) {
         next_rot = new_rot;
         rc = false;
     } else {
@@ -9170,7 +9170,7 @@ bool sub_42CAC0(AnimRunInfo* run_info)
         parent_obj = goal_data->params[AGDATA_PARENT_OBJ].obj;
         if (self_obj != OBJ_HANDLE_NULL
             && (obj_field_int32_get(self_obj, OBJ_F_FLAGS) & OF_DESTROYED) == 0) {
-            sub_4B2650(self_obj, parent_obj, NULL);
+            combat_projectile_hit_callback(self_obj, parent_obj, NULL);
         }
     }
 
@@ -10481,7 +10481,7 @@ bool sub_42E9B0(AnimRunInfo* run_info)
         return false;
     }
 
-    if (sub_4B8040(obj)) {
+    if (combat_tb_npc_should_fidget(obj)) {
         loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
         while (combat_action_points_get() > 0) {
             if (!sub_430FC0(run_info)) {
@@ -10501,7 +10501,7 @@ bool sub_42E9B0(AnimRunInfo* run_info)
             }
         }
 
-        sub_43E770(obj, loc, 0, 0);
+        object_move(obj, loc, 0, 0);
         run_info->cur_stack_data->params[AGDATA_TARGET_TILE].loc = loc;
         run_info->goals[0].params[AGDATA_TARGET_TILE].loc = loc;
 
@@ -10702,7 +10702,7 @@ bool sub_42F000(AnimRunInfo* run_info)
         return false;
     }
 
-    sub_43E770(obj, loc, offset_x - x_shifts[rot], offset_y - y_shifts[rot]);
+    object_move(obj, loc, offset_x - x_shifts[rot], offset_y - y_shifts[rot]);
 
     return true;
 }
@@ -10736,7 +10736,7 @@ bool sub_42F140(AnimRunInfo* run_info)
         object_set_current_aid(obj, art_id);
 
         run_info->flags &= ~0x30;
-        sub_430490(obj, 0, 0);
+        anim_draw_obj_overlay(obj, 0, 0);
 
         return false;
     }
@@ -10752,7 +10752,7 @@ bool sub_42F140(AnimRunInfo* run_info)
     art_id = obj_field_int32_get(obj, OBJ_F_CURRENT_AID);
     art_id = tig_art_id_anim_set(art_id, 13);
     art_id = tig_art_id_rotation_set(art_id, rot);
-    sub_430490(obj, -offset_x, -offset_y);
+    anim_draw_obj_overlay(obj, -offset_x, -offset_y);
 
     if ((run_info->flags & 0x40) != 0) {
         art_id = tig_art_id_anim_set(art_id, 6);
@@ -10852,7 +10852,7 @@ bool AGupdateAnimMoveStraight(AnimRunInfo* run_info)
             offset_y += (int)(loc_y - new_loc_y);
         }
 
-        sub_43E770(obj, new_loc, offset_x, offset_y);
+        object_move(obj, new_loc, offset_x, offset_y);
 
         run_info->path.curr += 2;
 
@@ -10968,7 +10968,7 @@ bool sub_42F6A0(AnimRunInfo* run_info)
         if (new_loc != projectile_loc) {
             int range = (int)location_dist(run_info->cur_stack_data->params[AGDATA_ORIGINAL_TILE].loc,
                 obj_field_int64_get(projectile_obj, OBJ_F_LOCATION));
-            sub_4B2870(parent_obj, target_obj, target_loc, projectile_obj, range, new_loc, v1);
+            combat_projectile_update(parent_obj, target_obj, target_loc, projectile_obj, range, new_loc, v1);
 
             if ((run_info->flags & 0x02) != 0) {
                 return false;
@@ -10987,7 +10987,7 @@ bool sub_42F6A0(AnimRunInfo* run_info)
             offset_y += (int)(projectile_loc_y - new_loc_y);
         }
 
-        sub_43E770(projectile_obj, new_loc, offset_x, offset_y);
+        object_move(projectile_obj, new_loc, offset_x, offset_y);
 
         run_info->path.curr += 2;
 
@@ -11050,8 +11050,8 @@ bool AGupdateAnimMoveStraightKnockback(AnimRunInfo* run_info)
 
         if (new_loc != loc) {
             if (sub_42FD70(run_info, obj, &(run_info->path), loc, new_loc)) {
-                sub_43E770(obj, loc, 0, 0);
-                sub_4B2210(OBJ_HANDLE_NULL, obj, &combat);
+                object_move(obj, loc, 0, 0);
+                combat_context_init(OBJ_HANDLE_NULL, obj, &combat);
                 combat.dam[DAMAGE_TYPE_NORMAL] = random_between(1, (run_info->path.max - run_info->path.curr) / 2);
                 combat.dam[DAMAGE_TYPE_FATIGUE] = random_between(1, (run_info->path.max - run_info->path.curr) / 2);
                 combat.field_30 = run_info->cur_stack_data->params[AGDATA_SCRATCH_OBJ].obj;
@@ -11069,7 +11069,7 @@ bool AGupdateAnimMoveStraightKnockback(AnimRunInfo* run_info)
             offset_y += (int)(loc_y - new_loc_y);
         }
 
-        sub_43E770(obj, new_loc, offset_x, offset_y);
+        object_move(obj, new_loc, offset_x, offset_y);
 
         run_info->path.curr += 2;
         if (run_info->path.curr >= run_info->path.max) {
@@ -11113,7 +11113,7 @@ bool sub_42FD70(AnimRunInfo* run_info, int64_t obj, AnimPath* path, int64_t from
         obj_field_int32_get(obj, OBJ_F_SPELL_FLAGS);
 
         if (!tile_is_blocking(to, false)
-            && !sub_43FD70(obj, from, path->baseRot, 0x03, NULL)) {
+            && !object_is_los_blocked(obj, from, path->baseRot, 0x03, NULL)) {
             return false;
         }
     }
@@ -11159,7 +11159,7 @@ bool sub_42FED0(AnimRunInfo* run_info)
 
     loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
     if (!tile_is_blocking(loc, false)) {
-        sub_432D90(obj);
+        anim_process_obj_goals(obj);
     }
 
     return true;
@@ -11347,7 +11347,7 @@ int sub_4302D0(LocRect* loc_rect, ObjectList* objects)
 // 0x4303D0
 bool sub_4303D0(int64_t obj)
 {
-    if (!sub_423300(obj, 0)
+    if (!anim_get_current_id(obj, 0)
         && !combat_critter_is_combat_mode_active(obj)
         && critter_is_active(obj)) {
         if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_PC
@@ -11362,7 +11362,7 @@ bool sub_4303D0(int64_t obj)
 }
 
 // 0x430460
-void sub_430460()
+void anim_draw_all_overlays()
 {
     DateTime datetime;
     TimeEvent timeevent;
@@ -11373,7 +11373,7 @@ void sub_430460()
 }
 
 // 0x430490
-void sub_430490(int64_t obj, int offset_x, int offset_y)
+void anim_draw_obj_overlay(int64_t obj, int offset_x, int offset_y)
 {
     object_set_offset(obj, offset_x, offset_y + dword_5DE6E4);
 }
@@ -11506,7 +11506,7 @@ bool sub_4305D0(AnimRunInfo* run_info)
             object_set_current_aid(obj, art_id);
 
             sub_4EDF20(obj, loc, 0, 0, false);
-            sub_424070(obj, 2, false, false);
+            anim_set_priority_level(obj, 2, false, false);
 
             return false;
         }
@@ -11599,7 +11599,7 @@ bool sub_4305D0(AnimRunInfo* run_info)
                     art_id = tig_art_id_anim_set(art_id, anim);
                     art_id = tig_art_id_frame_set(art_id, 0);
                     object_set_current_aid(obj, art_id);
-                    sub_430490(obj, 0, 0);
+                    anim_draw_obj_overlay(obj, 0, 0);
 
                     run_info->flags &= ~0x30;
 
@@ -11614,7 +11614,7 @@ bool sub_4305D0(AnimRunInfo* run_info)
 
                 rot = run_info->path.rotations[run_info->path.curr];
                 if (rot != run_info->path.rotations[run_info->path.curr - 1]) {
-                    sub_430490(obj, 0, 0);
+                    anim_draw_obj_overlay(obj, 0, 0);
                     art_id = tig_art_id_rotation_set(art_id, rot);
                     object_set_current_aid(obj, art_id);
                 }
@@ -11642,7 +11642,7 @@ bool sub_4305D0(AnimRunInfo* run_info)
                 offset_y += 2 * v2 - 15;
             }
 
-            sub_43E770(obj, new_loc, offset_x, offset_y);
+            object_move(obj, new_loc, offset_x, offset_y);
             run_info->path.flags |= 0x02;
 
             if (tig_net_is_active()
@@ -13028,7 +13028,7 @@ bool sub_432D50(AnimRunInfo* run_info)
 }
 
 // 0x432D90
-void sub_432D90(int64_t obj)
+void anim_process_obj_goals(int64_t obj)
 {
     int64_t pc_obj;
     int64_t loc;
@@ -13078,7 +13078,7 @@ void sub_432D90(int64_t obj)
     blood_art_id = obj_field_int32_get(blood_obj, OBJ_F_CURRENT_AID);
 
     // FIXME: Useless.
-    sub_503F60(obj_field_int32_get(obj, OBJ_F_CURRENT_AID));
+    tig_art_critter_get_size_class(obj_field_int32_get(obj, OBJ_F_CURRENT_AID));
 
     if (anim_editor) {
         obj_art_id = obj_field_int32_get(obj, OBJ_F_CURRENT_AID);
@@ -13312,7 +13312,7 @@ bool anim_goal_rotate(int64_t obj, int rot)
         return true;
     }
 
-    if (sub_423300(obj, NULL)) {
+    if (anim_get_current_id(obj, NULL)) {
         return true;
     }
 
@@ -13321,7 +13321,7 @@ bool anim_goal_rotate(int64_t obj, int rot)
     }
 
     goal_data.params[AGDATA_SCRATCH_VAL1].data = rot;
-    sub_423300(obj, &anim_id);
+    anim_get_current_id(obj, &anim_id);
     if (!sub_44D520(&goal_data, &anim_id)) {
         return false;
     }
@@ -13340,7 +13340,7 @@ bool anim_goal_animate_loop(int64_t obj)
         return false;
     }
 
-    if (sub_423300(obj, NULL)) {
+    if (anim_get_current_id(obj, NULL)) {
         return false;
     }
 
@@ -13360,7 +13360,7 @@ bool anim_goal_animate_loop(int64_t obj)
 }
 
 // 0x433640
-bool sub_433640(int64_t obj, int64_t loc)
+bool anim_is_obj_convinced_to_move(int64_t obj, int64_t loc)
 {
     AnimID anim_id;
     AnimRunInfo* run_info;
@@ -13398,13 +13398,13 @@ bool sub_433640(int64_t obj, int64_t loc)
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_PC
         && get_always_run(obj)
         && critter_encumbrance_level_get(obj) < 4) {
-        return sub_433C80(obj, loc);
+        return anim_goal_run_to(obj, loc);
     }
 
     if (!anim_is_current_goal_type(obj, AG_MOVE_TO_TILE, &stru_5A1908)) {
         sub_44D500(&goal_data, obj, AG_MOVE_TO_TILE);
         goal_data.params[AGDATA_TARGET_TILE].loc = loc;
-        if (!sub_424070(obj, 3, false, false)) {
+        if (!anim_set_priority_level(obj, 3, false, false)) {
             return false;
         }
 
@@ -13472,7 +13472,7 @@ bool sub_4339A0(int64_t obj)
 }
 
 // 0x433A00
-bool sub_433A00(int64_t obj, int64_t loc, bool a3)
+bool anim_goal_move_to(int64_t obj, int64_t loc, bool a3)
 {
     AnimID anim_id;
     AnimGoalData goal_data;
@@ -13504,7 +13504,7 @@ bool sub_433A00(int64_t obj, int64_t loc, bool a3)
 
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_PC
         && get_always_run(obj)) {
-        return sub_434030(obj, loc);
+        return anim_goal_move_to_combat(obj, loc);
     }
 
     if (anim_is_current_goal_type(obj, AG_MOVE_TO_TILE, &stru_5A1908) || a3) {
@@ -13525,7 +13525,7 @@ bool sub_433A00(int64_t obj, int64_t loc, bool a3)
         sub_44D500(&goal_data, obj, AG_MOVE_TO_TILE);
         goal_data.params[AGDATA_TARGET_TILE].loc = loc;
 
-        if (!sub_424070(obj, 3, false, false)) {
+        if (!anim_set_priority_level(obj, 3, false, false)) {
             return false;
         }
 
@@ -13538,7 +13538,7 @@ bool sub_433A00(int64_t obj, int64_t loc, bool a3)
 }
 
 // 0x433C80
-bool sub_433C80(int64_t obj, int64_t loc)
+bool anim_goal_run_to(int64_t obj, int64_t loc)
 {
     AnimID anim_id;
     AnimRunInfo* run_info;
@@ -13572,7 +13572,7 @@ bool sub_433C80(int64_t obj, int64_t loc)
         sub_44D500(&goal_data, obj, AG_RUN_TO_TILE);
         goal_data.params[AGDATA_TARGET_TILE].loc = loc;
 
-        if (!sub_424070(obj, 3, false, false)) {
+        if (!anim_set_priority_level(obj, 3, false, false)) {
             return false;
         }
 
@@ -13651,7 +13651,7 @@ bool sub_433C80(int64_t obj, int64_t loc)
 }
 
 // 0x434030
-bool sub_434030(int64_t obj, int64_t loc)
+bool anim_goal_move_to_combat(int64_t obj, int64_t loc)
 {
     AnimRunInfo* run_info;
     AnimGoalData goal_data;
@@ -13664,7 +13664,7 @@ bool sub_434030(int64_t obj, int64_t loc)
         sub_44D500(&goal_data, obj, AG_RUN_TO_TILE);
         goal_data.params[AGDATA_TARGET_TILE].loc = loc;
 
-        if (!sub_424070(obj, 3, false, false)) {
+        if (!anim_set_priority_level(obj, 3, false, false)) {
             return false;
         }
 
@@ -13690,7 +13690,7 @@ bool sub_434030(int64_t obj, int64_t loc)
 }
 
 // 0x4341C0
-bool sub_4341C0(int64_t source_obj, int64_t target_loc, int range)
+bool anim_goal_move_near_loc(int64_t source_obj, int64_t target_loc, int range)
 {
     AnimRunInfo* run_info;
     AnimGoalData goal_data;
@@ -13761,7 +13761,7 @@ bool sub_4341C0(int64_t source_obj, int64_t target_loc, int range)
 }
 
 // 0x434400
-bool sub_434400(int64_t source_obj, int64_t target_loc, int range)
+bool anim_goal_move_near_loc_combat(int64_t source_obj, int64_t target_loc, int range)
 {
     AnimRunInfo* run_info;
     AnimGoalData goal_data;
@@ -13859,7 +13859,7 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
         return false;
     }
 
-    if (sub_423300(source_obj, &anim_id)) {
+    if (anim_get_current_id(source_obj, &anim_id)) {
         run_info = &(anim_run_info[anim_id.slot_num]);
         if ((run_info->cur_stack_data->params[AGDATA_FLAGS_DATA].data & 0x1000) == 0) {
             if (run_info->cur_stack_data->type != AG_ANIM_FIDGET) {
@@ -13870,7 +13870,7 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
         }
     }
 
-    if (!sub_4348E0(source_obj, 0)) {
+    if (!anim_deduct_action_points(source_obj, 0)) {
         return false;
     }
 
@@ -13890,26 +13890,26 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
         switch (run_info->cur_stack_data->type) {
         // NOTE: Not sure why this one was specified explicitly.
         case AG_RUN_NEAR_OBJ:
-            sub_4364D0(source_obj);
+            anim_goal_death(source_obj);
             return true;
         case AG_MOVE_NEAR_OBJ:
         case AG_ATTEMPT_MOVE_NEAR:
             source_loc = obj_field_int64_get(source_obj, OBJ_F_LOCATION);
             target_loc = obj_field_int64_get(target_obj, OBJ_F_LOCATION);
             if (location_dist(source_loc, target_loc) <= range) {
-                sub_4364D0(source_obj);
+                anim_goal_death(source_obj);
                 return true;
             }
             break;
         default:
-            sub_4364D0(source_obj);
+            anim_goal_death(source_obj);
             return true;
         }
     } else {
         source_loc = obj_field_int64_get(source_obj, OBJ_F_LOCATION);
         target_loc = obj_field_int64_get(target_obj, OBJ_F_LOCATION);
         if (location_dist(source_loc, target_loc) <= range) {
-            sub_4364D0(source_obj);
+            anim_goal_death(source_obj);
             return true;
         }
     }
@@ -13918,7 +13918,7 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
         sub_44E2C0(&anim_id, PRIORITY_HIGHEST);
     }
 
-    if (!sub_424070(source_obj, 3, false, false)) {
+    if (!anim_set_priority_level(source_obj, 3, false, false)) {
         return false;
     }
 
@@ -13932,7 +13932,7 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
 }
 
 // 0x4348E0
-bool sub_4348E0(int64_t obj, int action_points)
+bool anim_deduct_action_points(int64_t obj, int action_points)
 {
     if (obj == OBJ_HANDLE_NULL) {
         return false;
@@ -13970,7 +13970,7 @@ bool anim_goal_flee(int64_t obj, int64_t from_obj)
 {
     AnimGoalData goal_data;
 
-    if (!sub_4348E0(obj, 0)) {
+    if (!anim_deduct_action_points(obj, 0)) {
         return false;
     }
 
@@ -14021,7 +14021,7 @@ bool anim_goal_attack_ex(int64_t attacker_obj, int64_t target_obj, int sound_id)
         return anim_goal_throw_item(attacker_obj, weapon_obj, obj_field_int64_get(target_obj, OBJ_F_LOCATION));
     }
 
-    if (!sub_4348E0(attacker_obj, combat_attack_cost(attacker_obj))) {
+    if (!anim_deduct_action_points(attacker_obj, combat_attack_cost(attacker_obj))) {
         return false;
     }
 
@@ -14030,19 +14030,19 @@ bool anim_goal_attack_ex(int64_t attacker_obj, int64_t target_obj, int sound_id)
 
     if ((spell_flags & OSF_BODY_OF_AIR) != 0
         && (critter_flags2 & OCF2_ELEMENTAL) == 0) {
-        sub_4364D0(attacker_obj);
+        anim_goal_death(attacker_obj);
         return false;
     }
 
     if (!sub_44D500(&goal_data, attacker_obj, AG_ATTACK)) {
-        sub_4364D0(attacker_obj);
+        anim_goal_death(attacker_obj);
         return false;
     }
 
     goal_data.params[AGDATA_TARGET_OBJ].obj = target_obj;
 
     if (sub_44E6F0(attacker_obj, &goal_data)) {
-        sub_4364D0(attacker_obj);
+        anim_goal_death(attacker_obj);
         return false;
     }
 
@@ -14052,20 +14052,20 @@ bool anim_goal_attack_ex(int64_t attacker_obj, int64_t target_obj, int sound_id)
         return false;
     }
 
-    if (!sub_424070(attacker_obj, 3, false, false)) {
-        sub_4364D0(attacker_obj);
+    if (!anim_set_priority_level(attacker_obj, 3, false, false)) {
+        anim_goal_death(attacker_obj);
         return false;
     }
 
     if ((obj_field_int32_get(source_obj, OBJ_F_CRITTER_FLAGS2) & OCF2_USING_BOOMERANG) != 0) {
-        sub_4364D0(attacker_obj);
+        anim_goal_death(attacker_obj);
         return false;
     }
 
     goal_data.params[AGDATA_SCRATCH_VAL5].data = sound_id;
 
     if (!sub_44D520(&goal_data, &stru_5A1908)) {
-        sub_4364D0(attacker_obj);
+        anim_goal_death(attacker_obj);
         return false;
     }
 
@@ -14152,7 +14152,7 @@ bool anim_goal_throw_item(int64_t obj, int64_t item_obj, int64_t target_loc)
 
     ASSERT(item_obj != OBJ_HANDLE_NULL); // itemObj != OBJ_HANDLE_NULL
 
-    if (!sub_4348E0(obj, 0)) {
+    if (!anim_deduct_action_points(obj, 0)) {
         return false;
     }
 
@@ -14171,7 +14171,7 @@ bool anim_goal_throw_item(int64_t obj, int64_t item_obj, int64_t target_loc)
         return false;
     }
 
-    if (!sub_424070(obj, 3, false, false)) {
+    if (!anim_set_priority_level(obj, 3, false, false)) {
         return false;
     }
 
@@ -14213,7 +14213,7 @@ bool anim_goal_use_skill_on(int64_t obj, int64_t target_obj, int64_t item_obj, i
         return sub_436220(obj, target_obj, item_obj);
     }
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14230,7 +14230,7 @@ bool anim_goal_use_skill_on(int64_t obj, int64_t target_obj, int64_t item_obj, i
         return false;
     }
 
-    sub_436ED0(stru_5A1908);
+    anim_run(stru_5A1908);
 
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         if (!tig_net_is_active()
@@ -14255,7 +14255,7 @@ bool anim_goal_use_item_on_obj_with_skill(int64_t obj, int64_t item_obj, int64_t
         return false;
     }
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14272,7 +14272,7 @@ bool anim_goal_use_item_on_obj_with_skill(int64_t obj, int64_t item_obj, int64_t
         return false;
     }
 
-    sub_436ED0(stru_5A1908);
+    anim_run(stru_5A1908);
 
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         if (!tig_net_is_active()
@@ -14301,7 +14301,7 @@ bool anim_goal_use_item_on_obj(int64_t obj, int64_t target_obj, int64_t item_obj
         return false;
     }
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14317,7 +14317,7 @@ bool anim_goal_use_item_on_obj(int64_t obj, int64_t target_obj, int64_t item_obj
         return false;
     }
 
-    sub_436ED0(stru_5A1908);
+    anim_run(stru_5A1908);
 
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         if (!tig_net_is_active()
@@ -14346,7 +14346,7 @@ bool anim_goal_use_item_on_loc(int64_t obj, int64_t target_loc, int64_t item_obj
         return false;
     }
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14378,7 +14378,7 @@ bool anim_goal_pickup_item(int64_t obj, int64_t item_obj)
         return false;
     }
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14397,7 +14397,7 @@ bool anim_goal_pickup_item(int64_t obj, int64_t item_obj)
         return false;
     }
 
-    sub_436ED0(stru_5A1908);
+    anim_run(stru_5A1908);
 
     return true;
 }
@@ -14415,7 +14415,7 @@ bool anim_goal_animate_stunned(int64_t obj)
         return false;
     }
 
-    if (!sub_424070(obj, 4, false, false)) {
+    if (!anim_set_priority_level(obj, 4, false, false)) {
         return false;
     }
 
@@ -14448,7 +14448,7 @@ bool anim_goal_projectile(int64_t source_obj, int64_t missile_obj, tig_art_id_t 
         return false;
     }
 
-    if (!sub_424070(missile_obj, 4, false, true)) {
+    if (!anim_set_priority_level(missile_obj, 4, false, true)) {
         return false;
     }
 
@@ -14487,7 +14487,7 @@ bool anim_goal_projectile(int64_t source_obj, int64_t missile_obj, tig_art_id_t 
 }
 
 // 0x435A00
-bool sub_435A00(int64_t proj_obj, int64_t a2, int64_t a3)
+bool anim_goal_projectile_fire(int64_t proj_obj, int64_t a2, int64_t a3)
 {
     AnimID anim_id;
     AnimRunInfo* run_info;
@@ -14529,7 +14529,7 @@ bool anim_goal_knockdown(int64_t critter_obj)
         return false;
     }
 
-    if (!sub_424070(critter_obj, 5, false, false)) {
+    if (!anim_set_priority_level(critter_obj, 5, false, false)) {
         return false;
     }
 
@@ -14554,7 +14554,7 @@ bool anim_goal_make_knockdown(int64_t obj)
         return false;
     }
 
-    if (!sub_424070(obj, PRIORITY_4, false, false)) {
+    if (!anim_set_priority_level(obj, PRIORITY_4, false, false)) {
         return false;
     }
 
@@ -14595,11 +14595,11 @@ bool anim_goal_fidget(int64_t critter_obj)
         return false;
     }
 
-    if (!sub_4348E0(critter_obj, 0)) {
+    if (!anim_deduct_action_points(critter_obj, 0)) {
         return false;
     }
 
-    if (sub_4234F0(critter_obj) || sub_423300(critter_obj, NULL)) {
+    if (anim_is_combat_anim(critter_obj) || anim_get_current_id(critter_obj, NULL)) {
         return false;
     }
 
@@ -14620,7 +14620,7 @@ bool anim_goal_fidget(int64_t critter_obj)
 }
 
 // 0x435CE0
-bool sub_435CE0(int64_t critter_obj)
+bool anim_goal_is_projectile(int64_t critter_obj)
 {
     ASSERT(critter_obj != OBJ_HANDLE_NULL); // 16444, "critterObj != OBJ_HANDLE_NULL"
     if (critter_obj == OBJ_HANDLE_NULL) return false;
@@ -14666,7 +14666,7 @@ bool anim_goal_unconceal(int64_t critter_obj)
         return false;
     }
 
-    if (sub_423300(critter_obj, NULL)) {
+    if (anim_get_current_id(critter_obj, NULL)) {
         return false;
     }
 
@@ -14704,7 +14704,7 @@ bool anim_goal_wander(int64_t obj, int64_t tether_loc, int radius)
         && radius > 0
         && obj_type_is_critter(obj_type)
         && critter_is_active(obj)
-        && !sub_423300(obj, NULL)) {
+        && !anim_get_current_id(obj, NULL)) {
         source_obj = obj;
         if (sub_436720(&source_obj, &block_obj)) {
             anim_goal_please_move(block_obj, source_obj);
@@ -14744,7 +14744,7 @@ bool anim_goal_wander_seek_darkness(int64_t obj, int64_t tether_loc, int radius)
         && radius > 0
         && obj_type_is_critter(obj_type)
         && critter_is_active(obj)
-        && !sub_423300(obj, NULL)) {
+        && !anim_get_current_id(obj, NULL)) {
         source_obj = obj;
         if (sub_436720(&source_obj, &block_obj)) {
             anim_goal_please_move(block_obj, source_obj);
@@ -14770,7 +14770,7 @@ bool sub_436220(int64_t obj, int64_t target_obj, int64_t item_obj)
     int frame;
     int v1;
 
-    if (!sub_4348E0(obj, 4)) {
+    if (!anim_deduct_action_points(obj, 4)) {
         return false;
     }
 
@@ -14806,7 +14806,7 @@ bool sub_436220(int64_t obj, int64_t target_obj, int64_t item_obj)
         return false;
     }
 
-    sub_436ED0(stru_5A1908);
+    anim_run(stru_5A1908);
 
     return true;
 }
@@ -14834,7 +14834,7 @@ bool anim_goal_please_move(int64_t obj, int64_t target_obj)
         obj = tmp_obj;
     }
 
-    if (!sub_4348E0(target_obj, 0)) {
+    if (!anim_deduct_action_points(target_obj, 0)) {
         return false;
     }
 
@@ -14856,7 +14856,7 @@ bool anim_goal_please_move(int64_t obj, int64_t target_obj)
 }
 
 // 0x4364D0
-void sub_4364D0(int64_t obj)
+void anim_goal_death(int64_t obj)
 {
     int64_t loc;
     ObjectList critters;
@@ -15037,7 +15037,7 @@ bool anim_goal_attempt_spread_out(int64_t obj, int64_t target_obj)
     AnimGoalData goal_data;
     AnimRunInfo* run_info;
 
-    if (!sub_4348E0(obj, 0)) {
+    if (!anim_deduct_action_points(obj, 0)) {
         return false;
     }
 
@@ -15067,7 +15067,7 @@ bool anim_goal_attempt_spread_out(int64_t obj, int64_t target_obj)
         }
     }
 
-    if (!sub_424070(obj, 3, false, false)) {
+    if (!anim_set_priority_level(obj, 3, false, false)) {
         return false;
     }
 
@@ -15127,7 +15127,7 @@ void turn_on_running(AnimID anim_id)
 }
 
 // 0x436C20
-void sub_436C20()
+void anim_goals_push_state()
 {
     turn_on_running(stru_5A1908);
 }
@@ -15135,15 +15135,15 @@ void sub_436C20()
 // NOTE: Passes AnimID by value.
 //
 // 0x436C50
-void sub_436C50(AnimID anim_id)
+void anim_goals_set_current(AnimID anim_id)
 {
     turn_on_flags(anim_id, 0x100, 0);
 }
 
 // 0x436C80
-void sub_436C80()
+void anim_goals_pop_state()
 {
-    sub_436C50(stru_5A1908);
+    anim_goals_set_current(stru_5A1908);
 }
 
 // NOTE: Passes AnimID by value.
@@ -15157,13 +15157,13 @@ void sub_436CB0(AnimID anim_id)
 }
 
 // 0x436CF0
-void sub_436CF0()
+void anim_goals_clear_current()
 {
     sub_436CB0(stru_5A1908);
 }
 
 // 0x436D20
-void sub_436D20(unsigned int flags1, unsigned int flags2)
+void anim_set_flags(unsigned int flags1, unsigned int flags2)
 {
     turn_on_flags(stru_5A1908, flags1, flags2);
 }
@@ -15219,7 +15219,7 @@ void turn_on_flags(AnimID anim_id, unsigned int flags1, unsigned int flags2)
 // NOTE: Passes AnimID by value.
 //
 // 0x436ED0
-void sub_436ED0(AnimID anim_id)
+void anim_run(AnimID anim_id)
 {
     turn_on_flags(anim_id, 0x4000, 0);
 }
@@ -15246,13 +15246,13 @@ void anim_speed_recalc(int64_t obj)
     AnimID anim_id;
 
     if (obj != OBJ_HANDLE_NULL
-        && sub_423300(obj, &anim_id)) {
+        && anim_get_current_id(obj, &anim_id)) {
         notify_speed_recalc(&anim_id);
     }
 }
 
 // 0x4372B0
-bool sub_4372B0(int64_t a1, int64_t a2)
+bool anim_can_move(int64_t a1, int64_t a2)
 {
     int index;
     AnimRunInfo* run_info;
@@ -15396,7 +15396,7 @@ bool anim_play_weapon_fx(CombatContext* combat, int64_t source_obj, int64_t targ
 }
 
 // 0x437980
-void sub_437980()
+void anim_init_run_info_params()
 {
 }
 
@@ -15584,7 +15584,7 @@ bool sub_437C50(AnimRunInfo* run_info, int end, int64_t* x, int64_t* y)
 }
 
 // 0x437CF0
-bool sub_437CF0(int a1, int a2, int a3)
+bool anim_run_info_param_set(int a1, int a2, int a3)
 {
     (void)a1;
     (void)a2;
