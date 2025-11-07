@@ -1,4 +1,4 @@
-#include "game/newspaper.h"
+﻿#include "game/newspaper.h"
 
 #include "game/descriptions.h"
 #include "game/mes.h"
@@ -204,7 +204,7 @@ int64_t newspaper_create(int num, int64_t loc)
     int64_t obj;
 
     // Retrieve "Tarant Newspaper" prototype.
-    prototype_obj = sub_4685A0(BP_TARANT_NEWSPAPER);
+    prototype_obj = GetProtoHandleFromID(BP_TARANT_NEWSPAPER);
 
     // Create the newspaper object at the specified location.
     if (!object_create(prototype_obj, loc, &obj)) {
@@ -237,7 +237,7 @@ bool newspaper_timeevent_process(TimeEvent* timeevent)
 
     // Schedule the next rotation event in 24 hours.
     next_timeevent.type = TIMEEVENT_TYPE_NEWSPAPERS;
-    sub_45A950(&datetime, 86400000);
+    DateTimeAddMilliseconds(&datetime, 86400000);
     timeevent_add_delay(&next_timeevent, &datetime);
 
     return true;

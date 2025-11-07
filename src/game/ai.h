@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_AI_H_
+﻿#ifndef ARCANUM_GAME_AI_H_
 #define ARCANUM_GAME_AI_H_
 
 #include "game/context.h"
@@ -129,7 +129,7 @@ void ai_process(int64_t obj);
 void ai_redirect_init(AiRedirect* ai_redirect, int64_t source_obj, int64_t target_obj);
 void ai_redirect_perform(AiRedirect* ai_redirect);
 void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned int flags);
-void sub_4A9AD0(int64_t attacker_obj, int64_t target_obj);
+void InitiateCombat(int64_t attacker_obj, int64_t target_obj);
 void ai_notify_explosion_dynamite(int64_t pc_obj);
 void ai_notify_killed(int64_t victim_obj, int64_t killer_obj);
 void sub_4AA300(int64_t a1, int64_t a2);
@@ -148,7 +148,7 @@ void ai_timeevent_clear(int64_t obj);
 int ai_can_speak(int64_t npc_obj, int64_t pc_obj, bool a3);
 int ai_check_follow(int64_t npc_obj, int64_t pc_obj, bool ignore_charisma_limits);
 void sub_4AD790(int64_t obj, int a2);
-int sub_4ADE00(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr);
+int FindLineOfSightBlocker(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr);
 void ai_switch_weapon(int64_t obj);
 void ai_calc_party_size_and_level(int64_t obj, int* cnt_ptr, int* lvl_ptr);
 int ai_check_kos(int64_t source_obj, int64_t target_obj);

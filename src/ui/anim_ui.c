@@ -52,7 +52,7 @@ bool anim_ui_init(GameInitInfo* init_info)
     timeevent_set_funcs(&callbacks);
 
     timeevent.type = TIMEEVENT_TYPE_AMBIENT_LIGHTING;
-    sub_45A950(&datetime, 1);
+    DateTimeAddMilliseconds(&datetime, 1);
     timeevent_add_delay(&timeevent, &datetime);
 
     return true;
@@ -70,7 +70,7 @@ void anim_ui_reset()
     TimeEvent timeevent;
 
     timeevent.type = TIMEEVENT_TYPE_AMBIENT_LIGHTING;
-    sub_45A950(&datetime, 1);
+    DateTimeAddMilliseconds(&datetime, 1);
     timeevent_add_delay(&timeevent, &datetime);
 }
 
@@ -92,7 +92,7 @@ bool anim_ui_load(GameLoadInfo* load_info)
 
     timeevent_clear_all_typed(TIMEEVENT_TYPE_AMBIENT_LIGHTING);
     timeevent.type = TIMEEVENT_TYPE_AMBIENT_LIGHTING;
-    sub_45A950(&datetime, 3600000);
+    DateTimeAddMilliseconds(&datetime, 3600000);
     timeevent_add_delay(&timeevent, &datetime);
 
     return true;
@@ -113,7 +113,7 @@ void anim_ui_event_add_delay(int type, int param, int milliseconds)
     timeevent.type = TIMEEVENT_TYPE_BKG_ANIM;
     timeevent.params[0].integer_value = type;
     timeevent.params[1].integer_value = param;
-    sub_45A950(&datetime, milliseconds);
+    DateTimeAddMilliseconds(&datetime, milliseconds);
     timeevent_add_delay(&timeevent, &datetime);
 }
 
@@ -266,7 +266,7 @@ bool ambient_lighting_process_callback(TimeEvent* timeevent)
 
     timeevent_clear_all_typed(TIMEEVENT_TYPE_AMBIENT_LIGHTING);
     next_timeevent.type = TIMEEVENT_TYPE_AMBIENT_LIGHTING;
-    sub_45A950(&datetime, 3600000);
+    DateTimeAddMilliseconds(&datetime, 3600000);
     timeevent_add_delay(&next_timeevent, &datetime);
 
     return true;
@@ -283,6 +283,6 @@ void ambient_lighting_reschedule()
     light_scheme_set_hour(hour);
     timeevent_clear_all_typed(TIMEEVENT_TYPE_AMBIENT_LIGHTING);
     timeevent.type = TIMEEVENT_TYPE_AMBIENT_LIGHTING;
-    sub_45A950(&datetime, 3600000);
+    DateTimeAddMilliseconds(&datetime, 3600000);
     timeevent_add_delay(&timeevent, &datetime);
 }

@@ -1,4 +1,4 @@
-#include "game/location.h"
+﻿#include "game/location.h"
 
 #include "game/path.h"
 #include "game/target.h"
@@ -432,7 +432,7 @@ bool location_in_range(int64_t loc, int dir, int range, int64_t* new_loc_ptr)
 }
 
 // 0x4B9130
-bool sub_4B9130(TigRect* rect, LocRect* loc_rect)
+bool ScreenRectToLocationRect(TigRect* rect, LocRect* loc_rect)
 {
     TigRect frame;
     int64_t tmp;
@@ -617,7 +617,7 @@ bool sub_4B99C0(int64_t from, int64_t* to)
     v2.field_18 = from;
     v2.field_28 = from;
     v2.field_38 = from;
-    if (sub_4F2D20(&v2)) {
+    if (ValidateTargetEligibility(&v2)) {
         if (to != NULL) {
             *to = from;
         }
@@ -631,14 +631,14 @@ bool sub_4B99C0(int64_t from, int64_t* to)
     for (idx = 0; idx < v3.cnt; idx++) {
         if (v3.entries[idx].loc != 0) {
             v2.field_28 = v3.entries[idx].loc;
-            if (sub_4F2D20(&v2)) {
+            if (ValidateTargetEligibility(&v2)) {
                 path_create_info.obj = OBJ_HANDLE_NULL;
                 path_create_info.from = from;
                 path_create_info.to = v3.entries[idx].loc;
                 path_create_info.max_rotations = sizeof(byte_5FC2A8);
                 path_create_info.rotations = byte_5FC2A8;
                 path_create_info.flags = PATH_FLAG_0x0010 | PATH_FLAG_0x0004 | PATH_FLAG_0x0002;
-                if (sub_41F3C0(&path_create_info)) {
+                if (PathCreate(&path_create_info)) {
                     if (to != NULL) {
                         *to = v3.entries[idx].loc;
                     }

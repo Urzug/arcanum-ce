@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_TIMEEVENT_H_
+﻿#ifndef ARCANUM_GAME_TIMEEVENT_H_
 #define ARCANUM_GAME_TIMEEVENT_H_
 
 #include "game/context.h"
@@ -109,7 +109,7 @@ typedef struct TimeEventFuncs {
 
 DateTime sub_45A7C0();
 DateTime sub_45A7D0(DateTime* other);
-int sub_45A7F0();
+int GetCurrentGameTimeMs();
 int sub_45A820(unsigned int milliseconds);
 int datetime_seconds_since_reference_date(DateTime* datetime);
 int datetime_get_hour(DateTime* datetime);
@@ -119,7 +119,7 @@ int datetime_get_day_since_reference_date();
 int datetime_get_day(DateTime* datetime);
 int datetime_get_month(DateTime* datetime);
 int datetime_get_year(DateTime* datetime);
-void sub_45A950(DateTime* datetime, unsigned int milliseconds);
+void DateTimeAddMilliseconds(DateTime* datetime, unsigned int milliseconds);
 int datetime_compare(const DateTime* datetime1, const DateTime* datetime2);
 bool sub_45A9B0(DateTime* datetime, unsigned int milliseconds);
 void datetime_sub_milliseconds(DateTime* datetime, unsigned int milliseconds);
@@ -144,10 +144,10 @@ void timeevent_reset();
 void timeevent_exit();
 bool timeevent_save(TigFile* stream);
 bool timeevent_load(GameLoadInfo* load_info);
-bool sub_45B300();
-void sub_45B320();
-void sub_45B340();
-void sub_45B360();
+bool TimeEventIsProcessingAllowed();
+void TimeEventPause();
+void TimeEventResume();
+void TimeEventResetPause();
 void timeevent_ping(tig_timestamp_t timestamp);
 bool timeevent_add_delay(TimeEvent* timeevent, DateTime* delay);
 bool timeevent_add_immediate(TimeEvent* timeevent);

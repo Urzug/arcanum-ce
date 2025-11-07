@@ -1,4 +1,4 @@
-#include "game/player.h"
+﻿#include "game/player.h"
 
 #include "game/item.h"
 #include "game/level.h"
@@ -182,7 +182,7 @@ int64_t player_get_local_pc_obj()
 }
 
 // 0x40DAB0
-bool sub_40DAB0()
+bool PlayerDestroyLocalPC()
 {
     if (player_pc_obj == OBJ_HANDLE_NULL) {
         return false;
@@ -196,7 +196,7 @@ bool sub_40DAB0()
 }
 
 // 0x40DAF0
-bool sub_40DAF0(int64_t obj)
+bool PlayerSetLocalPC(int64_t obj)
 {
     player_pc_obj = obj;
     if (obj != OBJ_HANDLE_NULL) {
@@ -226,7 +226,7 @@ bool player_obj_create_player(PlayerCreateInfo* player_create_info)
     char str[80];
 
     if (player_create_info->basic_prototype != -1) {
-        player_pc_prototype_obj = objp_perm_lookup(obj_get_id(sub_4685A0(player_create_info->basic_prototype)));
+        player_pc_prototype_obj = objp_perm_lookup(obj_get_id(GetProtoHandleFromID(player_create_info->basic_prototype)));
     } else {
         player_pc_prototype_obj = sub_468570(OBJ_TYPE_PC);
     }
@@ -244,7 +244,7 @@ bool player_obj_create_player(PlayerCreateInfo* player_create_info)
 
     if ((player_create_info->flags & PLAYER_CREATE_INFO_NETWORK) == 0) {
         if (player_pc_obj != OBJ_HANDLE_NULL) {
-            sub_40DAB0();
+            PlayerDestroyLocalPC();
         }
     }
 
@@ -286,7 +286,7 @@ bool player_obj_create_player(PlayerCreateInfo* player_create_info)
     }
 
     level_set(player_create_info->obj, 1);
-    sub_463E20(player_create_info->obj);
+    SpawnInventory(player_create_info->obj);
     obj_field_int32_set(player_create_info->obj, OBJ_F_CRITTER_INVENTORY_SOURCE, 0);
     ui_spell_maintain_refresh();
 

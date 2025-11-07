@@ -527,7 +527,7 @@ void combat_projectile_finish(int64_t proj_obj, int64_t a2, int64_t a3, CombatCo
             mp_obj_field_int32_set(a2, OBJ_F_CRITTER_FLAGS2, critter_flags2);
 
             object_destroy(proj_obj);
-            sub_4A9AD0(a2, a3);
+            InitiateCombat(a2, a3);
         }
     } else {
         object_destroy(proj_obj);
@@ -878,7 +878,7 @@ int combat_attack_resolve(CombatContext* combat)
         if ((combat->flags & CF_RANGED) != 0) {
             int64_t blocking_obj;
 
-            sub_4ADE00(combat->attacker_obj, combat->target_loc, &blocking_obj);
+            FindLineOfSightBlocker(combat->attacker_obj, combat->target_loc, &blocking_obj);
             if (blocking_obj != OBJ_HANDLE_NULL) {
                 combat->target_obj = blocking_obj;
             }
@@ -886,7 +886,7 @@ int combat_attack_resolve(CombatContext* combat)
 
         int v3 = 0;
         if (combat->weapon_obj != OBJ_HANDLE_NULL && combat->skill != SKILL_THROWING) {
-            v3 = sub_461620(combat->weapon_obj, combat->attacker_obj, combat->target_obj);
+            v3 = CalculateMagicTechEffectivenessModifier(combat->weapon_obj, combat->attacker_obj, combat->target_obj);
         }
 
         bool cont = true;
@@ -1354,7 +1354,7 @@ void combat_critter_toggle_combat_mode(int64_t obj)
         art_id = tig_art_critter_id_weapon_set(art_id, TIG_ART_WEAPON_TYPE_UNARMED);
 
         if (is_pc && is_tb) {
-            sub_40FED0();
+            UIEnterTurnBasedMode();
 
             if (!combat_turn_based_start()) {
                 return;
@@ -1688,7 +1688,7 @@ void combat_dmg(CombatContext* combat)
 
             int64_t weapon_obj = item_wield_get(combat->target_obj, ITEM_INV_LOC_WEAPON);
             if (weapon_obj != OBJ_HANDLE_NULL
-                && sub_464D20(weapon_obj, ITEM_INV_LOC_WEAPON, combat->target_obj)) {
+                && CheckCanWieldItem(weapon_obj, ITEM_INV_LOC_WEAPON, combat->target_obj)) {
                 if (!tig_net_is_active()
                     || tig_net_is_host()) {
                     item_drop_nearby(weapon_obj);
@@ -1703,7 +1703,7 @@ void combat_dmg(CombatContext* combat)
 
             int64_t shield_obj = item_wield_get(combat->target_obj, ITEM_INV_LOC_SHIELD);
             if (shield_obj != OBJ_HANDLE_NULL
-                && sub_464D20(shield_obj, ITEM_INV_LOC_SHIELD, combat->target_obj)) {
+                && CheckCanWieldItem(shield_obj, ITEM_INV_LOC_SHIELD, combat->target_obj)) {
                 if (!tig_net_is_active()
                     || tig_net_is_host()) {
                     item_drop_nearby(weapon_obj);
@@ -3180,7 +3180,7 @@ void combat_tb_queue_next_subturn()
 
     if (!sub_45C0E0(TIMEEVENT_TYPE_TB_COMBAT)) {
         timeevent.type = TIMEEVENT_TYPE_TB_COMBAT;
-        sub_45A950(&datetime, 2);
+        DateTimeAddMilliseconds(&datetime, 2);
         timeevent_add_delay(&timeevent, &datetime);
     }
 }
@@ -3434,7 +3434,7 @@ void combat_turn_based_end_turn()
     DateTime datetime;
 
     combat_debug(OBJ_HANDLE_NULL, "TB End Turn");
-    sub_45A950(&datetime, 1000);
+    DateTimeAddMilliseconds(&datetime, 1000);
     timeevent_inc_datetime(&datetime);
     combat_turn_based_begin_turn();
 }
@@ -3916,7 +3916,7 @@ void combat_recalc_reaction(int64_t obj)
     if (critter_is_dead(obj) || combat_tb_critter_is_hidden_and_active(obj)) {
         animfx_remove(&combat_eye_candies, obj, 0, -1);
     } else {
-        sub_4CCD20(&combat_eye_candies, &node, obj, -1, 0);
+        GetAnimFXNodeByID(&combat_eye_candies, &node, obj, -1, 0);
         if (!animfx_has(&node)) {
             animfx_add(&node);
         }

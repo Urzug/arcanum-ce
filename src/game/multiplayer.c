@@ -668,7 +668,7 @@ bool multiplayer_load_module_and_start(const char* a1, const char* a2)
     char src[TIG_MAX_PATH];
     char dst[TIG_MAX_PATH];
 
-    sub_45B360();
+    TimeEventResetPause();
     tig_file_empty_directory(".\\data\\temp");
 
     modal_dialog_info.type = TIG_WINDOW_MODAL_DIALOG_TYPE_OK;
@@ -731,7 +731,7 @@ bool multiplayer_load_module_and_start(const char* a1, const char* a2)
     }
 
     tig_net_local_server_set_description(a1);
-    sub_40DAB0();
+    PlayerDestroyLocalPC();
 
     if (a2 != NULL) {
         if (gamelib_load(a2)) {
@@ -810,7 +810,7 @@ void multiplayer_start_play(PlayerCreateInfo* player_create_info)
         }
 
         g_multiplayer_player_slots[0].field_8 = obj_get_id(player_create_info->obj);
-        sub_40DAF0(player_create_info->obj);
+        PlayerSetLocalPC(player_create_info->obj);
         critter_fatigue_damage_set(player_create_info->obj, 0);
         object_hp_damage_set(player_create_info->obj, 0);
         object_flags_unset(player_create_info->obj, OF_OFF);
@@ -863,7 +863,7 @@ bool multiplayer_timeevent_process(TimeEvent* timeevent)
     switch (timeevent->params[0].integer_value) {
     case 2:
         if (tig_net_xfer_count(timeevent->params[1].integer_value)) {
-            sub_45A950(&datetime, 50);
+            DateTimeAddMilliseconds(&datetime, 50);
             timeevent_add_delay(timeevent, &datetime);
             return true;
         }
@@ -882,7 +882,7 @@ bool multiplayer_timeevent_process(TimeEvent* timeevent)
         return true;
     case 4:
         if (tig_net_xfer_count(timeevent->params[1].integer_value)) {
-            sub_45A950(&datetime, 50);
+            DateTimeAddMilliseconds(&datetime, 50);
             timeevent_add_delay(timeevent, &datetime);
             return true;
         }
@@ -1445,7 +1445,7 @@ void multiplayer_send_map_data_to_player(int a1, int a2)
         timeevent.params[0].integer_value = 2;
         timeevent.params[1].integer_value = a1;
         timeevent.params[2].integer_value = a2;
-        sub_45A950(&datetime, 50);
+        DateTimeAddMilliseconds(&datetime, 50);
         timeevent_add_delay(&timeevent, &datetime);
     }
 }
@@ -1546,7 +1546,7 @@ bool multiplayer_disconnect(bool (*func)(tig_button_handle_t), tig_button_handle
 
         timeevent.type = TIMEEVENT_TYPE_MULTIPLAYER;
         timeevent.params[0].integer_value = 3;
-        sub_45A950(&datetime, 5000);
+        DateTimeAddMilliseconds(&datetime, 5000);
         timeevent_add_delay(&timeevent, &datetime);
 
         return true;
@@ -2747,7 +2747,7 @@ int multiplayer_auto_equip_check_has_items(int64_t obj, char* str)
         }
 
         tig_str_parse_value(&str, &basic_proto);
-        if (sub_462540(obj, sub_4685A0(basic_proto), 0)) {
+        if (sub_462540(obj, GetProtoHandleFromID(basic_proto), 0)) {
             cnt++;
         }
     }
@@ -2811,7 +2811,7 @@ bool multiplayer_auto_equip_give_schematic_items(int64_t obj)
 
             for (idx = 0; idx < 3; idx++) {
                 prod_basic_proto = schematic_info.prod[idx];
-                prod_proto_obj = sub_4685A0(schematic_info.prod[idx]);
+                prod_proto_obj = GetProtoHandleFromID(schematic_info.prod[idx]);
                 if (obj_field_int32_get(prod_proto_obj, OBJ_F_TYPE) != OBJ_TYPE_ARMOR) {
                     break;
                 }

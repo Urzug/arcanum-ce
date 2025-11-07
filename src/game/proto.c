@@ -323,7 +323,7 @@ int64_t sub_468570(ObjectType object_type)
 }
 
 // 0x4685A0
-int64_t sub_4685A0(int a1)
+int64_t GetProtoHandleFromID(int a1)
 {
     return objp_perm_lookup(sub_468860(a1));
 }

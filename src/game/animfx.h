@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_ANIMFX_H_
+﻿#ifndef ARCANUM_GAME_ANIMFX_H_
 #define ARCANUM_GAME_ANIMFX_H_
 
 #include "game/context.h"
@@ -82,11 +82,11 @@ extern unsigned int animfx_play_flags_lookup_tbl_values[ANIMFX_PLAY_COUNT];
 
 bool animfx_init(GameInitInfo* init_info);
 void animfx_exit();
-void sub_4CCD20(AnimFxList* list, AnimFxNode* node, int64_t obj, int mt_id, int fx_id);
+void GetAnimFXNodeByID(AnimFxList* list, AnimFxNode* node, int64_t obj, int mt_id, int fx_id);
 void animfx_preload_art(AnimFxNode* node);
 bool animfx_has(AnimFxNode* node);
 bool animfx_add(AnimFxNode* node);
-bool sub_4CD7A0(AnimFxNode* node);
+bool AddAnimFX(AnimFxNode* node);
 void animfx_remove(AnimFxList* list, int64_t obj, int fx_id, int mt_id);
 bool animfx_list_init(AnimFxList* list);
 bool animfx_list_load(AnimFxList* list);

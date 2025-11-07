@@ -84,7 +84,7 @@ static int64_t script_get_obj(ScriptFocusObject type, int index, ScriptState* st
 static void script_set_obj(ScriptFocusObject type, int index, ScriptState* state, int64_t obj);
 static int script_get_value(ScriptValueType type, int index, ScriptState* state);
 static void script_set_value(ScriptValueType type, int index, ScriptState* state, int value);
-static int sub_44BC60(ScriptState* state);
+static int ScriptFindInitBlock(ScriptState* state);
 static bool sub_44C140(Script* scr, unsigned int index, ScriptCondition* entry);
 static bool sub_44C1B0(ScriptFile* script_file, unsigned int index, ScriptCondition* entry);
 static ScriptFile* script_lock(int script_id);
@@ -1071,7 +1071,7 @@ int script_execute_condition(ScriptCondition* condition, int line, ScriptState* 
         matched = 0;
         for (index = 0; index < cnt; index++) {
             if (obj_field_int32_get(objs[index], OBJ_F_TYPE) == OBJ_TYPE_NPC) {
-                if (sub_4C1110(objs[index])) {
+                if (GetPCWithHighestReaction(objs[index])) {
                     matched++;
                 }
             } else {
@@ -1679,7 +1679,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         }
 
         sub_44B8F0(state->field_398, &(state->objects));
-        return sub_44BC60(state);
+        return ScriptFindInitBlock(state);
     case SAT_LOOP_END:
         if (state->loop_cnt <= 0) {
             tig_debug_printf("Script: script_execute_action: sat_loop_end: ERROR: Not in a loop!\n");
@@ -1702,7 +1702,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         state->loop_cnt = 0;
         sub_44B8F0(state->field_398, &(state->objects));
-        return sub_44BC60(state);
+        return ScriptFindInitBlock(state);
     case SAT_CRITTER_FOLLOW: {
         int64_t follower_obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int64_t leader_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
@@ -1993,7 +1993,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t near_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         int64_t loc = -1;
         for (int attempt = 0; attempt < 10; attempt++) {
-            if (sub_4F4E40(near_obj, random_between(1, 3), &loc)) {
+            if (FindLocationNearObject(near_obj, random_between(1, 3), &loc)) {
                 break;
             }
         }
@@ -2043,7 +2043,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         timeevent.params[2].object_value = triggerer_obj;
         timeevent.params[3].object_value = attachee_obj;
 
-        sub_45A950(&datetime, 1000 * seconds);
+        DateTimeAddMilliseconds(&datetime, 1000 * seconds);
 
         if (action->type == SAT_CALL_SCRIPT_IN) {
             datetime.milliseconds *= 8;
@@ -2279,7 +2279,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t item_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         int64_t source_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         int64_t target_obj = script_get_obj(action->op_type[3], action->op_value[3], state);
-        int ratio = sub_461620(item_obj, source_obj, target_obj);
+        int ratio = CalculateMagicTechEffectivenessModifier(item_obj, source_obj, target_obj);
         script_set_value(action->op_type[4], action->op_value[4], state, value * (100 - ratio) / 100);
         return NEXT;
     }
@@ -2498,7 +2498,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
             if (teleport_data.time > 0) {
                 DateTime datetime;
-                sub_45A950(&datetime, 1000 * teleport_data.time);
+                DateTimeAddMilliseconds(&datetime, 1000 * teleport_data.time);
                 timeevent_inc_datetime(&datetime);
             }
 
@@ -2531,7 +2531,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
                 timeevent.params[2].float_value = 2.0f;
                 timeevent.params[3].integer_value = 48;
 
-                sub_45A950(&datetime, 1000 * delay);
+                DateTimeAddMilliseconds(&datetime, 1000 * delay);
                 timeevent_add_delay(&timeevent, &datetime);
             } else {
                 teleport_data.fade_in.flags = FADE_IN;
@@ -3314,7 +3314,7 @@ void script_set_value(ScriptValueType type, int index, ScriptState* state, int v
 }
 
 // 0x44BC60
-int sub_44BC60(ScriptState* state)
+int ScriptFindInitBlock(ScriptState* state)
 {
     unsigned int index;
     ScriptCondition condition;
@@ -3599,7 +3599,7 @@ void script_fx_play(int64_t obj, int fx_id)
 {
     AnimFxNode fx;
 
-    sub_4CCD20(&script_eye_candies, &fx, obj, -1, fx_id);
+    GetAnimFXNodeByID(&script_eye_candies, &fx, obj, -1, fx_id);
     fx.rotation = tig_art_id_rotation_get(obj_field_int32_get(obj, OBJ_F_CURRENT_AID));
     fx.animate = true;
     animfx_add(&fx);

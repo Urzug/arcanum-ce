@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_LIGHT_H_
+﻿#ifndef ARCANUM_GAME_LIGHT_H_
 #define ARCANUM_GAME_LIGHT_H_
 
 #include "game/context.h"
@@ -59,7 +59,7 @@ void light_set_colors(tig_color_t indoor_color, tig_color_t outdoor_color);
 void light_start_animating(Light* light);
 void light_stop_animating(Light* light);
 bool light_timeevent_process(TimeEvent* timeevent);
-tig_color_t sub_4D9240(int64_t loc, int offset_x, int offset_y);
+tig_color_t GetTileHeight(int64_t loc, int offset_x, int offset_y);
 bool light_is_modified(Light* light);
 void light_clear_modified(Light* light);
 bool light_read_dif(TigFile* stream, Light** light_ptr);

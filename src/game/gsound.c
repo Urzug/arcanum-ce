@@ -1,4 +1,4 @@
-#include "game/gsound.h"
+﻿#include "game/gsound.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -37,7 +37,7 @@ typedef struct SoundScheme {
 } SoundScheme;
 
 static const char* gsound_build_sound_path(const char* name);
-static void sub_41AFB0(SoundScheme* scheme);
+static void SoundSchemeInit(SoundScheme* scheme);
 static tig_sound_handle_t gsound_play_sfx_func(const char* path, int loops, int volume, int extra_volume, int id);
 static void recalc_positional_sounds_volume();
 static void recalc_positional_sound_volume(tig_sound_handle_t sound_handle);
@@ -47,11 +47,11 @@ static tig_sound_handle_t gsound_play_sfx_at_xy_ex(int id, int loops, int64_t x,
 static tig_sound_handle_t gsound_play_sfx_at_loc_ex(int id, int loops, int64_t location, int size);
 static void sub_41BA20(int fade_duration, int index);
 static void sub_41BAC0(int fade_duration);
-static void sub_41BAF0();
-static void sub_41BCD0(const char* name, char* buffer);
-static bool sub_41BD10(int scheme_idx, int* a2);
+static void UpdateAmbientSound();
+static void ResolveSoundPath(const char* name, char* buffer);
+static bool FindActiveSoundScheme(int scheme_idx, int* a2);
 static void sub_41BE20(int scheme_idx);
-static Sound* sub_41BF70(SoundScheme* scheme, const char* path);
+static Sound* ParseAndAddSoundToScheme(SoundScheme* scheme, const char* path);
 static void sub_41C260(char* str);
 static void sub_41C290(const char* str, const char* key, int* value1, int* value2);
 static void set_listener_xy(int64_t x, int64_t y);
@@ -77,7 +77,7 @@ static int64_t sound_maximum_pan_distance;
 static int64_t qword_5D1A28;
 
 // 0x5D1A30
-static int dword_5D1A30[TWO];
+static int g_preCombatMusicSchemes[TWO];
 
 // 0x5D1A38
 static int dword_5D1A38[TWO];
@@ -218,7 +218,7 @@ bool gsound_init(GameInitInfo* init_info)
     mes_load(gsound_build_sound_path("SchemeList.mes"), &gsound_scheme_list_mes_file);
 
     for (index = 0; index < 2; index++) {
-        sub_41AFB0(&(stru_5D1A98[index]));
+        SoundSchemeInit(&(stru_5D1A98[index]));
     }
 
     gsound_initialized = true;
@@ -356,7 +356,7 @@ const char* gsound_build_sound_path(const char* name)
 }
 
 // 0x41AFB0
-void sub_41AFB0(SoundScheme* scheme)
+void SoundSchemeInit(SoundScheme* scheme)
 {
     int index;
 
@@ -441,7 +441,7 @@ bool gsound_load(GameLoadInfo* load_info)
     }
 
     for (index = 0; index < TWO; index++) {
-        if (tig_file_fread(&(dword_5D1A30[index]), sizeof(*dword_5D1A30), 1, load_info->stream) != 1) {
+        if (tig_file_fread(&(g_preCombatMusicSchemes[index]), sizeof(*g_preCombatMusicSchemes), 1, load_info->stream) != 1) {
             return false;
         }
     }
@@ -479,7 +479,7 @@ bool gsound_save(TigFile* stream)
     }
 
     for (index = 0; index < TWO; index++) {
-        if (tig_file_fwrite(&(dword_5D1A30[index]), sizeof(*dword_5D1A30), 1, stream) != 1) {
+        if (tig_file_fwrite(&(g_preCombatMusicSchemes[index]), sizeof(*g_preCombatMusicSchemes), 1, stream) != 1) {
             return false;
         }
     }
@@ -499,7 +499,7 @@ void gsound_ping(tig_timestamp_t timestamp)
 
     if (timestamp - dword_5D548C > 250) {
         dword_5D548C = timestamp;
-        sub_41BAF0();
+        UpdateAmbientSound();
     }
 }
 
@@ -752,7 +752,7 @@ void sub_41BA20(int fade_duration, int index)
         }
 
         scheme->scheme_num = 0;
-        sub_41AFB0(scheme);
+        SoundSchemeInit(scheme);
     } else {
         if (!dword_5D5594) {
             dword_5D1A38[index] = 0;
@@ -782,7 +782,7 @@ void sub_41BAC0(int fade_duration)
 }
 
 // 0x41BAF0
-void sub_41BAF0()
+void UpdateAmbientSound()
 {
     int hour;
     int type;
@@ -803,7 +803,7 @@ void sub_41BAF0()
                 if (hour >= sound->time_start
                     && hour <= sound->time_end
                     && random_between(0, 999) < sound->frequency) {
-                    sub_41BCD0(sound->path, path);
+                    ResolveSoundPath(sound->path, path);
                     if (sound->volume_max > sound->volume_min) {
                         volume = sound->volume_min
                             + random_between(0, sound->volume_max - sound->volume_min - 1);
@@ -835,7 +835,7 @@ void sub_41BAF0()
                     }
                 } else {
                     if (sound->sound_handle == TIG_SOUND_HANDLE_INVALID) {
-                        sub_41BCD0(sound->path, path);
+                        ResolveSoundPath(sound->path, path);
                         tig_sound_create(&(sound->sound_handle), TIG_SOUND_TYPE_MUSIC);
                         tig_sound_set_volume(sound->sound_handle, gsound_music_volume * (sound->volume_min) / 100);
                         tig_sound_play_streamed_indefinitely(sound->sound_handle, path, 25, TIG_SOUND_HANDLE_INVALID);
@@ -847,7 +847,7 @@ void sub_41BAF0()
 }
 
 // 0x41BCD0
-void sub_41BCD0(const char* name, char* buffer)
+void ResolveSoundPath(const char* name, char* buffer)
 {
     if (name[0] == '#') {
         gsound_resolve_path(atoi(name + 1), buffer);
@@ -857,7 +857,7 @@ void sub_41BCD0(const char* name, char* buffer)
 }
 
 // 0x41BD10
-bool sub_41BD10(int scheme_idx, int* a2)
+bool FindActiveSoundScheme(int scheme_idx, int* a2)
 {
     int index;
 
@@ -894,11 +894,11 @@ void gsound_play_scheme(int music_scheme_idx, int ambient_scheme_idx)
     }
 
     if (gsound_combat_music_active) {
-        dword_5D1A30[0] = music_scheme_idx;
-        dword_5D1A30[1] = ambient_scheme_idx;
+        g_preCombatMusicSchemes[0] = music_scheme_idx;
+        g_preCombatMusicSchemes[1] = ambient_scheme_idx;
     } else {
-        music_scheme_active = sub_41BD10(music_scheme_idx, &music_scheme_slot);
-        ambient_scheme_active = sub_41BD10(ambient_scheme_idx, &ambient_scheme_slot);
+        music_scheme_active = FindActiveSoundScheme(music_scheme_idx, &music_scheme_slot);
+        ambient_scheme_active = FindActiveSoundScheme(ambient_scheme_idx, &ambient_scheme_slot);
         if (!music_scheme_active && !ambient_scheme_active) {
             sub_41BAC0(25);
             sub_41BE20(music_scheme_idx);
@@ -938,7 +938,7 @@ void sub_41BE20(int scheme_idx)
     }
 
     scheme = &(stru_5D1A98[index]);
-    sub_41AFB0(scheme);
+    SoundSchemeInit(scheme);
 
     scheme->scheme_idx = scheme_idx;
 
@@ -958,11 +958,11 @@ void sub_41BE20(int scheme_idx)
     for (index = 0; index < 100; index++) {
         mes_file_entry.num = scheme->scheme_num + index;
         if (mes_search(gsound_scheme_list_mes_file, &mes_file_entry)) {
-            sound = sub_41BF70(scheme, mes_file_entry.str);
+            sound = ParseAndAddSoundToScheme(scheme, mes_file_entry.str);
             if (sound != NULL) {
                 if (sound->song
                     && !sound->loop) {
-                    sub_41BCD0(sound->path, path);
+                    ResolveSoundPath(sound->path, path);
                     tig_sound_create(&(sound->sound_handle), TIG_SOUND_TYPE_MUSIC);
                     tig_sound_set_volume(sound->sound_handle, gsound_music_volume * sound->volume_min / 100);
                     tig_sound_play_streamed_once(sound->sound_handle, path, 25, TIG_SOUND_HANDLE_INVALID);
@@ -977,7 +977,7 @@ void sub_41BE20(int scheme_idx)
 }
 
 // 0x41BF70
-Sound* sub_41BF70(SoundScheme* scheme, const char* path)
+Sound* ParseAndAddSoundToScheme(SoundScheme* scheme, const char* path)
 {
     Sound* sound = NULL;
     char* copy;
@@ -1233,9 +1233,9 @@ void gsound_start_combat_music(int64_t obj)
 
     for (type = 0; type < TWO; type++) {
         if (stru_5D1A98[type].scheme_num != 0) {
-            dword_5D1A30[type] = stru_5D1A98[type].scheme_idx;
+            g_preCombatMusicSchemes[type] = stru_5D1A98[type].scheme_idx;
         } else {
-            dword_5D1A30[type] = 0;
+            g_preCombatMusicSchemes[type] = 0;
         }
     }
 
@@ -1268,7 +1268,7 @@ void gsound_stop_combat_music(int64_t obj)
 
     gsound_combat_music_active = false;
 
-    gsound_play_scheme(dword_5D1A30[0], dword_5D1A30[1]);
+    gsound_play_scheme(g_preCombatMusicSchemes[0], g_preCombatMusicSchemes[1]);
 }
 
 // 0x41C610

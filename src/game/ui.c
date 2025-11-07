@@ -1,4 +1,4 @@
-#include "game/ui.h"
+﻿#include "game/ui.h"
 
 // 0x5E8658
 static UiCallbacks ui_callbacks;
@@ -317,7 +317,7 @@ void sub_460650(UiMessage* ui_message, unsigned int milliseconds)
     timeevent.type = TIMEEVENT_TYPE_UI;
     timeevent.params[0].integer_value = 0;
     timeevent.params[1].integer_value = id;
-    sub_45A950(&datetime, milliseconds);
+    DateTimeAddMilliseconds(&datetime, milliseconds);
     tig_idxtable_set(&stru_5E87C8, id, ui_message);
     timeevent_add_delay(&timeevent, &datetime);
 }
@@ -656,7 +656,7 @@ void ui_schematic_info_get(int schematic, SchematicInfo* schematic_info)
 }
 
 // 0x460C20
-int64_t sub_460C20()
+int64_t GetUIActiveObject()
 {
     if (ui_callbacks.field_12C != NULL) {
         return ui_callbacks.field_12C();

@@ -182,7 +182,7 @@ bool teleport_process(TeleportData* teleport_data)
         if ((teleport_data->flags & TELEPORT_TIME) != 0) {
             DateTime datetime;
 
-            sub_45A950(&datetime, 1000 * teleport_data->time);
+            DateTimeAddMilliseconds(&datetime, 1000 * teleport_data->time);
             timeevent_inc_datetime(&datetime);
         }
     }
@@ -315,7 +315,7 @@ bool schedule_teleport_obj_recursively(int64_t obj, int64_t loc)
         while (obj_node != NULL) {
             if ((obj_field_int32_get(obj_node->obj, OBJ_F_NPC_FLAGS) & ONF_AI_WAIT_HERE) == 0) {
                 if (tig_net_is_active()) {
-                    v1 = sub_4C1110(obj_node->obj);
+                    v1 = GetPCWithHighestReaction(obj_node->obj);
                     if (v1 != OBJ_HANDLE_NULL) {
                         sub_460A20(v1, 0);
                     }

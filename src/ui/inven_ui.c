@@ -698,7 +698,7 @@ void sub_572640(int64_t pc_obj, int64_t target_obj, int mode)
                 }
             }
             if ((obj_field_int32_get(target_obj, OBJ_F_CONTAINER_FLAGS) & OCOF_INVEN_SPAWN_ONCE) != 0) {
-                sub_463E20(target_obj);
+                SpawnInventory(target_obj);
             }
         } else {
             if (mode == INVEN_UI_MODE_LOOT) {
@@ -1080,7 +1080,7 @@ bool inven_ui_create(int64_t pc_obj, int64_t target_obj, int mode)
     }
 
     if (qword_6813A8 != OBJ_HANDLE_NULL) {
-        sub_4640C0(qword_6813A8);
+        RefreshInventoryForNearbyPlayers(qword_6813A8);
     }
 
     critter_flags2 = obj_field_int32_get(inven_ui_pc_obj, OBJ_F_CRITTER_FLAGS2);
@@ -1701,7 +1701,7 @@ static inline bool inven_ui_message_filter_handle_mouse_lbutton_up_accept_drop(T
             }
         }
 
-        err = sub_464D20(inven_ui_drag_item_obj, inventory_location, v2);
+        err = CheckCanWieldItem(inven_ui_drag_item_obj, inventory_location, v2);
         if (err != 0) {
             item_error_msg(v2, err);
             sub_575770();
@@ -1928,7 +1928,7 @@ static inline bool inven_ui_message_filter_handle_mouse_lbutton_up(TigMessage* m
                     && (inven_ui_mode != INVEN_UI_MODE_STEAL
                         || qword_681450 == inven_ui_pc_obj
                         || parent_obj == inven_ui_pc_obj)) {
-                    int wield_reason = sub_464D20(inven_ui_drag_item_obj, inventory_location, parent_obj);
+                    int wield_reason = CheckCanWieldItem(inven_ui_drag_item_obj, inventory_location, parent_obj);
                     if (wield_reason == ITEM_CANNOT_OK) {
                         int64_t old_item_obj = item_wield_get(parent_obj, inventory_location);
                         if (old_item_obj != OBJ_HANDLE_NULL
@@ -2556,7 +2556,7 @@ void sub_575930()
         }
     }
 
-    if (!sub_4642C0(inven_ui_drag_item_obj, qword_681450)) {
+    if (!IsItemInInventory(inven_ui_drag_item_obj, qword_681450)) {
         if (IS_WEAR_INV_LOC(dword_6810E8)
             && item_wield_get(qword_681450, dword_6810E8) == OBJ_HANDLE_NULL) {
             item_insert(inven_ui_drag_item_obj, qword_681450, dword_6810E8);

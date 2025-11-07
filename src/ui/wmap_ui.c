@@ -2166,7 +2166,7 @@ bool wmap_ui_message_filter(TigMessage* msg)
                                 DateTime datetime;
 
                                 timeevent.type = TIMEEVENT_TYPE_WORLDMAP;
-                                sub_45A950(&datetime, 50);
+                                DateTimeAddMilliseconds(&datetime, 50);
                                 timeevent_add_delay(&timeevent, &datetime);
 
                                 return true;
@@ -3602,7 +3602,7 @@ bool sub_5643E0(WmapCoords* coords)
 
         townmap_coords_to_loc(&wmap_ui_tmi, coords->x, coords->y, &to);
 
-        steps = sub_44EB40(player_get_local_pc_obj(), from, to);
+        steps = IsPathingToObject(player_get_local_pc_obj(), from, to);
         if (steps == 0) {
             // "Your path is blocked.  Try clicking closer to the previous waypoint."
             mes_file_entry.num = 610;
@@ -3941,7 +3941,7 @@ bool wmap_ui_bkg_process_callback(TimeEvent* timeevent)
     }
 
     next_timeevent.type = TIMEEVENT_TYPE_WORLDMAP;
-    sub_45A950(&datetime, 62);
+    DateTimeAddMilliseconds(&datetime, 62);
     timeevent_add_delay(&next_timeevent, &datetime);
     return true;
 }
@@ -3978,7 +3978,7 @@ int64_t sub_564EE0(WmapCoords* a1, WmapCoords* a2, DateTime* datetime)
     v3 = (int)(location_dist(v1, v2) / 64);
 
     if (datetime != NULL) {
-        sub_45A950(datetime, 3600000 * v3);
+        DateTimeAddMilliseconds(datetime, 3600000 * v3);
     }
 
     return v3;

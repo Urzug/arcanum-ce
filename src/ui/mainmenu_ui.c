@@ -1,4 +1,4 @@
-#include "ui/mainmenu_ui.h"
+﻿#include "ui/mainmenu_ui.h"
 
 #include <stdio.h>
 
@@ -1553,7 +1553,7 @@ void mainmenu_ui_start(MainMenuType type)
         mainmenu_ui_num_windows = 0;
 
         if (type != MM_TYPE_OPTIONS) {
-            sub_45B320();
+            TimeEventPause();
         }
 
         tig_art_interface_id_create(0, 0, 0, 0, &art_id);
@@ -1680,13 +1680,13 @@ void sub_5412E0(bool a1)
                 sub_557FD0(mes_file_entry.str);
 
                 timeevent.type = TIMEEVENT_TYPE_NEWSPAPERS;
-                sub_45A950(&datetime, 86400000 - sub_45AD70());
+                DateTimeAddMilliseconds(&datetime, 86400000 - sub_45AD70());
                 timeevent_add_delay(&timeevent, &datetime);
 
                 wmap_rnd_schedule();
             } else {
                 if (dword_5C4004) {
-                    sub_40FED0();
+                    UIEnterTurnBasedMode();
                 }
                 gamelib_draw();
             }
@@ -1705,7 +1705,7 @@ void sub_5412E0(bool a1)
             mainmenu_ui_was_compact_interface = false;
         }
     }
-    sub_45B340();
+    TimeEventResume();
 }
 
 // 0x541590
@@ -2823,7 +2823,7 @@ bool sub_5432B0(const char* name)
 
     if (mainmenu_ui_gsi.version == 25) {
         mainmenu_ui_reset();
-        sub_40DAB0();
+        PlayerDestroyLocalPC();
 
         if (gamelib_load(name)) {
             gamelib_current_mode_name_set(mainmenu_ui_gsi.module_name);
@@ -4128,7 +4128,7 @@ void mainmenu_ui_pregen_char_create()
 {
     mainmenu_ui_window_type = MM_WINDOW_PREGEN_CHAR;
     mainmenu_ui_pregen_char_idx = 1;
-    qword_64C460 = objp_perm_lookup(obj_get_id(sub_4685A0(BP_MERWIN_TUMBLEBROOK)));
+    qword_64C460 = objp_perm_lookup(obj_get_id(GetProtoHandleFromID(BP_MERWIN_TUMBLEBROOK)));
     mainmenu_ui_create_window();
 }
 
@@ -4191,7 +4191,7 @@ bool mainmenu_ui_pregen_char_button_released(tig_button_handle_t button_handle)
         } else {
             mainmenu_ui_pregen_char_idx = mainmenu_ui_pregen_char_cnt - 1;
         }
-        qword_64C460 = objp_perm_lookup(obj_get_id(sub_4685A0(mainmenu_ui_pregen_char_idx + BP_GENERIC_PC)));
+        qword_64C460 = objp_perm_lookup(obj_get_id(GetProtoHandleFromID(mainmenu_ui_pregen_char_idx + BP_GENERIC_PC)));
         window->refresh_func(NULL);
         return true;
     case 3:
@@ -4200,7 +4200,7 @@ bool mainmenu_ui_pregen_char_button_released(tig_button_handle_t button_handle)
         } else {
             mainmenu_ui_pregen_char_idx = 1;
         }
-        qword_64C460 = objp_perm_lookup(obj_get_id(sub_4685A0(mainmenu_ui_pregen_char_idx + BP_GENERIC_PC)));
+        qword_64C460 = objp_perm_lookup(obj_get_id(GetProtoHandleFromID(mainmenu_ui_pregen_char_idx + BP_GENERIC_PC)));
         window->refresh_func(NULL);
         return true;
     default:
@@ -4357,11 +4357,11 @@ void mainmenu_ui_shop_refresh(TigRect* rect)
     }
 
     sub_4C0F50(npc_obj, pc_obj);
-    sub_463E20(npc_obj);
+    SpawnInventory(npc_obj);
 
     substitute_inventory_obj = critter_substitute_inventory_get(npc_obj);
     if (substitute_inventory_obj != OBJ_HANDLE_NULL) {
-        sub_463E20(substitute_inventory_obj);
+        SpawnInventory(substitute_inventory_obj);
     }
 
     if (!inven_ui_open(pc_obj, npc_obj, INVEN_UI_MODE_BARTER)) {
@@ -5412,7 +5412,7 @@ void sub_547EF0()
 
             timeevent.type = TIMEEVENT_TYPE_MAINMENU;
             timeevent.params[0].integer_value = index;
-            sub_45A950(&datetime, stru_64B870[index].fps);
+            DateTimeAddMilliseconds(&datetime, stru_64B870[index].fps);
             timeevent_add_delay(&timeevent, &datetime);
         }
     }
@@ -5462,7 +5462,7 @@ bool mainmenu_ui_process_callback(TimeEvent* timeevent)
 
     next_timeevent.type = TIMEEVENT_TYPE_MAINMENU;
     next_timeevent.params[0].integer_value = index;
-    sub_45A950(&datetime, stru_64B870[index].fps);
+    DateTimeAddMilliseconds(&datetime, stru_64B870[index].fps);
     timeevent_add_delay(&next_timeevent, &datetime);
 
     return true;
@@ -5905,7 +5905,7 @@ void sub_549A80()
     int64_t obj;
 
     if (!dword_5C3620) {
-        obj = objp_perm_lookup(obj_get_id(sub_4685A0(BP_VICTORIA_WARRINGTON)));
+        obj = objp_perm_lookup(obj_get_id(GetProtoHandleFromID(BP_VICTORIA_WARRINGTON)));
         if (obj != OBJ_HANDLE_NULL
             && tig_art_exists(obj_field_int32_get(obj, OBJ_F_CURRENT_AID)) == TIG_OK) {
             dword_5C3620 = false;

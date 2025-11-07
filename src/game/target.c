@@ -152,7 +152,7 @@ bool sub_4F2680(S4F2680* a1)
 
     stru_603CB8.self_obj = a1->field_8;
 
-    if (sub_4F2D20(&stru_603CB8)) {
+    if (ValidateTargetEligibility(&stru_603CB8)) {
         if (stru_603D20.aoe_flags) {
             return true;
         }
@@ -164,7 +164,7 @@ bool sub_4F2680(S4F2680* a1)
             stru_603CB8.field_28 = obj_field_int64_get(a1->field_10->obj, OBJ_F_LOCATION);
             stru_603CB8.field_38 = stru_603CB8.field_28;
         }
-        if (sub_4F2D20(&stru_603CB8) && stru_603D20.aoe_flags) {
+        if (ValidateTargetEligibility(&stru_603CB8) && stru_603D20.aoe_flags) {
             sub_4F27F0(a1->field_10, stru_603CB8.field_28);
             return true;
         }
@@ -360,7 +360,7 @@ int sub_4F2C60(int64_t* obj_ptr)
 }
 
 // 0x4F2CB0
-bool sub_4F2CB0(int x, int y, S4F2810* a3, uint64_t tgt, bool fullscreen)
+bool TargetFindAtScreenCoords(int x, int y, S4F2810* a3, uint64_t tgt, bool fullscreen)
 {
     uint64_t old_tgt;
     bool rc;
@@ -378,13 +378,13 @@ bool sub_4F2CB0(int x, int y, S4F2810* a3, uint64_t tgt, bool fullscreen)
 }
 
 // 0x4F2D10
-int64_t sub_4F2D10()
+int64_t TargetGetHoverTarget()
 {
     return qword_603D40;
 }
 
 // 0x4F2D20
-bool sub_4F2D20(S603CB8* a1)
+bool ValidateTargetEligibility(S603CB8* a1)
 {
     uint64_t tgt;
     ObjectList objects;
@@ -878,7 +878,7 @@ bool sub_4F2D20(S603CB8* a1)
         stru_603B88.rotations = byte_603BC4;
         stru_603B88.flags = PATH_FLAG_0x0010;
 
-        dword_603C98 = sub_41F3C0(&stru_603B88);
+        dword_603C98 = PathCreate(&stru_603B88);
         qword_603CA8 = stru_603B88.from;
         qword_603CB0 = stru_603B88.to;
 
@@ -1139,7 +1139,7 @@ void sub_4F40B0(S603CB8* a1)
             int64_t tmp_obj = obj_node->obj;
             if (sub_4F2C60(&tmp_obj) != OBJ_TYPE_SCENERY || all) {
                 v3.field_20 = tmp_obj;
-                if (sub_4F2D20(&v3)) {
+                if (ValidateTargetEligibility(&v3)) {
                     sub_4F3F10(v1, tmp_obj);
 
                     if (v4.count > 0) {
@@ -1173,7 +1173,7 @@ void sub_4F40B0(S603CB8* a1)
         for (y = -v2->radius; y <= v2->radius; y++) {
             for (x = -v2->radius; x <= v2->radius; x++) {
                 v3.field_28 = location_make(location_get_x(origin) + x, location_get_y(origin) + y);
-                if (sub_4F2D20(&v3)) {
+                if (ValidateTargetEligibility(&v3)) {
                     sub_4F4050(v1, v3.field_28);
 
                     if (v4.count > 0) {
@@ -1263,7 +1263,7 @@ void sub_4F40B0(S603CB8* a1)
         dy2 = 0;
         for (range = 0; range < v2->radius; range++) {
             v3.field_28 = location_make(location_get_x(origin) + dx1, location_get_y(origin) + dy1);
-            if (sub_4F2D20(&v3)) {
+            if (ValidateTargetEligibility(&v3)) {
                 sub_4F4050(v1, v3.field_28);
                 if (v4.count > 0) {
                     if (--v4.count == 0) {
@@ -1273,7 +1273,7 @@ void sub_4F40B0(S603CB8* a1)
             }
 
             v3.field_28 = location_make(location_get_x(origin) + dx2, location_get_y(origin) + dy2);
-            if (sub_4F2D20(&v3)) {
+            if (ValidateTargetEligibility(&v3)) {
                 sub_4F4050(v1, v3.field_28);
                 if (v4.count > 0) {
                     if (--v4.count == 0) {
@@ -1351,7 +1351,7 @@ void sub_4F40B0(S603CB8* a1)
                             if (sub_4F2C60(&tmp_obj) != OBJ_TYPE_SCENERY
                                 || all) {
                                 v3.field_20 = tmp_obj;
-                                if (sub_4F2D20(&v3)) {
+                                if (ValidateTargetEligibility(&v3)) {
                                     sub_4F3F10(v1, tmp_obj);
                                     if (v4.count > 0) {
                                         if (--v4.count == 0) {
@@ -1380,7 +1380,7 @@ void sub_4F40B0(S603CB8* a1)
                 for (y = -v2->radius; y <= v2->radius; y++) {
                     for (x = -v2->radius; x <= v2->radius; x++) {
                         v3.field_28 = location_make(location_get_x(origin) + x, location_get_y(origin) + y);
-                        if (sub_4F2D20(&v3)) {
+                        if (ValidateTargetEligibility(&v3)) {
                             sub_4F4050(v1, v3.field_28);
 
                             // FIXME: Missing count tracking.
@@ -1449,7 +1449,7 @@ void sub_4F40B0(S603CB8* a1)
 }
 
 // 0x4F4E40
-bool sub_4F4E40(int64_t obj, int distance, int64_t* loc_ptr)
+bool FindLocationNearObject(int64_t obj, int distance, int64_t* loc_ptr)
 {
     int64_t from;
     int64_t to;
@@ -1478,7 +1478,7 @@ bool sub_4F4E40(int64_t obj, int distance, int64_t* loc_ptr)
     stru_603B88.rotations = byte_603BC4;
     stru_603B88.flags = PATH_FLAG_0x0010;
 
-    dword_603C98 = sub_41F3C0(&stru_603B88);
+    dword_603C98 = PathCreate(&stru_603B88);
     qword_603CB0 = stru_603B88.to;
     qword_603CA8 = stru_603B88.from;
 

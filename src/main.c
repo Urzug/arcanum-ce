@@ -535,7 +535,7 @@ void main_loop()
                                     sub_460630(&ui_message);
 
                                     int64_t gold_obj;
-                                    object_create(sub_4685A0(BP_GOLD),
+                                    object_create(GetProtoHandleFromID(BP_GOLD),
                                         obj_field_int64_get(pc_obj, OBJ_F_LOCATION),
                                         &gold_obj);
                                     obj_field_int32_set(gold_obj, OBJ_F_GOLD_QUANTITY, 1000);

@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_UI_H_
+﻿#ifndef ARCANUM_GAME_UI_H_
 #define ARCANUM_GAME_UI_H_
 
 #include "game/context.h"
@@ -310,7 +310,7 @@ int sub_460BB0();
 int sub_460BC0();
 int sub_460BE0(const char* a1, const char* a2);
 void ui_schematic_info_get(int schematic, SchematicInfo* schematic_info);
-int64_t sub_460C20();
+int64_t GetUIActiveObject();
 void sub_460C30(int64_t a1);
 int sub_460C50(int64_t a1, int64_t a2, int a3);
 int sub_460C80(int64_t a1, int64_t a2, int a3);

@@ -403,8 +403,8 @@ void object_ping(tig_timestamp_t timestamp)
     while (object_dirty_rects_head != NULL) {
         next = object_dirty_rects_head->next;
         if (tig_rect_intersection(&(object_dirty_rects_head->rect), &bounds, &rect) == TIG_OK
-            && sub_4B9130(&rect, &loc_rect)
-            && sub_4D0090(&loc_rect, &v1)) {
+            && ScreenRectToLocationRect(&rect, &loc_rect)
+            && GetSectorDataForLocationRect(&loc_rect, &v1)) {
             for (col = 0; col < v1.height; col++) {
                 v2 = &(v1.field_8[col]);
 
@@ -1267,7 +1267,7 @@ void object_destroy(int64_t obj)
         ai_timeevent_clear(obj);
 
         if (obj_type == OBJ_TYPE_NPC) {
-            pc_obj = sub_4C1110(obj);
+            pc_obj = GetPCWithHighestReaction(obj);
             if (pc_obj != OBJ_HANDLE_NULL) {
                 sub_460A20(pc_obj, 0);
             }
@@ -1813,11 +1813,11 @@ bool object_find_by_screen_coords(int x, int y, int64_t* obj_ptr, unsigned int f
     rect.width = 512;
     rect.height = 512;
 
-    if (!sub_4B9130(&rect, &loc_rect)) {
+    if (!ScreenRectToLocationRect(&rect, &loc_rect)) {
         return false;
     }
 
-    if (!sub_4D0090(&loc_rect, &v1)) {
+    if (!GetSectorDataForLocationRect(&loc_rect, &v1)) {
         return false;
     }
 
@@ -2586,12 +2586,12 @@ void object_bust(int64_t obj, int64_t triggerer_obj)
 
             scenery_respawn_delay = obj_field_int32_get(obj, OBJ_F_SCENERY_RESPAWN_DELAY);
             if (scenery_respawn_delay == 0) {
-                sub_45A950(&datetime, 0);
+                DateTimeAddMilliseconds(&datetime, 0);
                 datetime.days = 1;
             } else if (scenery_respawn_delay > 0) {
-                sub_45A950(&datetime, 8000 * scenery_respawn_delay);
+                DateTimeAddMilliseconds(&datetime, 8000 * scenery_respawn_delay);
             } else {
-                sub_45A950(&datetime, -60000 * scenery_respawn_delay);
+                DateTimeAddMilliseconds(&datetime, -60000 * scenery_respawn_delay);
             }
 
             timeevent_add_delay(&timeevent, &datetime);
@@ -3435,7 +3435,7 @@ void object_list_rect(LocRect* loc_rect, unsigned int flags, ObjectList* objects
 
     prev_ptr = &(objects->head);
 
-    if (!sub_4D0090(loc_rect, &v1)) {
+    if (!GetSectorDataForLocationRect(loc_rect, &v1)) {
         return;
     }
 
@@ -3538,7 +3538,7 @@ void object_list_vicinity_loc(int64_t loc, unsigned int flags, ObjectList* objec
     screen_rect.x = (int)(x - center_x);
     screen_rect.y = (int)(y - center_y);
 
-    if (sub_4B9130(&screen_rect, &loc_rect)) {
+    if (ScreenRectToLocationRect(&screen_rect, &loc_rect)) {
         object_list_rect(&loc_rect, flags, objects);
     } else {
         objects->num_sectors = 0;
@@ -4172,7 +4172,7 @@ bool object_locked_set(int64_t obj, bool locked)
     if ((flags & (type == OBJ_TYPE_PORTAL ? OPF_LOCKED : OCOF_LOCKED)) != 0 && !locked) {
         timeevent.type = TIMEEVENT_TYPE_LOCK;
         timeevent.params[0].object_value = obj;
-        sub_45A950(&datetime, 3600000);
+        DateTimeAddMilliseconds(&datetime, 3600000);
         timeevent_add_delay(&timeevent, &datetime);
     }
 
@@ -4229,7 +4229,7 @@ bool object_jammed_set(int64_t obj, bool jammed)
     if ((flags & (type == OBJ_TYPE_PORTAL ? OPF_JAMMED : OCOF_JAMMED)) == 0 && jammed) {
         timeevent.type = TIMEEVENT_TYPE_LOCK;
         timeevent.params[0].object_value = obj;
-        sub_45A950(&datetime, 86400000);
+        DateTimeAddMilliseconds(&datetime, 86400000);
         timeevent_add_delay(&timeevent, &datetime);
     }
 

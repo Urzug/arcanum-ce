@@ -1711,7 +1711,7 @@ bool skill_invocation_run(SkillInvocation* skill_invocation)
 
                     if (moved) {
                         // Adjust alignment.
-                        sub_45DC90(source_obj, target_obj, false);
+                        AdjustAlignmentOnKill(source_obj, target_obj, false);
 
                         // Mark item as stolen.
                         unsigned int critter_flags2 = obj_field_int32_get(target_obj, OBJ_F_CRITTER_FLAGS2);
@@ -2510,7 +2510,7 @@ int skill_invocation_difficulty(SkillInvocation* skill_invocation)
 
         // Check for obstructions between source and target.
         int64_t blocking_obj;
-        int v2 = sub_4ADE00(source_obj, skill_invocation->target_loc, &blocking_obj);
+        int v2 = FindLineOfSightBlocker(source_obj, skill_invocation->target_loc, &blocking_obj);
         if (blocking_obj != OBJ_HANDLE_NULL) {
             // Target is blocked.
             difficulty += 1000000;
@@ -2551,7 +2551,7 @@ int skill_invocation_difficulty(SkillInvocation* skill_invocation)
                 lum = sub_4DCE10(target_obj) & 0xFF;
             } else {
                 // Take luminance of a target location.
-                lum = sub_4D9240(skill_invocation->target_loc, 0, 0) & 0xFF;
+                lum = GetTileHeight(skill_invocation->target_loc, 0, 0) & 0xFF;
             }
 
             // Calculate lighting penalty based on darkness (where 255 being
@@ -2647,7 +2647,7 @@ int skill_invocation_difficulty(SkillInvocation* skill_invocation)
         if ((skill_invocation->flags & SKILL_INVOCATION_CHECK_SEEING) != 0) {
             // Check for blocking objects when hiding from a target.
             int64_t blocking_obj;
-            int v6 = sub_4ADE00(target_obj,
+            int v6 = FindLineOfSightBlocker(target_obj,
                 obj_field_int64_get(source_obj, OBJ_F_LOCATION),
                 &blocking_obj);
             if (blocking_obj != OBJ_HANDLE_NULL) {

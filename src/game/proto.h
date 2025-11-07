@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_PROTO_H_
+﻿#ifndef ARCANUM_GAME_PROTO_H_
 #define ARCANUM_GAME_PROTO_H_
 
 #include "game/context.h"
@@ -7,7 +7,7 @@
 bool proto_init(GameInitInfo* init_info);
 void proto_exit();
 int64_t sub_468570(ObjectType object_type);
-int64_t sub_4685A0(int a1);
+int64_t GetProtoHandleFromID(int a1);
 bool proto_is_valid(int description);
 int sub_49B290(int64_t obj);
 

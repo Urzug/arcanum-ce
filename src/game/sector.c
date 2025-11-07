@@ -1,4 +1,4 @@
-#include "game/sector.h"
+﻿#include "game/sector.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -731,7 +731,7 @@ bool sector_in_dir(int64_t sec, int dir, int64_t* new_sec_ptr)
 }
 
 // 0x4D0090
-bool sub_4D0090(LocRect* rect, SomeSectorStuff* a2)
+bool GetSectorDataForLocationRect(LocRect* rect, SomeSectorStuff* a2)
 {
     int x;
     int y;

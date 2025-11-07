@@ -79,7 +79,7 @@ typedef struct S4ABF10 {
     /* 0010 */ int64_t obj;
 } S4ABF10;
 
-static bool sub_4A8570(Ai* ai);
+static bool AICheckActionPreconditions(Ai* ai);
 static void sub_4A88D0(Ai* ai, int64_t obj);
 static bool ai_heal(Ai* ai);
 static bool ai_heal_func(Ai* ai, int64_t obj, bool a3);
@@ -90,20 +90,20 @@ static void ai_redirect_func(int64_t source_obj, int64_t target_obj);
 static void sub_4A9B80(int64_t a1, int64_t a2, int a3, int a4);
 static void sub_4A9C00(int64_t a1, int64_t a2, int64_t a3, int a4, int a5, int a6);
 static void sub_4A9E10(int64_t a1, int64_t a2, int loudness);
-static void sub_4A9F10(int64_t a1, int64_t a2, int64_t a3, int loudness);
+static void AINotifyNearbyNPCsOfEvent(int64_t a1, int64_t a2, int64_t a3, int loudness);
 static void sub_4AA420(int64_t obj, int64_t a2);
-static void sub_4AA620(int64_t a1, int64_t a2);
+static void AIInitiateFollow(int64_t a1, int64_t a2);
 static bool ai_npc_wait_here_timeevent_check(TimeEvent* timeevent);
 static void ai_copy_params(int64_t obj, AiParams* params);
 static void ai_danger_source(int64_t obj, int* type_ptr, int64_t* danger_source_ptr);
-static int sub_4AABE0(int64_t source_obj, int danger_type, int64_t target_obj, int* sound_id_ptr);
+static int AISetOrUpdateDangerSource(int64_t source_obj, int danger_type, int64_t target_obj, int* sound_id_ptr);
 static bool sub_4AAF50(Ai* ai);
 static bool sub_4AB030(int64_t a1, int64_t a2);
 static int64_t ai_choose_target(int64_t attacker_obj, int64_t candidate1_obj, int64_t candidate2_obj);
 static void sub_4AB2A0(int64_t a1, int64_t a2);
 static bool ai_should_flee(int64_t source_obj, int64_t target_obj);
 static int64_t ai_find_target(int64_t a1);
-static bool sub_4AB990(int64_t a1, int64_t a2);
+static bool AIIsValidShitlistTarget(int64_t a1, int64_t a2);
 static void sub_4ABC20(Ai* ai);
 static bool sub_4ABC70(Ai* ai);
 static int sub_4ABE20(Ai* ai);
@@ -138,10 +138,10 @@ static int ai_check_upset_attacking(int64_t source_obj, int64_t target_obj, int6
 static void ai_calc_party_size_and_level_internal(int64_t obj, int* cnt_ptr, int* lvl_ptr);
 static int ai_check_protect(int64_t source_obj, int64_t target_obj);
 static int64_t sub_4AE450(int64_t a1, int64_t a2);
-static int sub_4AE720(int64_t a1, int64_t item_obj, int64_t a3, int magictech);
+static int CanCastSpellOrUseTech(int64_t a1, int64_t item_obj, int64_t a3, int magictech);
 static bool ai_is_indoor_to_outdoor_transition(int64_t portal_obj, int dir);
 static int ai_perception_distance(int value);
-static int sub_4AF640(int64_t source_obj, int64_t target_obj);
+static int CalculateHearingObstructionPenalty(int64_t source_obj, int64_t target_obj);
 static bool ai_check_decoy(int64_t source_obj, int64_t target_obj);
 static void sub_4AF8C0(int64_t a1, int64_t a2);
 static void ai_shitlist_add(int64_t npc_obj, int64_t shit_obj);
@@ -161,7 +161,7 @@ static DateTime stru_5B5088[6] = {
 };
 
 // 0x5B50C0
-static int dword_5B50C0[LOUDNESS_COUNT] = {
+static int g_loudnessDistanceTable[LOUDNESS_COUNT] = {
     2,
     8,
     15,
@@ -179,7 +179,7 @@ static AiParams dword_5F5CB0[150];
 static AiFloatLineFunc* ai_float_line_func;
 
 // 0x5F848C
-static Func5F848C* dword_5F848C;
+static Func5F848C* g_onCombatInitiationCallback;
 
 // 0x5F8498
 static bool in_find_target;
@@ -202,7 +202,7 @@ bool ai_init(GameInitInfo* init_info)
 
     (void)init_info;
 
-    dword_5F848C = NULL;
+    g_onCombatInitiationCallback = NULL;
     ai_float_line_func = NULL;
 
     if (!mes_load("rules\\ai_params.mes", &mes_file)) {
@@ -282,7 +282,7 @@ void ai_mod_unload()
 // 0x4A84D0
 void ai_set_callbacks(Func5F848C* a1, AiFloatLineFunc* float_line_func)
 {
-    dword_5F848C = a1;
+    g_onCombatInitiationCallback = a1;
     ai_float_line_func = float_line_func;
 }
 
@@ -301,7 +301,7 @@ void ai_process(int64_t obj)
 
     sub_4A88D0(&ai, obj);
 
-    if (!sub_4A8570(&ai)) {
+    if (!AICheckActionPreconditions(&ai)) {
         return;
     }
 
@@ -313,7 +313,7 @@ void ai_process(int64_t obj)
 }
 
 // 0x4A8570
-bool sub_4A8570(Ai* ai)
+bool AICheckActionPreconditions(Ai* ai)
 {
     int64_t pc_obj;
     int64_t v1;
@@ -342,13 +342,13 @@ bool sub_4A8570(Ai* ai)
 
     critter_flags = obj_field_int32_get(ai->obj, OBJ_F_CRITTER_FLAGS);
 
-    v1 = sub_4C1110(ai->obj);
+    v1 = GetPCWithHighestReaction(ai->obj);
     if (v1) {
         if (pc_obj == v1
-            && dword_5F848C != NULL
+            && g_onCombatInitiationCallback != NULL
             && ai->danger_type != AI_DANGER_SOURCE_TYPE_NONE
             && ai->danger_type != AI_DANGER_SOURCE_TYPE_SURRENDER) {
-            dword_5F848C(pc_obj, 0);
+            g_onCombatInitiationCallback(pc_obj, 0);
         }
         return false;
     }
@@ -634,7 +634,7 @@ bool ai_look_for_item(Ai* ai)
         return false;
     }
 
-    if (sub_460C20() != OBJ_HANDLE_NULL) {
+    if (GetUIActiveObject() != OBJ_HANDLE_NULL) {
         return false;
     }
 
@@ -692,7 +692,7 @@ bool ai_look_for_item_func(int64_t obj, unsigned int flags)
     node = objects.head;
     while (node != NULL) {
         if ((obj_field_int32_get(node->obj, OBJ_F_ITEM_FLAGS) & (OIF_NO_DISPLAY | OIF_NO_NPC_PICKUP)) == 0
-            && !sub_461F60(node->obj)
+            && !IsItemWorthless(node->obj)
             && item_check_insert(node->obj, obj, NULL) == ITEM_CANNOT_OK) {
             dist = object_dist(obj, node->obj);
             if (nearest_obj == OBJ_HANDLE_NULL
@@ -763,7 +763,7 @@ bool ai_look_for_item_func(int64_t obj, unsigned int flags)
             if (item_obj != OBJ_HANDLE_NULL
                 && (obj_field_int32_get(item_obj, OBJ_F_FLAGS) & OF_OFF) == 0
                 && (obj_field_int32_get(item_obj, OBJ_F_ITEM_FLAGS) & (OIF_NO_DISPLAY | OIF_NO_NPC_PICKUP)) == 0
-                && !sub_461F60(item_obj)
+                && !IsItemWorthless(item_obj)
                 && item_check_insert(item_obj, obj, NULL) == ITEM_CANNOT_OK
                 && anim_goal_pickup_item(obj, item_obj)) {
                 found = true;
@@ -792,7 +792,7 @@ void sub_4A92D0(Ai* ai)
         if (danger_source_obj != OBJ_HANDLE_NULL) {
             ai->danger_source = danger_source_obj;
             sub_4ABC20(ai);
-            ai->danger_type = sub_4AABE0(ai->obj,
+            ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
                 AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
                 danger_source_obj,
                 &(ai->sound_id));
@@ -803,7 +803,7 @@ void sub_4A92D0(Ai* ai)
         if (danger_source_obj != OBJ_HANDLE_NULL) {
             ai->danger_source = danger_source_obj;
             sub_4ABC20(ai);
-            ai->danger_type = sub_4AABE0(ai->obj,
+            ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
                 AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
                 danger_source_obj,
                 &(ai->sound_id));
@@ -812,9 +812,9 @@ void sub_4A92D0(Ai* ai)
 
         obj_field_obj_get(ai->obj, OBJ_F_NPC_WHO_HIT_ME_LAST, &danger_source_obj);
         ai->danger_source = danger_source_obj;
-        if (sub_4AB990(ai->obj, ai->danger_source)) {
+        if (AIIsValidShitlistTarget(ai->obj, ai->danger_source)) {
             sub_4ABC20(ai);
-            ai->danger_type = sub_4AABE0(ai->obj,
+            ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
                 AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
                 danger_source_obj,
                 &(ai->sound_id));
@@ -825,14 +825,14 @@ void sub_4A92D0(Ai* ai)
         ai->danger_source = danger_source_obj;
         if (ai->danger_source != OBJ_HANDLE_NULL) {
             sub_4ABC20(ai);
-            ai->danger_type = sub_4AABE0(ai->obj,
+            ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
                 AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
                 danger_source_obj,
                 &(ai->sound_id));
             break;
         }
 
-        ai->danger_type = sub_4AABE0(ai->obj,
+        ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
             AI_DANGER_SOURCE_TYPE_NONE,
             OBJ_HANDLE_NULL,
             &(ai->sound_id));
@@ -842,7 +842,7 @@ void sub_4A92D0(Ai* ai)
         break;
     case 3:
         if (ai_object_hp_ratio(ai->obj) >= 80 && random_between(1, 500) == 1) {
-            ai->danger_type = sub_4AABE0(ai->obj,
+            ai->danger_type = AISetOrUpdateDangerSource(ai->obj,
                 AI_DANGER_SOURCE_TYPE_NONE,
                 OBJ_HANDLE_NULL,
                 &(ai->sound_id));
@@ -982,7 +982,7 @@ void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned in
 
             if ((flags & 0x02) == 0) {
                 if (target_obj_type == OBJ_TYPE_PC) {
-                    sub_4A9AD0(target_obj, source_obj);
+                    InitiateCombat(target_obj, source_obj);
                 }
 
                 sub_4A9B80(target_obj, source_obj, 0, (flags & 0x01) != 0);
@@ -1039,7 +1039,7 @@ void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned in
                         if ((flags & 0x01) != 0) {
                             reaction_adj(target_obj, source_obj, -10);
                         } else {
-                            v3 = sub_4C0CE0(target_obj, source_obj);
+                            v3 = GetReactionScore(target_obj, source_obj);
                             if (v3 > ai_params.field_28) {
                                 reaction_adj(target_obj, source_obj, ai_params.field_28 - v3);
                             }
@@ -1049,12 +1049,12 @@ void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned in
 
                 if ((flags & 0x01) == 0
                     || !critter_faction_same(source_obj, target_obj)) {
-                    sub_4AA620(target_obj, source_obj);
+                    AIInitiateFollow(target_obj, source_obj);
                 }
             }
         }
     } else if (target_obj_type == OBJ_TYPE_NPC) {
-        sub_4AABE0(target_obj,
+        AISetOrUpdateDangerSource(target_obj,
             AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
             source_obj,
             NULL);
@@ -1062,14 +1062,14 @@ void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned in
 }
 
 // 0x4A9AD0
-void sub_4A9AD0(int64_t attacker_obj, int64_t target_obj)
+void InitiateCombat(int64_t attacker_obj, int64_t target_obj)
 {
     if (attacker_obj == target_obj) {
         return;
     }
 
-    if (dword_5F848C != NULL) {
-        dword_5F848C(attacker_obj, 0);
+    if (g_onCombatInitiationCallback != NULL) {
+        g_onCombatInitiationCallback(attacker_obj, 0);
     }
 
     if (!combat_critter_is_combat_mode_active(attacker_obj)) {
@@ -1146,7 +1146,7 @@ void sub_4A9C00(int64_t source_obj, int64_t a2, int64_t target_obj, int a4, int 
         if (a6) {
             ai_target_lock(source_obj, target_obj);
         } else {
-            sub_4AA620(source_obj, target_obj);
+            AIInitiateFollow(source_obj, target_obj);
         }
     } else {
         if (a5) {
@@ -1156,7 +1156,7 @@ void sub_4A9C00(int64_t source_obj, int64_t a2, int64_t target_obj, int a4, int 
         if (a6) {
             ai_target_lock(source_obj, target_obj);
         } else {
-            sub_4AABE0(source_obj,
+            AISetOrUpdateDangerSource(source_obj,
                 AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS,
                 target_obj,
                 NULL);
@@ -1172,13 +1172,13 @@ void sub_4A9E10(int64_t a1, int64_t a2, int loudness)
     ObjectList objects;
     ObjectNode* node;
 
-    radius = dword_5B50C0[loudness];
+    radius = g_loudnessDistanceTable[loudness];
     dist = (int)object_dist(a2, a1);
-    if (dist < 2 * dword_5B50C0[LOUDNESS_LOUD]) {
+    if (dist < 2 * g_loudnessDistanceTable[LOUDNESS_LOUD]) {
         ai_objects_in_radius(a2, radius, &objects, OBJ_TM_NPC);
         node = objects.head;
         while (node != NULL) {
-            sub_4A9F10(node->obj, a2, a1, loudness);
+            AINotifyNearbyNPCsOfEvent(node->obj, a2, a1, loudness);
             node = node->next;
         }
         object_list_destroy(&objects);
@@ -1187,7 +1187,7 @@ void sub_4A9E10(int64_t a1, int64_t a2, int loudness)
         ai_objects_in_radius(a1, radius, &objects, OBJ_TM_NPC);
         node = objects.head;
         while (node != NULL) {
-            sub_4A9F10(node->obj, a2, a1, loudness);
+            AINotifyNearbyNPCsOfEvent(node->obj, a2, a1, loudness);
             node = node->next;
         }
         object_list_destroy(&objects);
@@ -1195,7 +1195,7 @@ void sub_4A9E10(int64_t a1, int64_t a2, int loudness)
 }
 
 // 0x4A9F10
-void sub_4A9F10(int64_t a1, int64_t a2, int64_t a3, int loudness)
+void AINotifyNearbyNPCsOfEvent(int64_t a1, int64_t a2, int64_t a3, int loudness)
 {
     int64_t leader_obj;
     int danger_type;
@@ -1213,18 +1213,18 @@ void sub_4A9F10(int64_t a1, int64_t a2, int64_t a3, int loudness)
 
         if (ai_check_protect(a1, a3) != AI_PROTECT_NO) {
             if (ai_can_see(a1, a3) == 0 || ai_can_hear(a1, a3, loudness) == 0) {
-                sub_4AA620(a1, a2);
+                AIInitiateFollow(a1, a2);
             }
         } else if (ai_check_protect(a1, a2) != AI_PROTECT_NO) {
             if (ai_can_see(a1, a3) == 0 || ai_can_hear(a1, a3, loudness) == 0) {
-                sub_4AA620(a1, a3);
+                AIInitiateFollow(a1, a3);
             }
         } else if (critter_social_class_get(a1) != SOCIAL_CLASS_GUARD
             && (obj_field_int32_get(a1, OBJ_F_CRITTER_FLAGS) & OCF_NO_FLEE) == 0) {
             ai_danger_source(a1, &danger_type, NULL);
             if (danger_type == AI_DANGER_SOURCE_TYPE_NONE
                 && (ai_can_see(a1, a3) == 0 || ai_can_hear(a1, a3, loudness) == 0)) {
-                sub_4AABE0(a1,
+                AISetOrUpdateDangerSource(a1,
                     AI_DANGER_SOURCE_TYPE_FLEE,
                     a2,
                     NULL);
@@ -1316,7 +1316,7 @@ void sub_4AA300(int64_t a1, int64_t a2)
         }
     }
 
-    sub_4AABE0(a1, AI_DANGER_SOURCE_TYPE_NONE, OBJ_HANDLE_NULL, NULL);
+    AISetOrUpdateDangerSource(a1, AI_DANGER_SOURCE_TYPE_NONE, OBJ_HANDLE_NULL, NULL);
     sub_44E050(a1, v1);
 
     if (obj_type_is_critter(obj_type)) {
@@ -1417,7 +1417,7 @@ void sub_4AA580(int64_t obj)
 }
 
 // 0x4AA620
-void sub_4AA620(int64_t a1, int64_t a2)
+void AIInitiateFollow(int64_t a1, int64_t a2)
 {
     int danger_type;
     int64_t danger_source_obj;
@@ -1634,7 +1634,7 @@ void ai_danger_source(int64_t obj, int* type_ptr, int64_t* danger_source_ptr)
 }
 
 // 0x4AABE0
-int sub_4AABE0(int64_t source_obj, int danger_type, int64_t target_obj, int* sound_id_ptr)
+int AISetOrUpdateDangerSource(int64_t source_obj, int danger_type, int64_t target_obj, int* sound_id_ptr)
 {
     unsigned int critter_flags;
     int64_t leader_obj;
@@ -1727,7 +1727,7 @@ int sub_4AABE0(int64_t source_obj, int danger_type, int64_t target_obj, int* sou
             }
 
             if (obj_field_int32_get(target_obj, OBJ_F_TYPE) == OBJ_TYPE_PC) {
-                v1 = sub_4C0CE0(source_obj, target_obj);
+                v1 = GetReactionScore(source_obj, target_obj);
                 ai_copy_params(source_obj, &ai_params);
                 if (v1 > ai_params.field_28) {
                     reaction_adj(source_obj, target_obj, ai_params.field_28 - v1);
@@ -1870,9 +1870,9 @@ int64_t ai_choose_target(int64_t attacker_obj, int64_t candidate1_obj, int64_t c
 void sub_4AB2A0(int64_t a1, int64_t a2)
 {
     if (ai_should_flee(a1, a2)) {
-        sub_4AABE0(a1, AI_DANGER_SOURCE_TYPE_FLEE, a2, 0);
+        AISetOrUpdateDangerSource(a1, AI_DANGER_SOURCE_TYPE_FLEE, a2, 0);
     } else {
-        sub_4AABE0(a1, AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS, a2, 0);
+        AISetOrUpdateDangerSource(a1, AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS, a2, 0);
     }
 }
 
@@ -2027,7 +2027,7 @@ int64_t ai_find_target(int64_t critter_obj)
 
                 if (obj_type == OBJ_TYPE_NPC) {
                     ai_danger_source(handles[idx], &candidate_danger_type, &candidate_obj);
-                    if (sub_4AB990(critter_obj, candidate_obj)
+                    if (AIIsValidShitlistTarget(critter_obj, candidate_obj)
                         && (candidate_danger_type == AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS
                             || candidate_danger_type == AI_DANGER_SOURCE_TYPE_FLEE
                             || candidate_danger_type == AI_DANGER_SOURCE_TYPE_SURRENDER)) {
@@ -2073,7 +2073,7 @@ int64_t ai_find_target(int64_t critter_obj)
 }
 
 // 0x4AB990
-bool sub_4AB990(int64_t source_obj, int64_t target_obj)
+bool AIIsValidShitlistTarget(int64_t source_obj, int64_t target_obj)
 {
     int64_t source_leader_obj;
     int64_t target_leader_obj;
@@ -2169,7 +2169,7 @@ int64_t sub_4ABBC0(int64_t obj)
     int64_t combat_focus_obj;
 
     obj_field_obj_get(obj, OBJ_F_NPC_COMBAT_FOCUS, &combat_focus_obj);
-    if (sub_4AB990(obj, combat_focus_obj)) {
+    if (AIIsValidShitlistTarget(obj, combat_focus_obj)) {
         return combat_focus_obj;
     }
 
@@ -2319,7 +2319,7 @@ bool sub_4ABF10(Ai* ai, S4ABF10* a2)
         }
 
         if (!magictech_is_under_influence_of(obj, entry->spell)
-            && !sub_4AE720(ai->obj, entry->item_obj, obj, entry->spell)) {
+            && !CanCastSpellOrUseTech(ai->obj, entry->item_obj, obj, entry->spell)) {
             if (entry->item_obj != OBJ_HANDLE_NULL
                 && mt_item_valid_ai_action(entry->item_obj)) {
                 ai->action_type = AI_ACTION_TYPE_USE_ITEM;
@@ -2394,7 +2394,7 @@ void ai_action_perform_cast(Ai* ai)
         magictech_invocation_run(&mt_invocation);
 
         if (ai->item_obj != OBJ_HANDLE_NULL) {
-            sub_4574D0(ai->item_obj);
+            ProcessItemUseCompletion(ai->item_obj);
 
             switch (obj_field_int32_get(ai->item_obj, OBJ_F_TYPE)) {
             case OBJ_TYPE_FOOD:
@@ -2474,7 +2474,7 @@ void ai_action_perform_non_combat(Ai* ai)
     }
 
     if (!critter_is_sleeping(ai->obj)) {
-        if (sub_460C20() == OBJ_HANDLE_NULL && random_between(1, 100) == 1) {
+        if (GetUIActiveObject() == OBJ_HANDLE_NULL && random_between(1, 100) == 1) {
             ai_look_for_item_func(ai->obj, OBJ_TM_ITEM);
         }
     }
@@ -2483,7 +2483,7 @@ void ai_action_perform_non_combat(Ai* ai)
 // 0x4AC620
 void ai_action_perform_fleeing(Ai* ai)
 {
-    sub_4AABE0(ai->obj, AI_DANGER_SOURCE_TYPE_SURRENDER, ai->danger_source, 0);
+    AISetOrUpdateDangerSource(ai->obj, AI_DANGER_SOURCE_TYPE_SURRENDER, ai->danger_source, 0);
     anim_goal_flee(ai->obj, ai->danger_source);
 }
 
@@ -2497,7 +2497,7 @@ void ai_action_perform_surrender(Ai* ai)
     if (fleeing_from_obj == OBJ_HANDLE_NULL
         || critter_is_dead(fleeing_from_obj)
         || critter_is_unconscious(fleeing_from_obj)) {
-        ai->danger_type = sub_4AABE0(ai->obj, 0, OBJ_HANDLE_NULL, 0);
+        ai->danger_type = AISetOrUpdateDangerSource(ai->obj, 0, OBJ_HANDLE_NULL, 0);
     }
 }
 
@@ -2546,7 +2546,7 @@ void ai_action_perform_baking_off(Ai* ai)
             path_create_info.rotations = rotations;
             path_create_info.flags = PATH_FLAG_0x0800;
             path_create_info.field_24 = combat_min_dist;
-            if (sub_41F3C0(&path_create_info)) {
+            if (PathCreate(&path_create_info)) {
                 anim_goal_run_to(ai->obj, path_create_info.to);
             } else {
                 obj_field_int32_set(ai->obj, OBJ_F_NPC_FLAGS, npc_flags & ~(ONF_BACKING_OFF));
@@ -2595,7 +2595,7 @@ bool ai_use_grenade(Ai* ai, int64_t distance)
     }
 
     loc = obj_field_int64_get(ai->danger_source, OBJ_F_LOCATION);
-    sub_4ADE00(ai->obj, loc, &block_obj);
+    FindLineOfSightBlocker(ai->obj, loc, &block_obj);
     if (block_obj != 0) {
         return false;
     }
@@ -3034,7 +3034,7 @@ bool sub_4AD4D0(int64_t obj)
     }
 
     if (tig_net_is_active()) {
-        int64_t v1 = sub_4C1110(obj);
+        int64_t v1 = GetPCWithHighestReaction(obj);
         if (v1 != OBJ_HANDLE_NULL) {
             sub_460A20(v1, 0);
         }
@@ -3093,7 +3093,7 @@ void sub_4AD700(int64_t obj, int millis)
 {
     DateTime datetime;
 
-    sub_45A950(&datetime, millis);
+    DateTimeAddMilliseconds(&datetime, millis);
     sub_4AD730(obj, &datetime);
 }
 
@@ -3187,7 +3187,7 @@ int ai_can_speak(int64_t npc_obj, int64_t pc_obj, bool a3)
             }
         }
 
-        reaction_pc_obj = sub_4C1110(npc_obj);
+        reaction_pc_obj = GetPCWithHighestReaction(npc_obj);
         if (reaction_pc_obj != OBJ_HANDLE_NULL
             && reaction_pc_obj != pc_obj) {
             return AI_SPEAK_REACTION;
@@ -3208,7 +3208,7 @@ int ai_check_follow(int64_t npc_obj, int64_t pc_obj, bool ignore_charisma_limits
     int pc_max_followers;
 
     if ((obj_field_int32_get(npc_obj, OBJ_F_SPELL_FLAGS) & OSF_MIND_CONTROLLED) != 0) {
-        if (sub_459040(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
+        if (GetObjectSummonerIfSpellFlag(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
             if (mind_controlled_by_obj == pc_obj) {
                 return AI_FOLLOW_OK;
             }
@@ -3282,7 +3282,7 @@ int ai_check_leader(int64_t npc_obj, int64_t pc_obj)
     obj_field_int32_set(npc_obj, OBJ_F_CRITTER_FLAGS2, critter_flags2 & ~(OCF2_CHECK_ALIGN_BAD | OCF2_CHECK_ALIGN_GOOD | OCF2_CHECK_REACTION_BAD));
 
     if ((obj_field_int32_get(npc_obj, OBJ_F_SPELL_FLAGS) & OSF_MIND_CONTROLLED) != 0) {
-        if (sub_459040(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
+        if (GetObjectSummonerIfSpellFlag(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
             if (mind_controlled_by_obj == pc_obj) {
                 return AI_FOLLOW_OK;
             }
@@ -3332,7 +3332,7 @@ int ai_check_upset_attacking(int64_t source_obj, int64_t target_obj, int64_t lea
     AiParams params;
 
     if ((obj_field_int32_get(source_obj, OBJ_F_SPELL_FLAGS) & OSF_MIND_CONTROLLED) != 0) {
-        if (sub_459040(source_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
+        if (GetObjectSummonerIfSpellFlag(source_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)) {
             if (mind_controlled_by_obj == leader_obj) {
                 return AI_UPSET_ATTACKING_NONE;
             }
@@ -3372,7 +3372,7 @@ int ai_check_upset_attacking(int64_t source_obj, int64_t target_obj, int64_t lea
 }
 
 // 0x4ADE00
-int sub_4ADE00(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr)
+int FindLineOfSightBlocker(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr)
 {
     int64_t source_loc;
     int64_t source_loc_x;
@@ -3500,7 +3500,7 @@ int ai_check_kos(int64_t source_obj, int64_t target_obj)
     unsigned int critter_flags;
     AiParams ai_params;
 
-    if (sub_4AB990(source_obj, target_obj)) {
+    if (AIIsValidShitlistTarget(source_obj, target_obj)) {
         pc_leader_obj = critter_pc_leader_get(source_obj);
         obj_type = obj_field_int32_get(target_obj, OBJ_F_TYPE);
 
@@ -3531,7 +3531,7 @@ int ai_check_kos(int64_t source_obj, int64_t target_obj)
                     ai_copy_params(source_obj, &ai_params);
 
                     if (obj_type == OBJ_TYPE_PC
-                        && sub_4C0CE0(source_obj, target_obj) <= ai_params.field_28) {
+                        && GetReactionScore(source_obj, target_obj) <= ai_params.field_28) {
                         return AI_KOS_REACTION;
                     }
 
@@ -3601,7 +3601,7 @@ int64_t sub_4AE450(int64_t a1, int64_t a2)
         && obj_field_int32_get(a2, OBJ_F_TYPE) == OBJ_TYPE_NPC
         && obj_field_obj_get(a2, OBJ_F_NPC_COMBAT_FOCUS, &combat_focus_obj)
         && combat_focus_obj != OBJ_HANDLE_NULL
-        && sub_4AB990(a1, combat_focus_obj)
+        && AIIsValidShitlistTarget(a1, combat_focus_obj)
         && ai_check_protect(a1, a2) != AI_PROTECT_NO) {
         return combat_focus_obj;
     }
@@ -3673,7 +3673,7 @@ int ai_check_use_skill(int64_t source_obj, int64_t target_obj, int64_t item_obj,
 }
 
 // 0x4AE720
-int sub_4AE720(int64_t a1, int64_t item_obj, int64_t a3, int magictech)
+int CanCastSpellOrUseTech(int64_t a1, int64_t item_obj, int64_t a3, int magictech)
 {
     int obj_type;
     int64_t v1;
@@ -3682,8 +3682,8 @@ int sub_4AE720(int64_t a1, int64_t item_obj, int64_t a3, int magictech)
 
     if (item_obj != OBJ_HANDLE_NULL) {
         if (obj_type == OBJ_TYPE_NPC
-            && sub_4503A0(magictech)
-            && !sub_450B40(a1)) {
+            && IsTechnologicalSchematic(magictech)
+            && !ItemHasCharges(a1)) {
             return 6;
         }
 
@@ -3709,7 +3709,7 @@ int sub_4AE720(int64_t a1, int64_t item_obj, int64_t a3, int magictech)
                 return 2;
             }
 
-            if (sub_4503A0(magictech) && !sub_450B40(a1)) {
+            if (IsTechnologicalSchematic(magictech) && !ItemHasCharges(a1)) {
                 return 6;
             }
         }
@@ -3740,7 +3740,7 @@ int sub_4AE720(int64_t a1, int64_t item_obj, int64_t a3, int magictech)
     }
 
     if (a1 != a3 && a3 != OBJ_HANDLE_NULL) {
-        if (sub_4ADE00(a1, obj_field_int64_get(a3, OBJ_F_LOCATION), &v1) >= 100
+        if (FindLineOfSightBlocker(a1, obj_field_int64_get(a3, OBJ_F_LOCATION), &v1) >= 100
             || v1 == OBJ_HANDLE_NULL
             || v1 == a3) {
             return 5;
@@ -4025,7 +4025,7 @@ void ai_notify_portal_container_guards(int64_t critter_obj, int64_t target_obj, 
 void ai_flee(int64_t obj, int64_t danger_obj)
 {
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
-        sub_4AABE0(obj, AI_DANGER_SOURCE_TYPE_FLEE, danger_obj, 0);
+        AISetOrUpdateDangerSource(obj, AI_DANGER_SOURCE_TYPE_FLEE, danger_obj, 0);
     }
 }
 
@@ -4037,7 +4037,7 @@ void ai_stop_fleeing(int64_t obj)
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         ai_danger_source(obj, &danger_type, NULL);
         if (danger_type == AI_DANGER_SOURCE_TYPE_FLEE) {
-            sub_4AABE0(obj, AI_DANGER_SOURCE_TYPE_NONE, OBJ_HANDLE_NULL, 0);
+            AISetOrUpdateDangerSource(obj, AI_DANGER_SOURCE_TYPE_NONE, OBJ_HANDLE_NULL, 0);
         }
         sub_44E4D0(obj, AG_FLEE, -1);
     }
@@ -4141,7 +4141,7 @@ int ai_can_see(int64_t source_obj, int64_t target_obj)
     }
 
     target_loc = obj_field_int64_get(target_obj, OBJ_F_LOCATION);
-    sub_4ADE00(source_obj, target_loc, &block_obj);
+    FindLineOfSightBlocker(source_obj, target_loc, &block_obj);
     if (block_obj != OBJ_HANDLE_NULL) {
         extra_dist++;
     }
@@ -4198,7 +4198,7 @@ int ai_can_hear(int64_t source_obj, int64_t target_obj, int loudness)
         perception += perception * diff / -100;
     }
 
-    hear_dist = (dword_5B50C0[loudness] - dword_5B50C0[LOUDNESS_SILENT] + ai_perception_distance(perception - 4)) / 2 - sub_4AF640(source_obj, target_obj);
+    hear_dist = (g_loudnessDistanceTable[loudness] - g_loudnessDistanceTable[LOUDNESS_SILENT] + ai_perception_distance(perception - 4)) / 2 - CalculateHearingObstructionPenalty(source_obj, target_obj);
     if ((int)dist > hear_dist) {
         return (int)dist - hear_dist;
     }
@@ -4207,7 +4207,7 @@ int ai_can_hear(int64_t source_obj, int64_t target_obj, int loudness)
 }
 
 // 0x4AF640
-int sub_4AF640(int64_t source_obj, int64_t target_obj)
+int CalculateHearingObstructionPenalty(int64_t source_obj, int64_t target_obj)
 {
     int cnt = 0;
     int64_t source_loc;
@@ -4374,7 +4374,7 @@ int64_t ai_shitlist_get(int64_t obj)
 
     for (index = 0; index < cnt; index++) {
         obj_arrayfield_obj_get(obj, OBJ_F_NPC_SHIT_LIST_IDX, (start + index) % cnt, &shit_obj);
-        if (sub_4AB990(obj, shit_obj)) {
+        if (AIIsValidShitlistTarget(obj, shit_obj)) {
             return shit_obj;
         }
     }
@@ -4420,7 +4420,7 @@ void ai_target_lock(int64_t obj, int64_t tgt)
         && tgt != OBJ_HANDLE_NULL
         && obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         ai_target_unlock(obj);
-        sub_4AABE0(obj, AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS, tgt, 0);
+        AISetOrUpdateDangerSource(obj, AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS, tgt, 0);
         ai_danger_source(obj, &danger_type, &danger_source);
         if (danger_type == AI_DANGER_SOURCE_TYPE_COMBAT_FOCUS
             && danger_source == tgt) {

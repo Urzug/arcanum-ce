@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_ITEM_H_
+﻿#ifndef ARCANUM_GAME_ITEM_H_
 #define ARCANUM_GAME_ITEM_H_
 
 #include "game/context.h"
@@ -56,7 +56,7 @@ int item_effective_power(int64_t item_obj, int64_t parent_obj);
 int item_magic_tech_complexity(int64_t item_obj);
 int item_effective_power_ratio(int64_t item_obj, int64_t owner_obj);
 int item_adjust_magic(int64_t item_obj, int64_t owner_obj, int value);
-int sub_461620(int64_t item_obj, int64_t owner_obj, int64_t a3);
+int CalculateMagicTechEffectivenessModifier(int64_t item_obj, int64_t owner_obj, int64_t a3);
 int item_aptitude_crit_failure_chance(int64_t item_obj, int64_t owner_obj);
 void item_inv_icon_size(int64_t item_id, int* width, int* height);
 bool item_transfer(int64_t item_obj, int64_t critter_obj);
@@ -65,7 +65,7 @@ bool item_drop(int64_t item_obj);
 bool item_drop_nearby(int64_t item_obj);
 bool item_drop_ex(int64_t item_obj, int distance);
 int item_worth(int64_t item_id);
-bool sub_461F60(int64_t item_id);
+bool IsItemWorthless(int64_t item_id);
 int item_cost(int64_t item_obj, int64_t seller_obj, int64_t buyer_obj, bool a4);
 int item_throwing_distance(int64_t item_obj, int64_t critter_obj);
 void item_damage_min_max(int64_t item_obj, int damage_type, int* min_damage, int* max_damage);
@@ -92,11 +92,11 @@ void sub_463860(int64_t obj, bool a2);
 void sub_4639E0(int64_t obj, bool a2);
 void sub_463B30(int64_t obj, bool a2);
 void sub_463C60(int64_t obj);
-void sub_463E20(int64_t obj);
-void sub_4640C0(int64_t obj);
+void SpawnInventory(int64_t obj);
+void RefreshInventoryForNearbyPlayers(int64_t obj);
 bool npc_respawn_timevent_process(TimeEvent* timeevent);
 int item_inventory_source(int64_t obj);
-bool sub_4642C0(int64_t obj, int64_t item_obj);
+bool IsItemInInventory(int64_t obj, int64_t item_obj);
 bool item_is_identified(int64_t obj);
 void item_identify_all(int64_t obj);
 void sub_464470(int64_t obj, int* a2, int* a3);
@@ -107,9 +107,9 @@ bool item_gold_transfer(int64_t from_obj, int64_t to_obj, int qty, int64_t gold_
 int64_t item_gold_create(int amount, int64_t loc);
 int64_t item_wield_get(int64_t obj, int inventory_location);
 bool item_wield_set(int64_t item_obj, int inventory_location);
-bool sub_464C50(int64_t obj, int inventory_location);
+bool WieldItemToFirstAvailableSlot(int64_t obj, int inventory_location);
 bool sub_464C80(int64_t item_obj);
-int sub_464D20(int64_t a1, int a2, int64_t a3);
+int CheckCanWieldItem(int64_t a1, int a2, int64_t a3);
 tig_art_id_t sub_465020(int64_t obj);
 void item_wield_best(int64_t critter_obj, int inventory_location, int64_t target_obj);
 void item_wield_best_all(int64_t critter_obj, int64_t target_obj);

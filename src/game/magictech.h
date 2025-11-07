@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_MAGICTECH_H_
+﻿#ifndef ARCANUM_GAME_MAGICTECH_H_
 #define ARCANUM_GAME_MAGICTECH_H_
 
 #include "game/combat.h"
@@ -356,14 +356,14 @@ int magictech_min_intelligence(int magictech);
 int magictech_min_willpower(int magictech);
 int magictech_get_cost(int magictech);
 bool magictech_is_aggressive(int magictech);
-bool sub_4503A0(int magictech);
+bool IsTechnologicalSchematic(int magictech);
 MagicTechMaintenanceInfo* magictech_get_maintenance(int magictech);
 MagicTechDurationInfo* magictech_get_duration(int magictech);
 bool sub_450420(int64_t obj, int cost, bool a3, int magictech);
 void sub_4507B0(int64_t obj, int magictech);
 bool magictech_can_charge_spell_fatigue(int64_t obj, int magictech);
 bool sub_450940(int mt_id);
-int sub_450B40(int64_t obj);
+int ItemHasCharges(int64_t obj);
 void magictech_effect_summon(MagicTechSummonInfo* summon_info);
 void sub_451070(MagicTechRunInfo* a1);
 void magictech_component_dispel(int64_t obj, int mt_id);
@@ -393,14 +393,14 @@ void magictech_interrupt(int mt_id);
 void magictech_interrupt_delayed(int mt_id);
 void sub_4573D0(MagicTechInvocation* mt_invocation);
 void magictech_demaintain_spells(int64_t obj);
-void sub_4574D0(int64_t obj);
+void ProcessItemUseCompletion(int64_t obj);
 bool magictech_check_env_sf(unsigned int flags);
 tig_art_id_t sub_458AE0(int mt_id);
 const char* magictech_get_name(int magictech);
 tig_art_id_t sub_458B70(int mt_id);
 void sub_458C00(int spell, int64_t obj);
 int sub_458CA0(int mt_id);
-bool sub_459040(int64_t obj, unsigned int flags, int64_t* parent_obj_ptr);
+bool GetObjectSummonerIfSpellFlag(int64_t obj, unsigned int flags, int64_t* parent_obj_ptr);
 bool sub_459170(int64_t obj, unsigned int flags, int* index_ptr);
 bool magictech_is_under_influence_of(int64_t obj, int magictech);
 bool magictech_stop_spell(int64_t obj, int magictech);

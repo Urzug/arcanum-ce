@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_DIALOG_H_
+﻿#ifndef ARCANUM_GAME_DIALOG_H_
 #define ARCANUM_GAME_DIALOG_H_
 
 #include "game/context.h"
@@ -57,7 +57,7 @@ bool dialog_init(GameInitInfo* init_info);
 void dialog_exit();
 bool dialog_load(const char* path, int* dlg_ptr);
 void dialog_unload(int dlg);
-void sub_412F60(int dlg);
+void DialogFileFreeEntries(int dlg);
 bool sub_412FD0(DialogState* state);
 void sub_413130(DialogState* state, int index);
 void sub_413280(DialogState* state);

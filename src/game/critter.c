@@ -735,7 +735,7 @@ void critter_notify_killed(int64_t victim_obj, int64_t killer_obj, int anim)
                 obj_field_int32_set(victim_obj, OBJ_F_NPC_EXPERIENCE_WORTH, 0);
 
                 // Adjust alignment.
-                sub_45DC90(pc_killer_obj, victim_obj, true);
+                AdjustAlignmentOnKill(pc_killer_obj, victim_obj, true);
 
                 // Record kill.
                 logbook_add_kill(pc_killer_obj, victim_obj);
@@ -793,7 +793,7 @@ void critter_notify_killed(int64_t victim_obj, int64_t killer_obj, int anim)
  *
  * 0x45DC90
  */
-void sub_45DC90(int64_t killer_obj, int64_t victim_obj, bool a3)
+void AdjustAlignmentOnKill(int64_t killer_obj, int64_t victim_obj, bool a3)
 {
     int64_t summoner_obj;
     int alignment1;
@@ -802,7 +802,7 @@ void sub_45DC90(int64_t killer_obj, int64_t victim_obj, bool a3)
     int v1;
     int alignment;
 
-    if (!sub_459040(victim_obj, OSF_SUMMONED, &summoner_obj) || summoner_obj != killer_obj) {
+    if (!GetObjectSummonerIfSpellFlag(victim_obj, OSF_SUMMONED, &summoner_obj) || summoner_obj != killer_obj) {
         alignment2 = stat_level_get(victim_obj, STAT_ALIGNMENT);
         if (alignment2 < 0) {
             alignment1 = stat_level_get(killer_obj, STAT_ALIGNMENT);
@@ -985,7 +985,7 @@ bool critter_disband(int64_t obj, bool force)
             }
 
             // Mind-controlled critters cannot voluntarily leave their master.
-            if (sub_459040(obj, OSF_MIND_CONTROLLED, &v1)) {
+            if (GetObjectSummonerIfSpellFlag(obj, OSF_MIND_CONTROLLED, &v1)) {
                 return false;
             }
         }
@@ -1464,8 +1464,8 @@ bool critter_fatigue_timeevent_schedule(int64_t obj, int type, int delay)
     timeevent.type = TIMEEVENT_TYPE_FATIGUE;
     timeevent.params[0].integer_value = type;
     timeevent.params[1].object_value = obj;
-    timeevent.params[2].integer_value = sub_45A7F0();
-    sub_45A950(&datetime, delay);
+    timeevent.params[2].integer_value = GetCurrentGameTimeMs();
+    DateTimeAddMilliseconds(&datetime, delay);
     return timeevent_add_delay(&timeevent, &datetime);
 }
 
@@ -1602,8 +1602,8 @@ bool critter_resting_timeevent_schedule(int64_t obj)
     // Schedule the event.
     timeevent.type = TIMEEVENT_TYPE_RESTING;
     timeevent.params[0].object_value = obj;
-    timeevent.params[1].integer_value = sub_45A7F0();
-    sub_45A950(&datetime, 3600000);
+    timeevent.params[1].integer_value = GetCurrentGameTimeMs();
+    DateTimeAddMilliseconds(&datetime, 3600000);
     return timeevent_add_delay(&timeevent, &datetime);
 }
 
@@ -1657,13 +1657,13 @@ bool critter_decay_timeevent_schedule(int64_t obj)
     // Schedule decay event.
     timeevent.type = TIMEEVENT_TYPE_DECAY_DEAD_BODIE;
     timeevent.params[0].object_value = obj;
-    timeevent.params[1].integer_value = sub_45A7F0();
+    timeevent.params[1].integer_value = GetCurrentGameTimeMs();
     if (obj_type_is_critter(type)) {
         // 1 day for critters.
-        sub_45A950(&datetime, 86400000);
+        DateTimeAddMilliseconds(&datetime, 86400000);
     } else {
         // 2 days for non-critters.
-        sub_45A950(&datetime, 172800000);
+        DateTimeAddMilliseconds(&datetime, 172800000);
     }
     return timeevent_add_delay(&timeevent, &datetime);
 }
@@ -1738,8 +1738,8 @@ bool critter_npc_combat_focus_wipe_schedule(int64_t npc_obj)
     // Schedule the event.
     timeevent.type = TIMEEVENT_TYPE_COMBAT_FOCUS_WIPE;
     timeevent.params[0].object_value = npc_obj;
-    timeevent.params[1].integer_value = sub_45A7F0();
-    sub_45A950(&datetime, 600000); // 10 minutes.
+    timeevent.params[1].integer_value = GetCurrentGameTimeMs();
+    DateTimeAddMilliseconds(&datetime, 600000); // 10 minutes.
 
     return timeevent_add_delay(&timeevent, &datetime);
 }

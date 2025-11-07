@@ -8,7 +8,7 @@
 static void name_missing_art_init();
 static bool name_missing_art_load();
 static bool name_missing_art_save();
-static int sub_41D390();
+static int GetMissingArtCount();
 static void fix_missing_art(int num, int cnt, unsigned int* missing, int* anim_ptr, int* weapon_ptr);
 static tig_art_id_t sub_41DFC0(int type, int* extra);
 static tig_art_id_t sub_41E200(tig_art_id_t art_id);
@@ -522,7 +522,7 @@ bool name_missing_art_load()
         return false;
     }
 
-    expected_cnt = sub_41D390();
+    expected_cnt = GetMissingArtCount();
 
     if (tig_file_fread(&actual_cnt, sizeof(actual_cnt), 1, stream) != 1) {
         tig_file_fclose(stream);
@@ -560,7 +560,7 @@ bool name_missing_art_save()
     int cnt;
     TigFile* stream;
 
-    cnt = sub_41D390();
+    cnt = GetMissingArtCount();
     tig_file_mkdir(off_5A1064);
 
     stream = tig_file_fopen(off_5A1068, "wb");
@@ -594,7 +594,7 @@ bool name_missing_art_save()
 }
 
 // 0x41D390
-int sub_41D390()
+int GetMissingArtCount()
 {
     int cnt = 0;
     TigFileList dir_list;

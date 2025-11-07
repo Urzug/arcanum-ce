@@ -1,4 +1,4 @@
-#include "game/monstergen.h"
+﻿#include "game/monstergen.h"
 
 #include "game/location.h"
 #include "game/mp_utils.h"
@@ -442,7 +442,7 @@ int monstergen_generate(GeneratorInfo* generator_info, int cnt)
                 // to guarantee that if generator is placed inside a structure,
                 // all instances will also be spawned inside a structure.
                 distance = random_between(1, 5);
-                if (sub_4F4E40(generator_info->obj, distance, &target_loc)
+                if (FindLocationNearObject(generator_info->obj, distance, &target_loc)
                     && tile_type == tig_art_tile_id_type_get(tile_art_id_at(target_loc))) {
                     // Check on-screen configuration.
                     if ((generator_info->flags & GENERATOR_INACTIVE_ON_SCREEN) == 0) {

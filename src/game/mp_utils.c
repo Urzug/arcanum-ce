@@ -139,7 +139,7 @@ bool mp_object_create(int name, int64_t loc, int64_t* obj_ptr)
 {
     if (tig_net_is_active()) {
         if (tig_net_is_host()
-            && object_create(sub_4685A0(name), loc, obj_ptr)) {
+            && object_create(GetProtoHandleFromID(name), loc, obj_ptr)) {
             Packet70 pkt;
 
             pkt.type = 70;
@@ -156,7 +156,7 @@ bool mp_object_create(int name, int64_t loc, int64_t* obj_ptr)
         return false;
     }
 
-    return object_create(sub_4685A0(name), loc, obj_ptr);
+    return object_create(GetProtoHandleFromID(name), loc, obj_ptr);
 }
 
 // 0x4ED9E0
@@ -1171,7 +1171,7 @@ void mp_stop_anim_id(AnimID anim_id)
 // 0x4EFAB0
 void mp_handle_stop_anim_id(PacketStopAnimId* pkt)
 {
-    sub_44E2C0(&(pkt->anim_id), 6);
+    InterruptAnimation(&(pkt->anim_id), 6);
 
     if (tig_net_is_host()) {
         tig_net_send_app_all(pkt, sizeof(*pkt));
@@ -1179,7 +1179,7 @@ void mp_handle_stop_anim_id(PacketStopAnimId* pkt)
 }
 
 // 0x4EFAE0
-void sub_4EFAE0(int64_t obj, int a2)
+void SetInventorySpawnedFlag(int64_t obj, int a2)
 {
     Packet121 pkt;
 

@@ -14,7 +14,7 @@
 
 static bool anim_allocate_this_run_index(AnimID* anim_id);
 static bool sub_44D240(int index);
-static bool sub_44E2A0(TimeEvent* timeevent);
+static bool IsGlobalTimeEvent(TimeEvent* timeevent);
 static void anim_path_debug(AnimPath* path);
 static void anim_goal_data_debug(AnimGoalData* goal_data);
 static void anim_run_info_debug(AnimRunInfo* run_info);
@@ -111,7 +111,7 @@ const char* off_5A164C[] = {
 };
 
 // 0x5B0530
-static const char* off_5B0530[] = {
+static const char* g_animGoalDataParamNames[] = {
     "AGDATA_SELF_OBJ",
     "AGDATA_TARGET_OBJ",
     "AGDATA_BLOCK_OBJ",
@@ -139,7 +139,7 @@ static const char* off_5B0530[] = {
 int dword_5A5978 = -1;
 
 // 0x5A597C
-int dword_5A597C[AGDATA_COUNT] = {
+int g_animGoalParamTypes[AGDATA_COUNT] = {
     AGDATATYPE_OBJ,
     AGDATATYPE_OBJ,
     AGDATATYPE_OBJ,
@@ -203,7 +203,7 @@ int dword_739E40;
 int dword_739E44;
 
 // 0x44C840
-void sub_44C840(AnimRunInfo* run_info, AnimGoalNode* goal_node)
+void AnimRunSetGoalNode(AnimRunInfo* run_info, AnimGoalNode* goal_node)
 {
     ASSERT(run_info != NULL); // pRunInfo != NULL
     ASSERT(goal_node != NULL); // pGoalNode != NULL
@@ -267,7 +267,7 @@ bool anim_private_init(GameInitInfo* init_info)
         anim_run_info[index].flags = 0;
         anim_run_info[index].path.flags = 1;
         anim_run_info[index].path.field_CC = 200;
-        sub_44EBD0(&(anim_run_info[index].path));
+        AnimPathReset(&(anim_run_info[index].path));
     }
 
     dword_6876E4 = random_between(0, 10024);
@@ -285,7 +285,7 @@ void anim_private_exit()
     for (index = 0; index < 216; index++) {
         anim_run_info[index].flags = 0;
         anim_run_info[index].path.flags = 1;
-        sub_44EBE0(&(anim_run_info[index].path));
+        AnimPathClear(&(anim_run_info[index].path));
     }
 
     animNumActiveGoals = 0;
@@ -421,7 +421,7 @@ bool anim_allocate_this_run_index(AnimID* anim_id)
         run_info = &(anim_run_info[slot]);
         if (run_info->id.field_4 == anim_id->field_4) {
             if ((run_info->flags & 0x1) != 0
-                && !sub_44E2C0(&(run_info->id), PRIORITY_HIGHEST)) {
+                && !InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST)) {
                 tig_debug_printf("Anim: WARNING(uniqueID): Animation slots Force Alloc INTERRUPT FAILED!\n");
                 return false;
             }
@@ -690,7 +690,7 @@ bool sub_44D3B0(AnimGoalData* goal_data, int64_t obj, int goal_type, bool a4)
 }
 
 // 0x44D4E0
-bool sub_44D4E0(AnimGoalData* anim_data, int64_t obj, int goal_type)
+bool AnimGoalDataInit(AnimGoalData* anim_data, int64_t obj, int goal_type)
 {
     return sub_44D3B0(anim_data, obj, goal_type, true);
 }
@@ -702,7 +702,7 @@ bool sub_44D500(AnimGoalData* anim_data, int64_t obj, int goal_type)
 }
 
 // 0x44D520
-bool sub_44D520(AnimGoalData* anim_data, AnimID* anim_id)
+bool StartAnimationGoal(AnimGoalData* anim_data, AnimID* anim_id)
 {
     return sub_44D540(anim_data, anim_id, 0);
 }
@@ -722,7 +722,7 @@ bool sub_44D540(AnimGoalData* anim_data, AnimID* anim_id, unsigned int flags)
         return sub_44D730(anim_data, anim_id, true, flags);
     }
 
-    if (sub_45B300()
+    if (TimeEventIsProcessingAllowed()
         || (!tig_net_is_host() && !player_is_local_pc_obj(anim_data->params[AGDATA_SELF_OBJ].obj))
         || (!tig_net_is_host() && anim_data->type == AG_DYING)) {
         return true;
@@ -819,7 +819,7 @@ bool sub_44D730(AnimGoalData* goal_data, AnimID* anim_id, bool a3, unsigned int 
     for (idx = 0; idx < 5; idx++) {
         object_save_ref_init(run_info->goals[0].params[idx].obj, &(run_info->goals[0].field_B0[idx]));
     }
-    sub_44C840(run_info, anim_goal_nodes[run_info->goals[0].type]);
+    AnimRunSetGoalNode(run_info, anim_goal_nodes[run_info->goals[0].type]);
     anim_set_debug_error_msg("GoalAdd");
     if ((goal_data->type == AG_ATTACK
             || goal_data->type == AG_ATTEMPT_ATTACK)
@@ -831,7 +831,7 @@ bool sub_44D730(AnimGoalData* goal_data, AnimID* anim_id, bool a3, unsigned int 
     timeevent.params[0].integer_value = new_anim_id.slot_num;
     timeevent.params[1].integer_value = new_anim_id.field_4;
     timeevent.params[2].integer_value = 3333;
-    sub_45A950(&datetime, 5);
+    DateTimeAddMilliseconds(&datetime, 5);
 
     if (!combat_turn_based_is_active() || combat_turn_based_whos_turn_get() == run_info->anim_obj) {
         return timeevent_add_delay(&timeevent, &datetime);
@@ -889,7 +889,7 @@ bool anim_subgoal_add_func(AnimID anim_id, AnimGoalData* goal_data)
         run_info->path_attached_to_stack_index++;
     }
 
-    sub_44C840(run_info, anim_goal_nodes[goal_data->type]);
+    AnimRunSetGoalNode(run_info, anim_goal_nodes[goal_data->type]);
     anim_set_debug_error_msg("SubGoal Add");
 
     return true;
@@ -979,7 +979,7 @@ bool anim_recover_handles(AnimRunInfo* run_info, AnimGoalSubNode* goal_subnode)
             if (param < 0) {
                 run_info->params[idx].data = 0;
             } else if (param < AGDATA_COUNT) {
-                switch (dword_5A597C[param]) {
+                switch (g_animGoalParamTypes[param]) {
                 case AGDATATYPE_OBJ:
                     run_info->params[idx].obj = run_info->cur_stack_data->params[param].obj;
                     break;
@@ -1043,7 +1043,7 @@ void sub_44E050(int64_t a1, int64_t a2)
             || run_info->goals[1].type == AG_ATTEMPT_ATTACK) {
             if (run_info->goals[0].params[AGDATA_TARGET_OBJ].obj == a2
                 || critter_pc_leader_get(run_info->goals[0].params[AGDATA_TARGET_OBJ].obj) == a2) {
-                sub_44E2C0(&anim_id, 5);
+                InterruptAnimation(&anim_id, 5);
             }
         }
     }
@@ -1060,7 +1060,7 @@ void sub_44E0E0(int64_t a1, int64_t a2)
         if (run_info->goals[0].type == AG_ATTACK
             || run_info->goals[1].type == AG_ATTEMPT_ATTACK) {
             if (run_info->goals[0].params[AGDATA_TARGET_OBJ].obj == a2) {
-                sub_44E2C0(&anim_id, 5);
+                InterruptAnimation(&anim_id, 5);
             }
         }
     }
@@ -1091,7 +1091,7 @@ bool sub_44E160(AnimID* anim_id)
     }
 
     dword_5B052C = anim_id->slot_num;
-    timeevent_clear_all_ex(TIMEEVENT_TYPE_ANIM, sub_44E2A0);
+    timeevent_clear_all_ex(TIMEEVENT_TYPE_ANIM, IsGlobalTimeEvent);
 
     if (run_info->current_goal != -1) {
         if (run_info->cur_stack_data == NULL) {
@@ -1112,16 +1112,16 @@ bool sub_44E160(AnimID* anim_id)
 }
 
 // 0x44E2A0
-bool sub_44E2A0(TimeEvent* timeevent)
+bool IsGlobalTimeEvent(TimeEvent* timeevent)
 {
     return timeevent->params[0].integer_value == dword_5B052C;
 }
 
 // 0x44E2C0
-bool sub_44E2C0(AnimID* anim_id, int priority)
+bool InterruptAnimation(AnimID* anim_id, int priority)
 {
     AnimRunInfo* run_info;
-    bool in_reset;
+    bool g_is_in_reset;
     AnimGoalNode* goal_node;
     int idx;
     bool freed;
@@ -1133,13 +1133,13 @@ bool sub_44E2C0(AnimID* anim_id, int priority)
         return false;
     }
 
-    in_reset = gamelib_in_reset();
+    g_is_in_reset = gamelib_in_reset();
 
     if ((run_info->flags & 0x01) == 0) {
         return false;
     }
 
-    if (!in_reset) {
+    if (!g_is_in_reset) {
         if (run_info->current_goal != -1) {
             goal_node = anim_goal_nodes[run_info->goals[run_info->current_goal].type];
 
@@ -1176,7 +1176,7 @@ bool sub_44E2C0(AnimID* anim_id, int priority)
     }
 
     dword_5B052C = anim_id->slot_num;
-    timeevent_clear_all_ex(TIMEEVENT_TYPE_ANIM, sub_44E2A0);
+    timeevent_clear_all_ex(TIMEEVENT_TYPE_ANIM, IsGlobalTimeEvent);
 
     if (run_info->current_goal != -1) {
         if (run_info->cur_stack_data == NULL) {
@@ -1185,7 +1185,7 @@ bool sub_44E2C0(AnimID* anim_id, int priority)
 
         for (idx = run_info->current_goal; idx >= 0; idx--) {
             goal_node = anim_goal_nodes[run_info->goals[idx].type];
-            if (!in_reset) {
+            if (!g_is_in_reset) {
                 if (goal_node->subnodes[14].func != NULL) {
                     if (anim_recover_handles(run_info, &(goal_node->subnodes[14]))) {
                         goal_node->subnodes[14].func(run_info);
@@ -1232,11 +1232,11 @@ bool sub_44E4D0(int64_t obj, int goal_type, int a3)
 
         run_info = &(anim_run_info[slot]);
         if (run_info->goals[0].type == goal_type) {
-            if (!sub_44E2C0(&(run_info->id), priority)) {
+            if (!InterruptAnimation(&(run_info->id), priority)) {
                 return false;
             }
         } else if (run_info->cur_stack_data->type == goal_type) {
-            if (!sub_44E2C0(&(run_info->id), priority)) {
+            if (!InterruptAnimation(&(run_info->id), priority)) {
                 return false;
             }
         }
@@ -1289,7 +1289,7 @@ bool anim_find_next_of_type(int64_t obj, int type, AnimID* anim_id)
 }
 
 // 0x44E6F0
-bool sub_44E6F0(int64_t obj, AnimGoalData* goal_data)
+bool AnimGoalAddWithArgs(int64_t obj, AnimGoalData* goal_data)
 {
     return sub_44E710(obj, goal_data, NULL);
 }
@@ -1409,7 +1409,7 @@ bool anim_is_current_goal_type(int64_t obj, int goal_type, AnimID* anim_id)
 }
 
 // 0x44E8C0
-bool sub_44E8C0(int64_t obj, AnimID* anim_id)
+bool IsObjectAnimating(int64_t obj, AnimID* anim_id)
 {
     int slot;
 
@@ -1432,7 +1432,7 @@ bool sub_44E8C0(int64_t obj, AnimID* anim_id)
 }
 
 // 0x44E940
-bool sub_44E940(int64_t obj, AnimID* anim_id, int64_t a2)
+bool FindAnimationByGoalType(int64_t obj, AnimID* anim_id, int64_t a2)
 {
     int slot;
     int goal_type;
@@ -1526,7 +1526,7 @@ bool sub_44EAD0(int index)
 }
 
 // 0x44EB40
-bool sub_44EB40(int64_t obj, int64_t from, int64_t to)
+bool IsPathingToObject(int64_t obj, int64_t from, int64_t to)
 {
     ASSERT(obj != OBJ_HANDLE_NULL); // 4489, "obj != OBJ_HANDLE_NULL"
 
@@ -1549,19 +1549,19 @@ bool sub_44EB40(int64_t obj, int64_t from, int64_t to)
 }
 
 // 0x44EBD0
-void sub_44EBD0(AnimPath* path)
+void AnimPathReset(AnimPath* path)
 {
     (void)path;
 }
 
 // 0x44EBE0
-void sub_44EBE0(AnimPath* path)
+void AnimPathClear(AnimPath* path)
 {
     (void)path;
 }
 
 // 0x44EBF0
-void sub_44EBF0(AnimRunInfo* run_info)
+void AnimRunInfoAdvanceGoal(AnimRunInfo* run_info)
 {
     ASSERT(run_info != NULL); // pRunInfo != NULL
 
@@ -1632,12 +1632,12 @@ void anim_goal_data_debug(AnimGoalData* goal_data)
                 } else {
                     strcpy(str, "INVALID_OBJ_HANDLE");
                 }
-                tig_debug_printf("    params[ %s ] = %s\n", off_5B0530[idx], str);
+                tig_debug_printf("    params[ %s ] = %s\n", g_animGoalDataParamNames[idx], str);
             }
         } else if (idx == AGDATA_TARGET_TILE) {
             if (goal_data->params[idx].loc != 0) {
                 tig_debug_printf("    params[ %s ] = X:%d, Y:%d\n",
-                    off_5B0530[idx],
+                    g_animGoalDataParamNames[idx],
                     (int)LOCATION_GET_X(goal_data->params[idx].loc),
                     (int)LOCATION_GET_Y(goal_data->params[idx].loc));
             }
@@ -1645,7 +1645,7 @@ void anim_goal_data_debug(AnimGoalData* goal_data)
             if (goal_data->params[idx].data != 0
                 && goal_data->params[idx].data != -1) {
                 tig_debug_printf("    params[ %s ] = %d\n",
-                    off_5B0530[idx],
+                    g_animGoalDataParamNames[idx],
                     goal_data->params[idx].data);
             }
         }

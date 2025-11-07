@@ -1094,8 +1094,8 @@ bool stat_poison_timeevent_process(TimeEvent* timeevent)
                 next_timeevent.type = TIMEEVENT_TYPE_POISON;
                 next_timeevent.params[0].integer_value = POISON_EVENT_RECOVERY;
                 next_timeevent.params[1].object_value = obj;
-                next_timeevent.params[2].integer_value = sub_45A7F0();
-                sub_45A950(&datetime, 120000);
+                next_timeevent.params[2].integer_value = GetCurrentGameTimeMs();
+                DateTimeAddMilliseconds(&datetime, 120000);
                 if (!timeevent_add_delay(&next_timeevent, &datetime)) {
                     return false;
                 }
@@ -1126,14 +1126,14 @@ bool poison_timeevent_schedule(int64_t obj, int poison, bool recovery)
     timeevent.type = TIMEEVENT_TYPE_POISON;
     timeevent.params[0].integer_value = POISON_EVENT_DAMAGE;
     timeevent.params[1].object_value = obj;
-    timeevent.params[2].integer_value = sub_45A7F0();
+    timeevent.params[2].integer_value = GetCurrentGameTimeMs();
 
     // Check if poison damage event is not already scheduled.
     poison_test_obj = obj;
     poison_test_event = POISON_EVENT_DAMAGE;
     if (!timeevent_any(TIMEEVENT_TYPE_POISON, poison_timeevent_check)) {
         // Schedule damage event in 15 seconds.
-        sub_45A950(&datetime, 15000);
+        DateTimeAddMilliseconds(&datetime, 15000);
         if (!timeevent_add_delay(&timeevent, &datetime)) {
             return false;
         }
@@ -1148,7 +1148,7 @@ bool poison_timeevent_schedule(int64_t obj, int poison, bool recovery)
             timeevent.params[0].integer_value = POISON_EVENT_RECOVERY;
 
             // Schedule recovery event in 120 seconds.
-            sub_45A950(&datetime, 120000);
+            DateTimeAddMilliseconds(&datetime, 120000);
             if (!timeevent_add_delay(&timeevent, &datetime)) {
                 return false;
             }

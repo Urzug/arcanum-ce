@@ -1,4 +1,4 @@
-#ifndef ARCANUM_GAME_MP_UTILS_H_
+﻿#ifndef ARCANUM_GAME_MP_UTILS_H_
 #define ARCANUM_GAME_MP_UTILS_H_
 
 #include "game/anim_private.h"
@@ -1442,7 +1442,7 @@ bool mp_object_duplicate(int64_t obj, int64_t loc, int64_t* obj_ptr);
 void mp_handle_object_duplicate(PacketObjectDuplicate* pkt);
 void mp_stop_anim_id(AnimID anim_id);
 void mp_handle_stop_anim_id(PacketStopAnimId* pkt);
-void sub_4EFAE0(int64_t obj, int a2);
+void SetInventorySpawnedFlag(int64_t obj, int a2);
 void sub_4EFBA0(int64_t obj);
 void mp_object_locked_set(int64_t obj, int a2);
 void sub_4EFC30(int64_t pc_obj, const char* name, const char* rule);

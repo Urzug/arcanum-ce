@@ -429,7 +429,7 @@ void light_start_animating(Light* light)
             timeevent.params[0].pointer_value = light;
             timeevent.params[1].integer_value = 1000 / art_anim_data.fps;
 
-            sub_45A950(&datetime, 1000 / art_anim_data.fps);
+            DateTimeAddMilliseconds(&datetime, 1000 / art_anim_data.fps);
             if (timeevent_add_delay(&timeevent, &datetime)) {
                 light_set_flags_internal(light, LF_ANIMATING);
             }
@@ -456,7 +456,7 @@ bool light_timeevent_process(TimeEvent* timeevent)
     light_inc_frame((Light*)timeevent->params[0].pointer_value);
 
     next_timeevent = *timeevent;
-    sub_45A950(&datetime, next_timeevent.params[1].integer_value);
+    DateTimeAddMilliseconds(&datetime, next_timeevent.params[1].integer_value);
     timeevent_add_delay(&next_timeevent, &datetime);
 
     return true;
@@ -498,7 +498,7 @@ bool sub_4D89E0(int64_t loc, int offset_x, int offset_y, int a4, tig_color_t* co
     lx = (int)loc_x + offset_x + 40;
     ly = (int)loc_y + offset_y + 20;
 
-    if (!sub_4B9130(&tmp_rect, &loc_rect)) {
+    if (!ScreenRectToLocationRect(&tmp_rect, &loc_rect)) {
         return false;
     }
 
@@ -580,7 +580,7 @@ bool sub_4D89E0(int64_t loc, int offset_x, int offset_y, int a4, tig_color_t* co
 }
 
 // 0x4D9240
-tig_color_t sub_4D9240(int64_t loc, int offset_x, int offset_y)
+tig_color_t GetTileHeight(int64_t loc, int offset_x, int offset_y)
 {
     tig_color_t color;
 
@@ -910,7 +910,7 @@ bool shadow_apply(int64_t obj)
         stru_602ED8.x = (int)loc_x;
         stru_602ED8.y = (int)loc_y;
 
-        if (!sub_4B9130(&stru_602ED8, &loc_rect)) {
+        if (!ScreenRectToLocationRect(&stru_602ED8, &loc_rect)) {
             return false;
         }
 
@@ -1207,7 +1207,7 @@ void sub_4DC210(int64_t obj, int* colors, int* cnt_ptr)
         rect.height = obj_rect.height + 1024;
 
         LocRect loc_rect;
-        if (sub_4B9130(&rect, &loc_rect)) {
+        if (ScreenRectToLocationRect(&rect, &loc_rect)) {
             SectorListNode* v2 = sector_list_create(&loc_rect);
             SectorListNode* curr = v2;
             while (curr != NULL) {

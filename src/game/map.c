@@ -864,7 +864,7 @@ void map_precache_sectors(int64_t loc)
 }
 
 // 0x40FED0
-void sub_40FED0()
+void UIEnterTurnBasedMode()
 {
 }
 

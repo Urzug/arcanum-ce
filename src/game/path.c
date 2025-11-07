@@ -20,13 +20,13 @@ typedef struct S420330 {
 } S420330;
 
 static int sub_41F6C0(PathCreateInfo* path_create_info);
-static int sub_41F840(PathCreateInfo* path_create_info);
-static int sub_41F9F0(PathCreateInfo* path_create_info);
+static int PathfindDirect(PathCreateInfo* path_create_info);
+static int PathfindAStar(PathCreateInfo* path_create_info);
 static int path_dist(int src, int dst, int width);
 static int sub_420110(int a1, int a2, int a3);
-static void sub_420330(int64_t x, int64_t y, S420330* a5);
+static void PathBresenhamLineProcessor(int64_t x, int64_t y, S420330* a5);
 static void sub_4203B0(int64_t from_x, int64_t from_y, int64_t to_x, int64_t to_y, S420330* a5, void (*fn)(int64_t, int64_t, S420330*));
-static int sub_420660(int64_t from, int64_t to, uint8_t* rotations);
+static int PathCreateProjectile(int64_t from, int64_t to, uint8_t* rotations);
 static int sub_420900(WmapPathInfo* path_info);
 static int sub_4209C0(WmapPathInfo* path_info);
 static int sub_420E30(PathCreateInfo* path_create_info, tig_duration_t ms);
@@ -52,16 +52,16 @@ static int wmap_path_backtrack_tbl[756];
 static int wmap_path_cost_tbl[256];
 
 // 0x5DE5F8
-static tig_timestamp_t dword_5DE5F8;
+static tig_timestamp_t g_pathfinding_timer_start;
 
 // 0x5DE5FC
-static int dword_5DE5FC;
+static int g_pathfinding_op_count;
 
 // 0x5DE600
-static tig_duration_t dword_5DE600;
+static tig_duration_t g_pathfinding_time_limit_ms;
 
 // 0x41F3C0
-int sub_41F3C0(PathCreateInfo* path_create_info)
+int PathCreate(PathCreateInfo* path_create_info)
 {
     bool v1 = false;
 
@@ -80,7 +80,7 @@ int sub_41F3C0(PathCreateInfo* path_create_info)
     }
 
     if ((path_create_info->flags & PATH_FLAG_0x0080) != 0) {
-        return sub_420660(path_create_info->from, path_create_info->to, path_create_info->rotations);
+        return PathCreateProjectile(path_create_info->from, path_create_info->to, path_create_info->rotations);
     }
 
     if ((path_create_info->flags & PATH_FLAG_0x0100) != 0) {
@@ -116,7 +116,7 @@ int sub_41F3C0(PathCreateInfo* path_create_info)
 
     int v2 = 0;
     if ((path_create_info->flags & PATH_FLAG_0x0200) == 0) {
-        v2 = sub_41F840(path_create_info);
+        v2 = PathfindDirect(path_create_info);
     }
 
     if (v2 == 0) {
@@ -127,7 +127,7 @@ int sub_41F3C0(PathCreateInfo* path_create_info)
                 return 0;
             }
 
-            v2 = sub_41F9F0(path_create_info);
+            v2 = PathfindAStar(path_create_info);
         }
     }
 
@@ -196,7 +196,7 @@ int sub_41F6C0(PathCreateInfo* path_create_info)
             (base_rot + rotations[idx]) % 8,
             range,
             &(path_create_info->to));
-        v1 = sub_41F840(path_create_info);
+        v1 = PathfindDirect(path_create_info);
         if (v1 != 0) {
             break;
         }
@@ -211,14 +211,14 @@ int sub_41F6C0(PathCreateInfo* path_create_info)
 
     if (v1 == 0 && v2 > 0) {
         path_create_info->to = loc;
-        v1 = sub_41F840(path_create_info);
+        v1 = PathfindDirect(path_create_info);
     }
 
     return v1;
 }
 
 // 0x41F840
-int sub_41F840(PathCreateInfo* path_create_info)
+int PathfindDirect(PathCreateInfo* path_create_info)
 {
     bool v1 = false;
     unsigned int flags;
@@ -294,7 +294,7 @@ int sub_41F840(PathCreateInfo* path_create_info)
 }
 
 // 0x41F9F0
-int sub_41F9F0(PathCreateInfo* path_create_info)
+int PathfindAStar(PathCreateInfo* path_create_info)
 {
     tig_timestamp_t timestamp;
     bool v1 = false;
@@ -313,22 +313,22 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
     int best_estimated_cost;
 
     if (obj_field_int32_get(path_create_info->obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
-        if (dword_5DE5F8 == 0
-            || tig_timer_elapsed(dword_5DE5F8) >= 1000) {
-            tig_timer_now(&dword_5DE5F8);
-            dword_5DE5FC = 0;
-            dword_5DE600 = 0;
+        if (g_pathfinding_timer_start == 0
+            || tig_timer_elapsed(g_pathfinding_timer_start) >= 1000) {
+            tig_timer_now(&g_pathfinding_timer_start);
+            g_pathfinding_op_count = 0;
+            g_pathfinding_time_limit_ms = 0;
         }
 
-        if (dword_5DE5FC > path_limit) {
+        if (g_pathfinding_op_count > path_limit) {
             return 0;
         }
 
-        if (dword_5DE600 > path_time_limit) {
+        if (g_pathfinding_time_limit_ms > path_time_limit) {
             return 0;
         }
 
-        dword_5DE5FC++;
+        g_pathfinding_op_count++;
 
         tig_timer_now(&timestamp);
     } else {
@@ -404,7 +404,7 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
         // If no node has been found, path is not reachable.
         if (current_index == -1) {
             if (timestamp != 0) {
-                dword_5DE600 += tig_timer_elapsed(timestamp);
+                g_pathfinding_time_limit_ms += tig_timer_elapsed(timestamp);
             }
 
             return 0;
@@ -483,8 +483,8 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
 
             // Evade differently lit areas.
             if ((path_create_info->flags & PATH_FLAG_0x0200) != 0) {
-                uint8_t src_lum = sub_4D9240(loc, 0, 0);
-                uint8_t dst_lum = sub_4D9240(adjacent_loc, 0, 0);
+                uint8_t src_lum = GetTileHeight(loc, 0, 0);
+                uint8_t dst_lum = GetTileHeight(adjacent_loc, 0, 0);
                 if (dst_lum > src_lum) {
                     if (dst_lum - src_lum > 20) {
                         cost += 40;
@@ -531,7 +531,7 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
     // If the number of steps exceeds allowed maximum, there is no valid path.
     if (step > path_create_info->max_rotations) {
         if (timestamp != 0) {
-            dword_5DE600 += tig_timer_elapsed(timestamp);
+            g_pathfinding_time_limit_ms += tig_timer_elapsed(timestamp);
         }
 
         return 0;
@@ -548,7 +548,7 @@ int sub_41F9F0(PathCreateInfo* path_create_info)
     }
 
     if (timestamp != 0) {
-        dword_5DE600 += tig_timer_elapsed(timestamp);
+        g_pathfinding_time_limit_ms += tig_timer_elapsed(timestamp);
     }
 
     // Return the number of steps in the computed path.
@@ -639,14 +639,14 @@ int sub_4201C0(int64_t from, int64_t to, uint8_t* rotations)
     v1.field_10 = from_x;
     v1.field_18 = from_y;
 
-    sub_4203B0(from_x, from_y, to_x, to_y, &v1, sub_420330);
+    sub_4203B0(from_x, from_y, to_x, to_y, &v1, PathBresenhamLineProcessor);
 
     if (v1.field_8 == -1) {
         return 0;
     }
 
     while (v1.field_0 != 0) {
-        sub_420330(to_x, to_y, &v1);
+        PathBresenhamLineProcessor(to_x, to_y, &v1);
     }
 
     if (v1.field_8 == -1) {
@@ -657,7 +657,7 @@ int sub_4201C0(int64_t from, int64_t to, uint8_t* rotations)
 }
 
 // 0x420330
-void sub_420330(int64_t x, int64_t y, S420330* a5)
+void PathBresenhamLineProcessor(int64_t x, int64_t y, S420330* a5)
 {
     if (a5->field_8 == -1 || a5->field_8 >= 200) {
         a5->field_8 = -1;
@@ -737,7 +737,7 @@ void sub_4203B0(int64_t from_x, int64_t from_y, int64_t to_x, int64_t to_y, S420
 }
 
 // 0x420660
-int sub_420660(int64_t from, int64_t to, uint8_t* rotations)
+int PathCreateProjectile(int64_t from, int64_t to, uint8_t* rotations)
 {
     S420330 v1;
     int64_t from_x;
@@ -762,14 +762,14 @@ int sub_420660(int64_t from, int64_t to, uint8_t* rotations)
 
     v1.field_10 = from_x;
     v1.field_18 = from_y;
-    sub_4203B0(from_x, from_y, to_x, to_y, &v1, sub_420330);
+    sub_4203B0(from_x, from_y, to_x, to_y, &v1, PathBresenhamLineProcessor);
 
     if (v1.field_8 == -1) {
         return 0;
     }
 
     while (v1.field_0 != 0) {
-        sub_420330(to_x, to_y, &v1);
+        PathBresenhamLineProcessor(to_x, to_y, &v1);
     }
 
     if (v1.field_8 == -1) {

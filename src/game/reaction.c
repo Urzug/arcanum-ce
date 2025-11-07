@@ -1,4 +1,4 @@
-#include "game/reaction.h"
+﻿#include "game/reaction.h"
 
 #include "game/ai.h"
 #include "game/critter.h"
@@ -13,10 +13,10 @@
 #include "game/stat.h"
 
 static int sub_4C0D00(int64_t a1, int64_t a2, unsigned int flags);
-static int sub_4C1290(int64_t a1, int64_t a2);
+static int CalculateReactionModifier(int64_t a1, int64_t a2);
 static int reaction_get_base(int64_t obj);
-static bool sub_4C12F0(int64_t a1, int64_t a2, bool a3, int* a4);
-static void sub_4C1360(int64_t npc_obj, int64_t pc_obj, int value);
+static bool GetReactionLevelForPC(int64_t a1, int64_t a2, bool a3, int* a4);
+static void SetReactionLevelForPC(int64_t npc_obj, int64_t pc_obj, int value);
 static void sub_4C1490(int64_t npc_obj, int64_t pc_obj, int level, int index);
 static int sub_4C1500(int64_t npc_obj, int64_t pc_obj, unsigned int flags);
 static int sub_4C15A0(int a1);
@@ -187,7 +187,7 @@ bool reaction_met_before(int64_t npc_obj, int64_t pc_obj)
         return false;
     }
 
-    return sub_4C12F0(npc_obj, pc_obj, false, &v1);
+    return GetReactionLevelForPC(npc_obj, pc_obj, false, &v1);
 }
 
 // 0x4C0CC0
@@ -197,7 +197,7 @@ int reaction_get(int64_t npc_obj, int64_t pc_obj)
 }
 
 // 0x4C0CE0
-int sub_4C0CE0(int64_t npc_obj, int64_t pc_obj)
+int GetReactionScore(int64_t npc_obj, int64_t pc_obj)
 {
     return sub_4C0D00(npc_obj, pc_obj, 1);
 }
@@ -222,11 +222,11 @@ int sub_4C0D00(int64_t npc_obj, int64_t pc_obj, unsigned int flags)
         return 50;
     }
 
-    value = sub_4C1500(npc_obj, pc_obj, flags) + sub_4C1290(npc_obj, pc_obj);
+    value = sub_4C1500(npc_obj, pc_obj, flags) + CalculateReactionModifier(npc_obj, pc_obj);
     value = effect_adjust_reaction(npc_obj, value);
 
     if (value < 50
-        && sub_459040(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)
+        && GetObjectSummonerIfSpellFlag(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)
         && mind_controlled_by_obj == pc_obj) {
         value = 50;
     }
@@ -264,7 +264,7 @@ void reaction_adj(int64_t npc_obj, int64_t pc_obj, int value)
         return;
     }
 
-    if (sub_459040(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)
+    if (GetObjectSummonerIfSpellFlag(npc_obj, OSF_MIND_CONTROLLED, &mind_controlled_by_obj)
         && mind_controlled_by_obj == pc_obj) {
         return;
     }
@@ -275,9 +275,9 @@ void reaction_adj(int64_t npc_obj, int64_t pc_obj, int value)
         return;
     }
 
-    base = sub_4C1290(npc_obj, pc_obj);
+    base = CalculateReactionModifier(npc_obj, pc_obj);
     adjusted_value = effect_adjust_good_bad_reaction(pc_obj, value);
-    sub_4C1360(npc_obj, pc_obj, base + adjusted_value);
+    SetReactionLevelForPC(npc_obj, pc_obj, base + adjusted_value);
 
     if (value < 0 && critter_leader_get(npc_obj) == pc_obj) {
         flags = obj_field_int32_get(npc_obj, OBJ_F_NPC_FLAGS);
@@ -337,7 +337,7 @@ void sub_4C1020(int64_t npc_obj, int64_t pc_obj)
         return;
     }
 
-    v1 = sub_4C1290(npc_obj, pc_obj);
+    v1 = CalculateReactionModifier(npc_obj, pc_obj);
     if (v1 < 100 && fate_resolve(pc_obj, FATE_FORCE_GOOD_REACTION)) {
         v1 = 100;
     }
@@ -358,13 +358,13 @@ void sub_4C10A0(int64_t npc_obj, int64_t pc_obj)
         return;
     }
 
-    v1 = sub_4C1290(npc_obj, pc_obj);
+    v1 = CalculateReactionModifier(npc_obj, pc_obj);
     sub_4C1490(npc_obj, 0, v1, 0);
-    sub_4C1360(npc_obj, pc_obj, v1);
+    SetReactionLevelForPC(npc_obj, pc_obj, v1);
 }
 
 // 0x4C1110
-int64_t sub_4C1110(int64_t npc)
+int64_t GetPCWithHighestReaction(int64_t npc)
 {
     if (obj_field_int32_get(npc, OBJ_F_TYPE) != OBJ_TYPE_NPC) {
         return 0;
@@ -431,11 +431,11 @@ void sub_4C11D0(int64_t a1, int64_t a2, int a3)
 }
 
 // 0x4C1290
-int sub_4C1290(int64_t npc_obj, int64_t pc_obj)
+int CalculateReactionModifier(int64_t npc_obj, int64_t pc_obj)
 {
     int v1;
 
-    if (sub_4C12F0(npc_obj, pc_obj, 1, &v1)) {
+    if (GetReactionLevelForPC(npc_obj, pc_obj, 1, &v1)) {
         return v1;
     }
 
@@ -449,7 +449,7 @@ int reaction_get_base(int64_t obj)
 }
 
 // 0x4C12F0
-bool sub_4C12F0(int64_t npc_obj, int64_t pc_obj, bool a3, int* a4)
+bool GetReactionLevelForPC(int64_t npc_obj, int64_t pc_obj, bool a3, int* a4)
 {
     int index;
 
@@ -465,7 +465,7 @@ bool sub_4C12F0(int64_t npc_obj, int64_t pc_obj, bool a3, int* a4)
 }
 
 // 0x4C1360
-void sub_4C1360(int64_t npc_obj, int64_t pc_obj, int value)
+void SetReactionLevelForPC(int64_t npc_obj, int64_t pc_obj, int value)
 {
     int index;
     int candidate;

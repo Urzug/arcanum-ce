@@ -943,7 +943,7 @@ void sub_559260(WmapRndEncounterTableEntry* entry)
             wmap_rnd_encounter_build_object(entry->critter_basic_prototype[index], loc, &obj);
             if (tile_is_blocking(loc, 0)) {
                 pc_obj = player_get_local_pc_obj();
-                if (!sub_4F4E40(pc_obj, 6, &loc) || tile_is_blocking(loc, 0)) {
+                if (!FindLocationNearObject(pc_obj, 6, &loc) || tile_is_blocking(loc, 0)) {
                     object_destroy(obj);
                     obj = OBJ_HANDLE_NULL;
                 } else {
@@ -997,7 +997,7 @@ void wmap_rnd_encounter_build_object(int name, int64_t loc, int64_t* obj_ptr)
     int64_t proto_obj;
     int64_t obj;
 
-    proto_obj = sub_4685A0(name);
+    proto_obj = GetProtoHandleFromID(name);
     if (!object_create(proto_obj, loc, &obj)) {
         tig_debug_printf("wmap_rnd_encounter_build_object: ERROR: object_create failed!\n");
         exit(EXIT_FAILURE);
@@ -1040,6 +1040,6 @@ void wmap_rnd_schedule()
     DateTime datetime;
 
     timeevent.type = TIMEEVENT_TYPE_RANDOM_ENCOUNTER;
-    sub_45A950(&datetime, 60000 * random_between(300, 700));
+    DateTimeAddMilliseconds(&datetime, 60000 * random_between(300, 700));
     timeevent_add_delay(&timeevent, &datetime);
 }
