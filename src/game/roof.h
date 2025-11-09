@@ -10,15 +10,15 @@ void roof_update_view(ViewOptions* view_options);
 void roof_toggle();
 void roof_draw(GameDrawInfo* draw_info);
 int64_t roof_normalize_loc(int64_t loc);
-bool sub_439890(int x, int y);
+bool roof_hit_test_screen_xy(int x, int y);
 void roof_recalc(int64_t loc);
 void roof_fill_off(int64_t loc);
 void roof_fill_on(int64_t loc);
 void roof_fade_on(int64_t loc);
 void roof_fade_off(int64_t loc);
 bool roof_is_faded(int64_t loc);
-bool sub_439FF0(int64_t x, int64_t y, int a3);
-bool sub_43A030(int64_t loc, int a2);
+bool roof_is_tile_covered_world_xy(int64_t x, int64_t y, int a3);
+bool roof_is_tile_covered(int64_t loc, int a2);
 void roof_blit_flags_set(unsigned int flags);
 unsigned int roof_blit_flags_get();
 

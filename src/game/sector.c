@@ -731,7 +731,7 @@ bool sector_in_dir(int64_t sec, int dir, int64_t* new_sec_ptr)
 }
 
 // 0x4D0090
-bool sub_4D0090(LocRect* rect, SomeSectorStuff* a2)
+bool GetSectorDataForLocationRect(LocRect* rect, SomeSectorStuff* a2)
 {
     int x;
     int y;
@@ -1192,7 +1192,7 @@ bool sector_history_save(TigFile* stream)
                 }
 
                 sector_history_entries[sector_history_size].id = cache_entry->sector.id;
-                sector_history_entries[sector_history_size].datetime = sub_45A7C0();
+                sector_history_entries[sector_history_size].datetime = datetime_get_current();
                 sector_history_size++;
             }
         }
@@ -1288,7 +1288,7 @@ void sub_4D1400(Sector* sector)
         }
 
         sector_history_entries[sector_history_size].id = sector->id;
-        sector_history_entries[sector_history_size].datetime = sub_45A7C0();
+        sector_history_entries[sector_history_size].datetime = datetime_get_current();
         sector_history_size++;
     }
 

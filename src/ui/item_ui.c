@@ -57,13 +57,13 @@ void sub_5719F0(int64_t item_obj, uint64_t** tgt_ptr)
         flags = obj_field_int32_get(item_obj, OBJ_F_ITEM_FLAGS);
         spl = mt_item_spell(item_obj, 0);
         if (mana_store != 0 || (flags & OIF_IS_MAGICAL) != 0) {
-            sub_459F20(spl, tgt_ptr);
+            magictech_get_begin_aoe_flags_ptr(spl, tgt_ptr);
         } else if (trap_is_trap_device(item_obj)) {
             *tgt_ptr = &qword_5CAC50;
         } else if (spl == -1) {
             *tgt_ptr = &qword_5CAC40;
         } else {
-            sub_459F20(spl, tgt_ptr);
+            magictech_get_begin_aoe_flags_ptr(spl, tgt_ptr);
         }
     }
 }
@@ -161,9 +161,9 @@ void item_ui_apply(S4F2810* a1)
         && !tig_kb_get_modifier(SDL_KMOD_LCTRL)
         && (obj_field_int32_get(qword_6810D8, OBJ_F_GENERIC_FLAGS) & OGF_IS_LOCKPICK) != 0) {
         skill_invocation_init(&skill_invocation);
-        sub_4440E0(pc_obj, &(skill_invocation.source));
+        follower_info_init(pc_obj, &(skill_invocation.source));
         if (!a1->is_loc) {
-            sub_4440E0(a1->obj, &(skill_invocation.target));
+            follower_info_init(a1->obj, &(skill_invocation.target));
         }
         skill_invocation.skill = SKILL_PICK_LOCKS;
         skill_invocation.item.obj = item_find_first_generic(skill_invocation.source.obj, OGF_IS_LOCKPICK);
@@ -227,7 +227,7 @@ void item_ui_apply(S4F2810* a1)
 
         anim_goal_use_item_on_obj(pc_obj, a1->obj, item_obj, 0);
         if (tig_kb_get_modifier(SDL_KMOD_LSHIFT)) {
-            sub_436C80();
+            anim_goals_pop_state();
             item_ui_deactivate();
             return;
         }
@@ -235,7 +235,7 @@ void item_ui_apply(S4F2810* a1)
         if (tig_kb_get_modifier(SDL_KMOD_LCTRL)
             || !tig_kb_get_modifier(SDL_KMOD_NUM)
             || (get_always_run(pc_obj) && !tig_kb_get_modifier(SDL_KMOD_LCTRL))) {
-            sub_436C20();
+            anim_goals_push_state();
             item_ui_deactivate();
             return;
         }

@@ -356,7 +356,7 @@ bool parse_invensource_entry(MesFileEntry* mes_file_entry, char* str)
             }
 
             // Validate prototype object.
-            obj = sub_4685A0(basic_prototype);
+            obj = GetProtoHandleFromID(basic_prototype);
             if (!obj_handle_is_valid(obj)) {
                 sprintf(invensource_error,
                     "Error: Can't get valid handle for prototype in [%s]: set %d, entry %d, basic prototype %d\n",
@@ -454,7 +454,7 @@ bool parse_invensourcebuy_entry(MesFileEntry* mes_file_entry, char* str)
         }
 
         // Validate prototype object.
-        obj = sub_4685A0(basic_prototype);
+        obj = GetProtoHandleFromID(basic_prototype);
         if (!obj_handle_is_valid(obj)) {
             sprintf(invensource_error,
                 "Error: Can't get valid handle for prototype in [%s]: set %d, entry %d, basic prototype %d\n",

@@ -41,7 +41,7 @@ bool sector_object_list_reset(SectorObjectList* list)
             if (object_is_static(node->obj)) {
                 object_delete(node->obj);
             } else {
-                sub_443770(node->obj);
+                object_clear_render_data(node->obj);
             }
 
             object_node_destroy(node);
@@ -466,8 +466,8 @@ void objlist_fold(SectorObjectList* list, int64_t location, int a4)
             if ((obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_INVENTORY) == 0
                 && !object_is_static(obj)) {
                 objlist_insert_internal(list, obj);
-                sub_441FC0(obj, a4);
-                sub_438530(obj);
+                object_notify_npc_seen(obj, a4);
+                wallcheck_notify_player_moved(obj);
             }
         } while (obj_find_walk_next(&obj, &iter));
     }
@@ -543,10 +543,10 @@ bool objlist_insert_internal(SectorObjectList* list, int64_t obj)
     node->next = NULL;
     sub_4F20A0(list, node);
 
-    if (sub_43D940(obj)) {
-        sub_43F710(obj);
+    if (object_is_static_type(obj)) {
+        object_scenery_update_animation(obj);
     } else {
-        sub_435CE0(obj);
+        anim_goal_is_projectile(obj);
     }
 
     return true;

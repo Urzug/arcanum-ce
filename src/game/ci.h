@@ -5,10 +5,10 @@
 
 bool ci_init(GameInitInfo* init_info);
 void ci_exit();
-void sub_4BB8E0();
-void sub_4BB8F0();
-int sub_4BB900();
-void sub_4BB910();
+void ui_tb_lock_cursor();
+void ui_tb_lock_cursor_maybe();
+int ui_is_tb_cursor_locked();
+void ui_tb_unlock_cursor();
 void ci_redraw();
 
 #endif /* ARCANUM_GAME_CI_H_ */

@@ -35,11 +35,11 @@ typedef struct S5A3FF0 {
     /* 0040 */ int field_40[4][5];
 } S5A3FF0;
 
-static void sub_438570(int64_t obj, int64_t sector_id, int type);
-static bool sub_4386B0(int64_t obj, int* index_ptr);
-static void sub_438720(int64_t a1);
-static bool sub_4387C0(int64_t a1, int* index_ptr);
-static void sub_438830();
+static void wallcheck_add_or_update_wall(int64_t obj, int64_t sector_id, int type);
+static bool wallcheck_find_wall_in_list(int64_t obj, int* index_ptr);
+static void wallcheck_roof_ref_add(int64_t a1);
+static bool wallcheck_find_roof_in_list(int64_t a1, int* index_ptr);
+static void wallcheck_apply_changes();
 static void wallcheck_roof_faded_clear(int64_t a1);
 
 // 0x5A3E90
@@ -681,7 +681,7 @@ void wallcheck_reset()
             stru_5E0E20[index].flags |= 0x1;
         }
 
-        sub_438830();
+        wallcheck_apply_changes();
     }
 
     qword_5E0E18 = 0;
@@ -857,7 +857,7 @@ void wallcheck_recalc(int64_t loc)
             for (int j = 0; j < 3; j++) {
                 if (stru_5DE6F0[i][j].head != NULL) {
                     v1 = true;
-                    sub_438570(stru_5DE6F0[i][j].head->obj,
+                    wallcheck_add_or_update_wall(stru_5DE6F0[i][j].head->obj,
                         stru_5DE6F0[i][j].sectors[0],
                         0);
                 }
@@ -892,11 +892,11 @@ void wallcheck_recalc(int64_t loc)
                 }
                 if (rot == 0 || rot == 4) {
                     if ((stru_5A3EA8[i].flags & 0x03) != 0) {
-                        sub_438570(node->obj, walls.sectors[0], stru_5A3EA8[i].flags & 0x03);
+                        wallcheck_add_or_update_wall(node->obj, walls.sectors[0], stru_5A3EA8[i].flags & 0x03);
                     }
                 } else {
                     if ((stru_5A3EA8[i].flags & 0x30) != 0) {
-                        sub_438570(node->obj, walls.sectors[0], stru_5A3EA8[i].flags & 0x30);
+                        wallcheck_add_or_update_wall(node->obj, walls.sectors[0], stru_5A3EA8[i].flags & 0x30);
                     }
                 }
                 node = node->next;
@@ -906,7 +906,7 @@ void wallcheck_recalc(int64_t loc)
         }
     }
 
-    sub_438830();
+    wallcheck_apply_changes();
 }
 
 // 0x4384F0
@@ -930,7 +930,7 @@ bool wallcheck_is_enabled()
 }
 
 // 0x438530
-void sub_438530(int64_t obj)
+void wallcheck_notify_player_moved(int64_t obj)
 {
     if (player_is_local_pc_obj(obj)) {
         qword_5E0A08 = obj_field_int64_get(obj, OBJ_F_LOCATION);
@@ -939,12 +939,12 @@ void sub_438530(int64_t obj)
 }
 
 // 0x438570
-void sub_438570(int64_t obj, int64_t sector_id, int type)
+void wallcheck_add_or_update_wall(int64_t obj, int64_t sector_id, int type)
 {
     int index;
     Sector* sector;
 
-    if (!sub_4386B0(obj, &index)) {
+    if (!wallcheck_find_wall_in_list(obj, &index)) {
         memmove(&(stru_5E0E20[index + 1]),
             &(stru_5E0E20[index]),
             sizeof(*stru_5E0E20) * (dword_5E2E24 - index));
@@ -954,7 +954,7 @@ void sub_438570(int64_t obj, int64_t sector_id, int type)
         stru_5E0E20[index].field_18 = roof_normalize_loc(obj_field_int64_get(obj, OBJ_F_LOCATION));
 
         sector_lock(sector_id, &sector);
-        sub_438720(stru_5E0E20[index].field_18);
+        wallcheck_roof_ref_add(stru_5E0E20[index].field_18);
         dword_5E2E24++;
     }
 
@@ -968,7 +968,7 @@ void sub_438570(int64_t obj, int64_t sector_id, int type)
 }
 
 // 0x4386B0
-bool sub_4386B0(int64_t obj, int* index_ptr)
+bool wallcheck_find_wall_in_list(int64_t obj, int* index_ptr)
 {
     int l;
     int r;
@@ -996,11 +996,11 @@ bool sub_4386B0(int64_t obj, int* index_ptr)
 }
 
 // 0x438720
-void sub_438720(int64_t a1)
+void wallcheck_roof_ref_add(int64_t a1)
 {
     int index;
 
-    if (!sub_4387C0(a1, &index)) {
+    if (!wallcheck_find_roof_in_list(a1, &index)) {
         memmove(&(stru_5E0A10[index + 1]),
             &(stru_5E0A10[index]),
             sizeof(*stru_5E0A10) * (dword_5E2E28 - index));
@@ -1015,7 +1015,7 @@ void sub_438720(int64_t a1)
 }
 
 // 0x4387C0
-bool sub_4387C0(int64_t a1, int* index_ptr)
+bool wallcheck_find_roof_in_list(int64_t a1, int* index_ptr)
 {
     int l;
     int r;
@@ -1043,7 +1043,7 @@ bool sub_4387C0(int64_t a1, int* index_ptr)
 }
 
 // 0x438830
-void sub_438830()
+void wallcheck_apply_changes()
 {
     int idx;
     unsigned int wall_flags;
@@ -1110,7 +1110,7 @@ void wallcheck_roof_faded_clear(int64_t a1)
 {
     int index;
 
-    if (!sub_4387C0(a1, &index)) {
+    if (!wallcheck_find_roof_in_list(a1, &index)) {
         tig_debug_printf("Warning: unable to find roof to clear in wallcheck_roof_faded_clear()\n");
         return;
     }

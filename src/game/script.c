@@ -84,7 +84,7 @@ static int64_t script_get_obj(ScriptFocusObject type, int index, ScriptState* st
 static void script_set_obj(ScriptFocusObject type, int index, ScriptState* state, int64_t obj);
 static int script_get_value(ScriptValueType type, int index, ScriptState* state);
 static void script_set_value(ScriptValueType type, int index, ScriptState* state, int value);
-static int sub_44BC60(ScriptState* state);
+static int ScriptFindInitBlock(ScriptState* state);
 static bool sub_44C140(Script* scr, unsigned int index, ScriptCondition* entry);
 static bool sub_44C1B0(ScriptFile* script_file, unsigned int index, ScriptCondition* entry);
 static ScriptFile* script_lock(int script_id);
@@ -1071,7 +1071,7 @@ int script_execute_condition(ScriptCondition* condition, int line, ScriptState* 
         matched = 0;
         for (index = 0; index < cnt; index++) {
             if (obj_field_int32_get(objs[index], OBJ_F_TYPE) == OBJ_TYPE_NPC) {
-                if (sub_4C1110(objs[index])) {
+                if (GetPCWithHighestReaction(objs[index])) {
                     matched++;
                 }
             } else {
@@ -1679,7 +1679,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         }
 
         sub_44B8F0(state->field_398, &(state->objects));
-        return sub_44BC60(state);
+        return ScriptFindInitBlock(state);
     case SAT_LOOP_END:
         if (state->loop_cnt <= 0) {
             tig_debug_printf("Script: script_execute_action: sat_loop_end: ERROR: Not in a loop!\n");
@@ -1702,7 +1702,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         state->loop_cnt = 0;
         sub_44B8F0(state->field_398, &(state->objects));
-        return sub_44BC60(state);
+        return ScriptFindInitBlock(state);
     case SAT_CRITTER_FOLLOW: {
         int64_t follower_obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int64_t leader_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
@@ -1964,7 +1964,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
         return NEXT;
     }
@@ -1993,7 +1993,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t near_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         int64_t loc = -1;
         for (int attempt = 0; attempt < 10; attempt++) {
-            if (sub_4F4E40(near_obj, random_between(1, 3), &loc)) {
+            if (FindLocationNearObject(near_obj, random_between(1, 3), &loc)) {
                 break;
             }
         }
@@ -2028,7 +2028,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         DateTime datetime;
         if (action->type == SAT_CALL_SCRIPT_AT) {
-            datetime = sub_45A7C0();
+            datetime = datetime_get_current();
             datetime.milliseconds += 86400000;
             datetime_sub_milliseconds(&datetime, sub_45AD70());
 
@@ -2043,7 +2043,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         timeevent.params[2].object_value = triggerer_obj;
         timeevent.params[3].object_value = attachee_obj;
 
-        sub_45A950(&datetime, 1000 * seconds);
+        DateTimeAddMilliseconds(&datetime, 1000 * seconds);
 
         if (action->type == SAT_CALL_SCRIPT_IN) {
             datetime.milliseconds *= 8;
@@ -2105,7 +2105,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int damage = script_get_value(action->op_type[1], action->op_value[1], state);
         int type = script_get_value(action->op_type[2], action->op_value[2], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[type] = damage;
             combat_dmg(&combat);
         }
@@ -2118,7 +2118,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
 
         return NEXT;
@@ -2172,7 +2172,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int x = script_get_value(action->op_type[1], action->op_value[1], state);
         int y = script_get_value(action->op_type[2], action->op_value[2], state);
-        sub_4341C0(obj, location_make(x, y), AG_MOVE_TO_TILE);
+        anim_goal_move_near_loc(obj, location_make(x, y), AG_MOVE_TO_TILE);
         return NEXT;
     }
     case SAT_GET_WEAPON_TYPE: {
@@ -2213,14 +2213,14 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t obj = script_get_obj(action->op_type[0], action->op_value[0], state);
         int x = script_get_value(action->op_type[1], action->op_value[1], state);
         int y = script_get_value(action->op_type[2], action->op_value[2], state);
-        sub_434400(obj, location_make(x, y), AG_MOVE_TO_TILE);
+        anim_goal_move_near_loc_combat(obj, location_make(x, y), AG_MOVE_TO_TILE);
         return NEXT;
     }
     case SAT_HEAL_HP: {
         int cnt = script_resolve_focus_obj(action->op_type[0], action->op_value[0], state, handles, &objects);
         int value = script_get_value(action->op_type[1], action->op_value[1], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[DAMAGE_TYPE_NORMAL] = value;
             combat_heal(&combat);
         }
@@ -2279,7 +2279,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t item_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         int64_t source_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         int64_t target_obj = script_get_obj(action->op_type[3], action->op_value[3], state);
-        int ratio = sub_461620(item_obj, source_obj, target_obj);
+        int ratio = CalculateMagicTechEffectivenessModifier(item_obj, source_obj, target_obj);
         script_set_value(action->op_type[4], action->op_value[4], state, value * (100 - ratio) / 100);
         return NEXT;
     }
@@ -2406,13 +2406,13 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         return NEXT;
     }
     case SAT_GET_CURRENT_HOUR: {
-        DateTime datetime = sub_45A7C0();
+        DateTime datetime = datetime_get_current();
         int hour = datetime_get_hour(&datetime);
         script_set_value(action->op_type[0], action->op_value[0], state, hour);
         return NEXT;
     }
     case SAT_GET_CURRENT_MINUTE: {
-        DateTime datetime = sub_45A7C0();
+        DateTime datetime = datetime_get_current();
         int minute = datetime_get_minute(&datetime);
         script_set_value(action->op_type[0], action->op_value[0], state, minute);
         return NEXT;
@@ -2498,7 +2498,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
 
             if (teleport_data.time > 0) {
                 DateTime datetime;
-                sub_45A950(&datetime, 1000 * teleport_data.time);
+                DateTimeAddMilliseconds(&datetime, 1000 * teleport_data.time);
                 timeevent_inc_datetime(&datetime);
             }
 
@@ -2531,7 +2531,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
                 timeevent.params[2].float_value = 2.0f;
                 timeevent.params[3].integer_value = 48;
 
-                sub_45A950(&datetime, 1000 * delay);
+                DateTimeAddMilliseconds(&datetime, 1000 * delay);
                 timeevent_add_delay(&timeevent, &datetime);
             } else {
                 teleport_data.fade_in.flags = FADE_IN;
@@ -2552,7 +2552,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         return NEXT;
     }
     case SAT_GET_HOURS_SINCE_STARTUP: {
-        DateTime datetime = sub_45A7C0();
+        DateTime datetime = datetime_get_current();
         int hours = datetime_get_hour_since_reference_date(&datetime);
         script_set_value(action->op_type[0], action->op_value[0], state, hours);
     }
@@ -2648,7 +2648,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_FREE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2674,7 +2674,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2685,7 +2685,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[2], action->op_value[2], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, source_obj, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_FREE;
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
@@ -2806,7 +2806,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int64_t target_obj = script_get_obj(action->op_type[1], action->op_value[1], state);
         MagicTechInvocation mt_invocation;
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, spell);
-        sub_4440E0(target_obj, &(mt_invocation.target_obj));
+        follower_info_init(target_obj, &(mt_invocation.target_obj));
         mt_invocation.flags |= MAGICTECH_INVOCATION_UNRESISTABLE;
         magictech_invocation_run(&mt_invocation);
         return NEXT;
@@ -2825,7 +2825,7 @@ int script_execute_action(ScriptAction* action, int line, ScriptState* state)
         int damage = script_get_value(action->op_type[1], action->op_value[1], state);
         int type = script_get_value(action->op_type[2], action->op_value[2], state);
         for (int idx = 0; idx < cnt; idx++) {
-            sub_4B2210(OBJ_HANDLE_NULL, handles[idx], &combat);
+            combat_context_init(OBJ_HANDLE_NULL, handles[idx], &combat);
             combat.dam[type] = damage;
             combat.dam_flags |= CDF_IGNORE_RESISTANCE;
             combat_dmg(&combat);
@@ -2974,7 +2974,7 @@ void script_float_line(ScriptAction* action, ScriptState* state)
     cnt = script_resolve_focus_obj(action->op_type[1], action->op_value[1], state, objs, &objects);
     for (index = 0; index < cnt; index++) {
         v1.npc_obj = objs[index];
-        sub_413A30(&v1, true);
+        dialog_goto_line(&v1, true);
         script_float_line_func(objs[index], v1.pc_obj, v1.reply, v1.speech_id);
     }
 
@@ -3010,7 +3010,7 @@ void script_print_line(ScriptAction* action, ScriptState* state)
     v1.pc_obj = state->invocation->triggerer_obj;
     v1.num = script_get_value(action->op_type[0], action->op_value[0], state);
     v1.script_num = state->invocation->script->num;
-    sub_413A30(&v1, true);
+    dialog_goto_line(&v1, true);
 
     ui_message.type = script_get_value(action->op_type[1], action->op_value[1], state);
     ui_message.str = v1.reply;
@@ -3030,7 +3030,7 @@ void script_print_line(ScriptAction* action, ScriptState* state)
             return;
         }
     } else {
-        sub_460630(&ui_message);
+        ui_message_post(&ui_message);
         dialog_unload(v1.dlg);
     }
 }
@@ -3314,7 +3314,7 @@ void script_set_value(ScriptValueType type, int index, ScriptState* state, int v
 }
 
 // 0x44BC60
-int sub_44BC60(ScriptState* state)
+int ScriptFindInitBlock(ScriptState* state)
 {
     unsigned int index;
     ScriptCondition condition;
@@ -3408,7 +3408,7 @@ ScriptFile* script_lock(int script_id)
     cache_entry_id = cache_find(script_id);
     if (script_cache_entries[cache_entry_id].script_id == script_id) {
         script_cache_entries[cache_entry_id].ref_count++;
-        script_cache_entries[cache_entry_id].datetime = sub_45A7C0();
+        script_cache_entries[cache_entry_id].datetime = datetime_get_current();
         return script_cache_entries[cache_entry_id].file;
     }
 
@@ -3418,7 +3418,7 @@ ScriptFile* script_lock(int script_id)
 
     if (cache_add(cache_entry_id, script_id)) {
         script_cache_entries[cache_entry_id].ref_count++;
-        script_cache_entries[cache_entry_id].datetime = sub_45A7C0();
+        script_cache_entries[cache_entry_id].datetime = datetime_get_current();
         return script_cache_entries[cache_entry_id].file;
     }
 
@@ -3599,7 +3599,7 @@ void script_fx_play(int64_t obj, int fx_id)
 {
     AnimFxNode fx;
 
-    sub_4CCD20(&script_eye_candies, &fx, obj, -1, fx_id);
+    GetAnimFXNodeByID(&script_eye_candies, &fx, obj, -1, fx_id);
     fx.rotation = tig_art_id_rotation_get(obj_field_int32_get(obj, OBJ_F_CURRENT_AID));
     fx.animate = true;
     animfx_add(&fx);

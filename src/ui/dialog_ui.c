@@ -177,7 +177,7 @@ void dialog_ui_start_dialog(int64_t pc_obj, int64_t npc_obj, int script_num, int
             entry->state.npc_obj = npc_obj;
             entry->state.num = num;
             entry->state.script_num = script_num;
-            if (!sub_412FD0(&(entry->state))) {
+            if (!dialog_begin(&(entry->state))) {
                 dialog_unload(entry->dlg);
                 return;
             }
@@ -189,14 +189,14 @@ void dialog_ui_start_dialog(int64_t pc_obj, int64_t npc_obj, int script_num, int
                     TB_EXPIRE_DEFAULT,
                     entry->state.reply,
                     entry->state.speech_id);
-                sub_413280(&(entry->state));
+                dialog_end(&(entry->state));
                 dialog_unload(entry->dlg);
                 return;
             }
 
             if (player_is_local_pc_obj(pc_obj)) {
                 if (!intgame_dialog_begin(dialog_ui_message_filter)) {
-                    sub_413280(&(entry->state));
+                    dialog_end(&(entry->state));
                     dialog_unload(entry->dlg);
                     return;
                 }
@@ -210,7 +210,7 @@ void dialog_ui_start_dialog(int64_t pc_obj, int64_t npc_obj, int script_num, int
                 }
             }
 
-            sub_424070(pc_obj, 3, 0, true);
+            anim_set_priority_level(pc_obj, 3, 0, true);
             anim_goal_rotate(pc_obj, object_rot(pc_obj, npc_obj));
 
             if (critter_is_concealed(pc_obj)) {
@@ -290,7 +290,7 @@ void sub_5678D0(int64_t obj, int a2)
 
     if (!tig_net_is_active()
         || tig_net_is_host()) {
-        sub_413280(&(entry->state));
+        dialog_end(&(entry->state));
     }
 
     if (tig_net_is_active()
@@ -316,7 +316,7 @@ void sub_5679C0(DialogUiEntry* entry)
     }
 
     if (!tig_net_is_active() || tig_net_is_host()) {
-        sub_413280(&(entry->state));
+        dialog_end(&(entry->state));
     }
 }
 
@@ -465,7 +465,7 @@ bool sub_567E30(DialogUiEntry* entry, int a2)
         entry->state.options[a2]);
     mp_tb_remove(entry->state.npc_obj);
     dialog_ui_speech_stop();
-    sub_413130(&(entry->state), a2);
+    dialog_select_option(&(entry->state), a2);
     sub_567D60(entry);
 
     switch (entry->state.field_17E8) {
@@ -593,7 +593,7 @@ void sub_5681C0(int64_t pc_obj, int64_t npc_obj)
 {
     char text[1000];
 
-    sub_4132A0(npc_obj, pc_obj, text);
+    dialog_get_greeting_msg(npc_obj, pc_obj, text);
     sub_568540(npc_obj, pc_obj, TB_TYPE_WHITE, TB_EXPIRE_DEFAULT, text, -1);
 }
 
@@ -736,8 +736,8 @@ void sub_568540(int64_t npc_obj, int64_t pc_obj, int type, int expires_in, const
 
     if (pc_obj != OBJ_HANDLE_NULL
         && !critter_is_dead(npc_obj)
-        && !sub_423300(npc_obj, NULL)) {
-        sub_424070(npc_obj, 3, 0, 1);
+        && !anim_get_current_id(npc_obj, NULL)) {
+        anim_set_priority_level(npc_obj, 3, 0, 1);
         anim_goal_rotate(npc_obj, object_rot(npc_obj, pc_obj));
     }
 
@@ -771,8 +771,8 @@ void sub_5686C0(int64_t pc_obj, int64_t npc_obj, int type, int expires_in, const
 
     if (npc_obj != OBJ_HANDLE_NULL
         && !critter_is_dead(pc_obj)
-        && !sub_423300(pc_obj, NULL)) {
-        sub_424070(pc_obj, 3, 0, 1);
+        && !anim_get_current_id(pc_obj, NULL)) {
+        anim_set_priority_level(pc_obj, 3, 0, 1);
         anim_goal_rotate(pc_obj, object_rot(pc_obj, npc_obj));
     }
 
@@ -828,7 +828,7 @@ void dialog_ui_speech_start(int64_t npc_obj, int64_t pc_obj, int speech_id)
     }
 
     dialog_ui_speech_stop();
-    sub_418A00(speech_id, &v1, &v2);
+    dialog_parse_speech_id(speech_id, &v1, &v2);
 
     gender = stat_level_get(pc_obj, STAT_GENDER) != 0 ? 'm' : 'f';
     sprintf(path, "sound\\speech\\%.5d\\v%d_%c.mp3", v1, v2, gender);

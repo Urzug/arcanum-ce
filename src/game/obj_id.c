@@ -7,11 +7,11 @@
 #include "game/map.h"
 #include "game/object.h"
 
-static bool sub_4E67A0(TigGuid* guid, const char* str);
-static bool sub_4E6970(ObjectID_P* p, const char* str);
-static bool sub_4E6A60(int* value_ptr, const char* str);
-static bool sub_4E6AA0(int* value_ptr, const char* str, size_t length);
-static bool sub_4E6B00(char* dst, const char* src, size_t length);
+static bool objid_parse_guid_str(TigGuid* guid, const char* str);
+static bool objid_parse_p_str(ObjectID_P* p, const char* str);
+static bool objid_parse_a_str(int* value_ptr, const char* str);
+static bool parse_hex_str_len(int* value_ptr, const char* str, size_t length);
+static bool validate_and_copy_hex_str_len(char* dst, const char* src, size_t length);
 
 // 0x4E62A0
 void objid_create_guid(ObjectID* oid)
@@ -91,7 +91,7 @@ bool objid_is_equal(ObjectID a, ObjectID b)
 }
 
 // 0x4E6540
-ObjectID sub_4E6540(int a1)
+ObjectID objid_create_a(int a1)
 {
     ObjectID oid;
     oid.type = OID_TYPE_A;
@@ -149,7 +149,7 @@ bool objid_id_from_str(ObjectID* oid, const char* str)
     switch (str[0]) {
     case 'A':
         temp_oid.type = OID_TYPE_A;
-        if (!sub_4E6A60(&(temp_oid.d.a), str)) {
+        if (!objid_parse_a_str(&(temp_oid.d.a), str)) {
             return false;
         }
         break;
@@ -158,7 +158,7 @@ bool objid_id_from_str(ObjectID* oid, const char* str)
         break;
     case 'G':
         temp_oid.type = OID_TYPE_GUID;
-        if (!sub_4E67A0(&(temp_oid.d.g), str)) {
+        if (!objid_parse_guid_str(&(temp_oid.d.g), str)) {
             return false;
         }
         break;
@@ -170,7 +170,7 @@ bool objid_id_from_str(ObjectID* oid, const char* str)
         break;
     case 'P':
         temp_oid.type = OID_TYPE_P;
-        if (!sub_4E6970(&(temp_oid.d.p), str)) {
+        if (!objid_parse_p_str(&(temp_oid.d.p), str)) {
             return false;
         }
         break;
@@ -184,14 +184,14 @@ bool objid_id_from_str(ObjectID* oid, const char* str)
 }
 
 // 0x4E67A0
-bool sub_4E67A0(TigGuid* guid, const char* str)
+bool objid_parse_guid_str(TigGuid* guid, const char* str)
 {
     int value;
 
     if (str[0] != 'G' || str[1] != '_') return false;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 8)) return false;
+    if (!parse_hex_str_len(&value, str, 8)) return false;
     guid->data[0] = (value >> 24) & 0xFF;
     guid->data[1] = (value >> 16) & 0xFF;
     guid->data[2] = (value >> 8) & 0xFF;
@@ -201,7 +201,7 @@ bool sub_4E67A0(TigGuid* guid, const char* str)
     if (str[0] != '_') return false;
     str++;
 
-    if (!sub_4E6AA0(&value, str, 4)) return false;
+    if (!parse_hex_str_len(&value, str, 4)) return false;
     guid->data[4] = (value >> 8) & 0xFF;
     guid->data[5] = value & 0xFF;
     str += 4;
@@ -209,7 +209,7 @@ bool sub_4E67A0(TigGuid* guid, const char* str)
     if (str[0] != '_') return false;
     str++;
 
-    if (!sub_4E6AA0(&value, str, 4)) return false;
+    if (!parse_hex_str_len(&value, str, 4)) return false;
     guid->data[6] = (value >> 8) & 0xFF;
     guid->data[7] = value & 0xFF;
     str += 4;
@@ -217,45 +217,45 @@ bool sub_4E67A0(TigGuid* guid, const char* str)
     if (str[0] != '_') return false;
     str++;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[8] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[9] = value;
     str += 2;
 
     if (str[0] != '_') return false;
     str++;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[10] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[11] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[12] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[13] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[14] = value;
     str += 2;
 
-    if (!sub_4E6AA0(&value, str, 2)) return false;
+    if (!parse_hex_str_len(&value, str, 2)) return false;
     guid->data[15] = value;
 
     return true;
 }
 
 // 0x4E6970
-bool sub_4E6970(ObjectID_P* p, const char* str)
+bool objid_parse_p_str(ObjectID_P* p, const char* str)
 {
     int x;
     int y;
@@ -267,30 +267,30 @@ bool sub_4E6970(ObjectID_P* p, const char* str)
     }
 
     str += 2;
-    if (!sub_4E6AA0(&x, str, 8)) {
+    if (!parse_hex_str_len(&x, str, 8)) {
         return false;
     }
 
     str += 8;
     if (str[0] != '_') return false;
-    if (!sub_4E6AA0(&y, str, 8)) return false;
+    if (!parse_hex_str_len(&y, str, 8)) return false;
     p->location = location_make(x, y);
 
     str += 8;
     if (str[0] != '_') return false;
-    if (!sub_4E6AA0(&temp_id, str, 8)) return false;
+    if (!parse_hex_str_len(&temp_id, str, 8)) return false;
     p->temp_id = temp_id;
 
     str += 8;
     if (str[0] != '_') return false;
-    if (!sub_4E6AA0(&map, str, 8)) return false;
+    if (!parse_hex_str_len(&map, str, 8)) return false;
     p->map = map;
 
     return true;
 }
 
 // 0x4E6A60
-bool sub_4E6A60(int* value_ptr, const char* str)
+bool objid_parse_a_str(int* value_ptr, const char* str)
 {
     int value;
 
@@ -298,7 +298,7 @@ bool sub_4E6A60(int* value_ptr, const char* str)
         return false;
     }
 
-    if (!sub_4E6AA0(&value, str + 2, 8)) {
+    if (!parse_hex_str_len(&value, str + 2, 8)) {
         return false;
     }
 
@@ -307,13 +307,13 @@ bool sub_4E6A60(int* value_ptr, const char* str)
 }
 
 // 0x4E6AA0
-bool sub_4E6AA0(int* value_ptr, const char* str, size_t length)
+bool parse_hex_str_len(int* value_ptr, const char* str, size_t length)
 {
     char temp[12];
     char* end;
     int value;
 
-    if (!sub_4E6B00(temp, str, length)) {
+    if (!validate_and_copy_hex_str_len(temp, str, length)) {
         return false;
     }
 
@@ -327,7 +327,7 @@ bool sub_4E6AA0(int* value_ptr, const char* str, size_t length)
 }
 
 // 0x4E6B00
-bool sub_4E6B00(char* dst, const char* src, size_t length)
+bool validate_and_copy_hex_str_len(char* dst, const char* src, size_t length)
 {
     size_t index;
 

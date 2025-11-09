@@ -74,7 +74,7 @@ bool fate_activate(int64_t obj, int fate)
 
         // Set up and send a network packet.
         pkt.type = 36;
-        sub_4440E0(obj, &(pkt.oid));
+        follower_info_init(obj, &(pkt.oid));
         pkt.fate = fate;
         pkt.action = FATE_STATE_ACTION_ACTIVATE;
         tig_net_send_app_all(&pkt, sizeof(pkt));
@@ -128,7 +128,7 @@ bool fate_deactivate(int64_t obj, int fate)
         PacketFateStateSet pkt;
 
         pkt.type = 36;
-        sub_4440E0(obj, &(pkt.oid));
+        follower_info_init(obj, &(pkt.oid));
         pkt.fate = fate;
         pkt.action = FATE_STATE_ACTION_DEACTIVATE;
         tig_net_send_app_all(&pkt, sizeof(pkt));

@@ -1708,7 +1708,7 @@ void field_metadata_grow_word_array(int metadata_index, int additional_word_coun
             sizeof(*next_segment_data) * words_to_move);
 
         // Update the recorded start offsets for all segments after this one.
-        field_metadata_adjust_offsets(metadata_index + 1,
+        AdjustFieldOffsets(metadata_index + 1,
             FieldMetaCount - 1,
             additional_word_count);
     }

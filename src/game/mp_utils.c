@@ -83,7 +83,7 @@ bool sub_4ED6C0(int64_t obj)
     }
 
     pkt.type = 29;
-    sub_4F0640(obj, &(pkt.oid));
+    obj_get_oid(obj, &(pkt.oid));
     tig_net_send_app_all(&pkt, sizeof(pkt));
 
     return false;
@@ -98,7 +98,7 @@ void mp_critter_fatigue_damage_set(int64_t obj, int damage)
 
     if (tig_net_is_active()) {
         pkt.type = 35;
-        sub_4F0640(obj, &(pkt.oid));
+        obj_get_oid(obj, &(pkt.oid));
         pkt.dam = damage;
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
@@ -125,10 +125,10 @@ bool sub_4ED780(int64_t obj, int quest, int state, int64_t a4)
     objid_id_to_str(v1, obj_get_id(a4));
 
     pkt.type = 39;
-    sub_4440E0(obj, &(pkt.field_8));
+    follower_info_init(obj, &(pkt.field_8));
     pkt.quest = quest;
     pkt.state = state;
-    sub_4440E0(a4, &(pkt.field_40));
+    follower_info_init(a4, &(pkt.field_40));
     tig_net_send_app_except(&pkt, sizeof(pkt), player);
 
     return true;
@@ -139,7 +139,7 @@ bool mp_object_create(int name, int64_t loc, int64_t* obj_ptr)
 {
     if (tig_net_is_active()) {
         if (tig_net_is_host()
-            && object_create(sub_4685A0(name), loc, obj_ptr)) {
+            && object_create(GetProtoHandleFromID(name), loc, obj_ptr)) {
             Packet70 pkt;
 
             pkt.type = 70;
@@ -156,7 +156,7 @@ bool mp_object_create(int name, int64_t loc, int64_t* obj_ptr)
         return false;
     }
 
-    return object_create(sub_4685A0(name), loc, obj_ptr);
+    return object_create(GetProtoHandleFromID(name), loc, obj_ptr);
 }
 
 // 0x4ED9E0
@@ -272,7 +272,7 @@ void mp_handle_ui_update_inven(PacketUpdateInven* pkt)
 }
 
 // 0x4EDDE0
-void sub_4EDDE0(int64_t obj)
+void player_xp_changed_notify(int64_t obj)
 {
     Packet95 pkt;
 
@@ -325,7 +325,7 @@ void mp_handle_item_arrange_inventory(PacketArrangeInventory* pkt)
 }
 
 // 0x4EDF20
-void sub_4EDF20(int64_t obj, int64_t location, int dx, int dy, bool a7)
+void item_drop_at_loc(int64_t obj, int64_t location, int dx, int dy, bool a7)
 {
     Packet99 pkt;
 
@@ -334,7 +334,7 @@ void sub_4EDF20(int64_t obj, int64_t location, int dx, int dy, bool a7)
         if (a7 && player_is_local_pc_obj(obj)) {
             location_origin_set(location);
         }
-        sub_43E770(obj, location, dx, dy);
+        object_move(obj, location, dx, dy);
     }
 
     if (tig_net_is_active()
@@ -356,7 +356,7 @@ void sub_4EDFF0(Packet99* pkt)
 
     if (tig_net_is_host()) {
         obj = objp_perm_lookup(pkt->oid);
-        sub_43E770(obj, pkt->location, pkt->dx, pkt->dy);
+        object_move(obj, pkt->location, pkt->dx, pkt->dy);
 
         if (pkt->field_30 && player_is_local_pc_obj(obj)) {
             location_origin_set(pkt->location);
@@ -378,8 +378,8 @@ void mp_item_activate(int64_t owner_obj, int64_t item_obj)
         && tig_net_is_host()) {
         pkt.type = 100;
         pkt.subtype = 5;
-        sub_4F0640(owner_obj, &(pkt.d.s.field_8));
-        sub_4F0640(item_obj, &(pkt.d.s.field_20));
+        obj_get_oid(owner_obj, &(pkt.d.s.field_8));
+        obj_get_oid(item_obj, &(pkt.d.s.field_20));
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 }
@@ -479,8 +479,8 @@ void mp_ui_show_inven_loot(int64_t pc_obj, int64_t target_obj)
 
             pkt.type = 100;
             pkt.subtype = 6;
-            sub_4F0640(pc_obj, &(pkt.d.s.field_8));
-            sub_4F0640(pc_obj, &(pkt.d.s.field_20));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_8));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_20));
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
 
@@ -504,8 +504,8 @@ void sub_4EE3A0(int64_t obj, int64_t a2)
         && tig_net_is_host()) {
         pkt.type = 100;
         pkt.subtype = 7;
-        sub_4F0640(obj, &(pkt.d.s.field_8));
-        sub_4F0640(obj, &(pkt.d.s.field_20));
+        obj_get_oid(obj, &(pkt.d.s.field_8));
+        obj_get_oid(obj, &(pkt.d.s.field_20));
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 }
@@ -519,8 +519,8 @@ void mp_ui_show_inven_identify(int64_t pc_obj, int64_t target_obj)
 
             pkt.type = 100;
             pkt.subtype = 8;
-            sub_4F0640(pc_obj, &(pkt.d.s.field_8));
-            sub_4F0640(pc_obj, &(pkt.d.s.field_20));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_8));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_20));
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
 
@@ -544,8 +544,8 @@ void sub_4EE4C0(int64_t obj, int64_t a2)
         && tig_net_is_host()) {
         pkt.type = 100;
         pkt.subtype = 10;
-        sub_4F0640(obj, &(pkt.d.s.field_8));
-        sub_4F0640(obj, &(pkt.d.s.field_20));
+        obj_get_oid(obj, &(pkt.d.s.field_8));
+        obj_get_oid(obj, &(pkt.d.s.field_20));
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 }
@@ -559,8 +559,8 @@ void mp_ui_show_inven_npc_identify(int64_t pc_obj, int64_t target_obj)
 
             pkt.type = 100;
             pkt.subtype = 9;
-            sub_4F0640(pc_obj, &(pkt.d.s.field_8));
-            sub_4F0640(pc_obj, &(pkt.d.s.field_20));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_8));
+            obj_get_oid(pc_obj, &(pkt.d.s.field_20));
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
 
@@ -1055,9 +1055,9 @@ void mp_item_use(int64_t source_obj, int64_t item_obj, int64_t target_obj)
     }
 
     pkt.type = 117;
-    sub_4F0640(source_obj, &(pkt.source_oid));
-    sub_4F0640(item_obj, &(pkt.item_oid));
-    sub_4F0640(target_obj, &(pkt.target_oid));
+    obj_get_oid(source_obj, &(pkt.source_oid));
+    obj_get_oid(item_obj, &(pkt.item_oid));
+    obj_get_oid(target_obj, &(pkt.target_oid));
     tig_net_send_app_all(&pkt, sizeof(pkt));
 }
 
@@ -1087,13 +1087,13 @@ void sub_4EF830(int64_t a1, int64_t a2)
 
     if (!tig_net_is_active()
         || tig_net_is_host()) {
-        sub_4445A0(a1, a2);
+        object_move_to_actor(a1, a2);
         return;
     }
 
     pkt.type = 118;
-    sub_4F0640(a1, &(pkt.field_8));
-    sub_4F0640(a2, &(pkt.field_20));
+    obj_get_oid(a1, &(pkt.field_8));
+    obj_get_oid(a2, &(pkt.field_20));
     tig_net_send_app_all(&pkt, sizeof(pkt));
 }
 
@@ -1106,7 +1106,7 @@ void sub_4EF8B0(Packet118* pkt)
     if (tig_net_is_host()) {
         sub_4F0690(pkt->field_8, &v1);
         sub_4F0690(pkt->field_20, &v2);
-        sub_4445A0(v1, v2);
+        object_move_to_actor(v1, v2);
     }
 }
 
@@ -1134,7 +1134,7 @@ bool mp_object_duplicate(int64_t obj, int64_t loc, int64_t* obj_ptr)
         FREE(oids);
 
         pkt->type = 119;
-        sub_4F0640(obj, &(pkt->oid));
+        obj_get_oid(obj, &(pkt->oid));
         pkt->loc = loc;
         tig_net_send_app_all(pkt, size);
         FREE(pkt); // FIX: Memory leak.
@@ -1171,7 +1171,7 @@ void mp_stop_anim_id(AnimID anim_id)
 // 0x4EFAB0
 void mp_handle_stop_anim_id(PacketStopAnimId* pkt)
 {
-    sub_44E2C0(&(pkt->anim_id), 6);
+    InterruptAnimation(&(pkt->anim_id), 6);
 
     if (tig_net_is_host()) {
         tig_net_send_app_all(pkt, sizeof(*pkt));
@@ -1179,7 +1179,7 @@ void mp_handle_stop_anim_id(PacketStopAnimId* pkt)
 }
 
 // 0x4EFAE0
-void sub_4EFAE0(int64_t obj, int a2)
+void SetInventorySpawnedFlag(int64_t obj, int a2)
 {
     Packet121 pkt;
 
@@ -1192,7 +1192,7 @@ void sub_4EFAE0(int64_t obj, int a2)
         && tig_net_is_host()) {
         if (!multiplayer_is_locked()) {
             pkt.type = 121;
-            sub_4F0640(obj, &(pkt.oid));
+            obj_get_oid(obj, &(pkt.oid));
             pkt.field_20 = a2;
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
@@ -1218,7 +1218,7 @@ void sub_4EFBA0(int64_t obj)
     if (tig_net_is_active()
         && !tig_net_is_host()) {
         pkt.type = 122;
-        sub_4F0640(obj, &(pkt.oid));
+        obj_get_oid(obj, &(pkt.oid));
         tig_net_send_app_all(&pkt, sizeof(pkt));
     }
 }
@@ -1358,7 +1358,7 @@ void mp_obj_field_obj_set(int64_t obj, int fld, int64_t value)
 }
 
 // 0x4F0070
-void sub_4F0070(int64_t obj, int fld, int index, int64_t value)
+void obj_arrayfield_handle_set(int64_t obj, int fld, int index, int64_t value)
 {
     Packet129 pkt;
 
@@ -1394,7 +1394,7 @@ void mp_obj_arrayfield_int32_set(int64_t obj, int fld, int index, int value)
         && tig_net_is_host()) {
         pkt.type = 129;
         pkt.subtype = 8;
-        sub_4F0640(obj, &(pkt.oid));
+        obj_get_oid(obj, &(pkt.oid));
         pkt.fld = fld;
         pkt.d.f.field_28 = index;
         pkt.d.f.field_2C = value;
@@ -1431,7 +1431,7 @@ void mp_obj_arrayfield_uint32_set(int64_t obj, int fld, int index, int value)
         && tig_net_is_host()) {
         pkt.type = 129;
         pkt.subtype = P129_SUBTYPE_INT32_ARRAY;
-        sub_4F0640(obj, &(pkt.oid));
+        obj_get_oid(obj, &(pkt.oid));
         pkt.fld = fld;
         pkt.int32_array_val.idx = index;
         pkt.int32_array_val.value = value;
@@ -1465,7 +1465,7 @@ void mp_object_overlay_set(int64_t obj, int fld, int index, tig_art_id_t aid)
     if (tig_net_is_active()) {
         pkt.type = 129;
         pkt.subtype = 12;
-        sub_4F0640(obj, &(pkt.oid));
+        obj_get_oid(obj, &(pkt.oid));
         pkt.d.i.field_28 = fld;
         pkt.d.i.field_2C = index;
         pkt.d.i.field_30 = aid;
@@ -1489,7 +1489,7 @@ void mp_item_flags_set(int64_t obj, unsigned int flags_to_add)
         } else {
             pkt.type = 129;
             pkt.subtype = 13;
-            sub_4F0640(obj, &(pkt.oid));
+            obj_get_oid(obj, &(pkt.oid));
             pkt.d.j.flags = flags_to_add;
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
@@ -1512,7 +1512,7 @@ void mp_item_flags_unset(int64_t obj, unsigned int flags_to_remove)
         } else {
             pkt.type = 129;
             pkt.subtype = 14;
-            sub_4F0640(obj, &(pkt.oid));
+            obj_get_oid(obj, &(pkt.oid));
             pkt.d.j.flags = flags_to_remove;
             tig_net_send_app_all(&pkt, sizeof(pkt));
         }
@@ -1536,7 +1536,7 @@ void sub_4F0500(int64_t obj, int fld)
 }
 
 // 0x4F0570
-void sub_4F0570(int64_t obj, int fld, int length)
+void obj_arrayfield_set_length(int64_t obj, int fld, int length)
 {
     Packet130 pkt;
 
@@ -1559,7 +1559,7 @@ void sub_4F05F0()
 }
 
 // 0x4F0640
-void sub_4F0640(int64_t obj, ObjectID* oid_ptr)
+void obj_get_oid(int64_t obj, ObjectID* oid_ptr)
 {
     if (obj != OBJ_HANDLE_NULL) {
         *oid_ptr = obj_get_id(obj);

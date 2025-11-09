@@ -271,7 +271,7 @@ static TigGuid gamelib_mod_guid;
 static int gamelib_thumbnail_width;
 
 // 0x5D10C4
-static bool dword_5D10C4;
+static bool g_module_guid_is_set;
 
 // 0x5D10D4
 static GameExtraSaveFunc* gamelib_extra_save_func;
@@ -286,10 +286,10 @@ static bool gamelib_savelist_sort_check_autosave;
 static bool in_save;
 
 // 0x5D10E4
-static bool in_load;
+static bool g_is_loading_game;
 
 // 0x5D10E8
-static bool in_reset;
+static bool g_is_in_reset;
 
 // 0x5D10EC
 static int gamelib_cheat_level;
@@ -406,7 +406,7 @@ void gamelib_reset()
     tig_debug_printf("gamelib_reset: Resetting.\n");
     tig_timer_now(&reset_started_at);
 
-    in_reset = true;
+    g_is_in_reset = true;
     strcpy(gamelib_current_module_name, "Arcanum");
     sector_art_cache_disable();
 
@@ -443,7 +443,7 @@ void gamelib_reset()
     }
 
     sector_art_cache_enable();
-    in_reset = false;
+    g_is_in_reset = false;
 
     duration = tig_timer_elapsed(reset_started_at);
     tig_debug_printf("gamelib_reset(): Done.  Total time: %d ms.\n", duration);
@@ -671,7 +671,7 @@ bool gamelib_mod_load(const char* path)
         tig_file_repository_guid(byte_5D0FA8, &gamelib_mod_guid);
     }
 
-    dword_5D10C4 = true;
+    g_module_guid_is_set = true;
 
     if (tig_file_is_directory("Save\\Current")) {
         if (!tig_file_is_empty_directory("Save\\Current")) {
@@ -730,7 +730,7 @@ bool gamelib_mod_load(const char* path)
 // 0x402C20
 bool gamelib_mod_guid_get(TigGuid* guid_ptr)
 {
-    if (!dword_5D10C4) {
+    if (!g_module_guid_is_set) {
         return false;
     }
 
@@ -757,7 +757,7 @@ void gamelib_mod_unload()
 // 0x402CA0
 bool gamelib_in_reset()
 {
-    return in_reset;
+    return g_is_in_reset;
 }
 
 // 0x402CB0
@@ -848,9 +848,9 @@ bool gamelib_draw()
 
     in_draw = true;
 
-    if (sub_4B9130(&gamelib_iso_content_rect_ex, &loc_rect)) {
+    if (ScreenRectToLocationRect(&gamelib_iso_content_rect_ex, &loc_rect)) {
         if (gamelib_view_options.type == VIEW_TYPE_ISOMETRIC) {
-            sub_4D0090(&loc_rect, &v2);
+            GetSectorDataForLocationRect(&loc_rect, &v2);
         }
 
         sectors = sector_list_create(&loc_rect);
@@ -1074,13 +1074,13 @@ bool gamelib_load(const char* name)
     tig_debug_printf("\ngamelib_load: Loading from File: %s.\n", name);
     tig_timer_now(&start_time);
 
-    in_load = true;
+    g_is_loading_game = true;
 
     ui_progressbar_init(MODULE_COUNT + 2);
 
     if (!tig_file_is_directory("Save\\Current")) {
         tig_debug_printf("gamelib_load(): Error finding folder %s\n", "Save\\Current");
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
 
@@ -1090,7 +1090,7 @@ bool gamelib_load(const char* name)
     tig_timer_now(&time);
     if (!tig_file_empty_directory("Save\\Current")) {
         tig_debug_printf("gamelib_load(): Error clearing folder %s\n", "Save\\Current");
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
     duration = tig_timer_elapsed(time);
@@ -1100,7 +1100,7 @@ bool gamelib_load(const char* name)
     tig_timer_now(&time);
     if (!tig_file_unarchive(path, "Save\\Current")) {
         tig_debug_printf("gamelib_load(): error restoring archive %s to save\\test\n", path);
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
     duration = tig_timer_elapsed(time);
@@ -1109,13 +1109,13 @@ bool gamelib_load(const char* name)
     stream = tig_file_fopen("Save\\Current\\data.sav", "rb");
     if (stream == NULL) {
         tig_debug_printf("gamelib_load(): Error reading data.sav\n");
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
 
     if (tig_file_fread(&(load_info.version), sizeof(load_info.version), 1, stream) != 1) {
         tig_debug_printf("gamelib_load(): Error reading version\n");
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
 
@@ -1161,7 +1161,7 @@ bool gamelib_load(const char* name)
     tig_file_fclose(stream);
 
     if (index < MODULE_COUNT) {
-        in_load = false;
+        g_is_loading_game = false;
         return false;
     }
 
@@ -1169,7 +1169,7 @@ bool gamelib_load(const char* name)
         tig_debug_printf("gamelib_load: Begin gamelib_extra_load_func()...");
         tig_timer_now(&time);
         if (!gamelib_extra_load_func()) {
-            in_load = false;
+            g_is_loading_game = false;
             return false;
         }
         duration = tig_timer_elapsed(time);
@@ -1178,7 +1178,7 @@ bool gamelib_load(const char* name)
 
     ui_progressbar_update(MODULE_COUNT + 2);
 
-    in_load = false;
+    g_is_loading_game = false;
 
     duration = tig_timer_elapsed(start_time);
     tig_debug_printf("gamelib_load: Load Complete.  Total time: %d ms.\n", duration);
@@ -1242,7 +1242,7 @@ bool gamelib_in_save()
 // 0x4038D0
 bool gamelib_in_load()
 {
-    return in_load;
+    return g_is_loading_game;
 }
 
 // 0x4038E0
@@ -1475,7 +1475,7 @@ bool gamelib_saveinfo_init(const char* name, const char* description, GameSaveIn
     save_info->pc_location = obj_field_int64_get(pc_obj, OBJ_F_LOCATION);
     save_info->story_state = script_story_state_get();
     strcpy(save_info->description, description);
-    save_info->datetime = sub_45A7C0();
+    save_info->datetime = datetime_get_current();
 
     return true;
 }
@@ -1692,7 +1692,7 @@ void gamelib_draw_game(GameDrawInfo* draw_info)
     if (tig_video_3d_begin_scene() == TIG_OK) {
         light_draw(draw_info);
         tile_draw(draw_info);
-        sub_43C690(draw_info);
+        object_draw_hover_overlay(draw_info);
         object_draw(draw_info);
         roof_draw(draw_info);
         tb_draw(draw_info);
@@ -1911,5 +1911,5 @@ void sub_405070()
 
     memset(&gamelib_mod_guid, 0, sizeof(gamelib_mod_guid));
 
-    dword_5D10C4 = false;
+    g_module_guid_is_set = false;
 }

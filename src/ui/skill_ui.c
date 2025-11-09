@@ -172,7 +172,7 @@ void sub_579FA0(int64_t obj, int type)
         || intgame_mode_set(INTGAME_MODE_MAIN)) {
         if (!multiplayer_is_locked()) {
             pkt.type = 30;
-            sub_4440E0(pc_obj, &(pkt.field_8));
+            follower_info_init(pc_obj, &(pkt.field_8));
             pkt.field_38 = type;
             tig_net_send_app_all(&pkt, sizeof(pkt));
             if (!tig_net_is_host()) {
@@ -243,7 +243,7 @@ void sub_57A1F0(S4F2810* a1)
 
     if (!multiplayer_is_locked()) {
         pkt.type = 31;
-        sub_4440E0(qword_683490, &(pkt.field_8));
+        follower_info_init(qword_683490, &(pkt.field_8));
         pkt.field_38 = dword_5CB270;
         pkt.field_40 = *a1;
         if (!a1->is_loc) {
@@ -296,7 +296,7 @@ void skill_ui_activate(S4F2810* a1, int64_t obj, int a3)
                 } else if (critter_is_dead(a1->obj)) {
                     if (object_script_execute(obj, a1->obj, obj, SAP_USE, 0)
                         && (spell_flags & OSF_POLYMORPHED) == 0
-                        && !sub_423300(a1->obj, 0)) {
+                        && !anim_get_current_id(a1->obj, 0)) {
                         ui_show_inven_loot(obj, a1->obj);
                     }
                 } else {
@@ -308,9 +308,9 @@ void skill_ui_activate(S4F2810* a1, int64_t obj, int a3)
     case SKILL_REPAIR:
         if (!a1->is_loc) {
             skill_invocation_init(&skill_invocation);
-            sub_4440E0(obj, &(skill_invocation.source));
-            sub_4440E0(a1->obj, &(skill_invocation.target));
-            sub_4440E0(OBJ_HANDLE_NULL, &(skill_invocation.item));
+            follower_info_init(obj, &(skill_invocation.source));
+            follower_info_init(a1->obj, &(skill_invocation.target));
+            follower_info_init(OBJ_HANDLE_NULL, &(skill_invocation.item));
             skill_invocation.flags = 0;
             skill_invocation.skill = SKILL_REPAIR;
             sub_57A6B0(&skill_invocation);
@@ -319,9 +319,9 @@ void skill_ui_activate(S4F2810* a1, int64_t obj, int a3)
     case SKILL_DISARM_TRAPS:
         if (!a1->is_loc && combat_consume_action_points(obj, 4)) {
             skill_invocation_init(&skill_invocation);
-            sub_4440E0(obj, &(skill_invocation.source));
-            sub_4440E0(a1->obj, &(skill_invocation.target));
-            sub_4440E0(OBJ_HANDLE_NULL, &(skill_invocation.item));
+            follower_info_init(obj, &(skill_invocation.source));
+            follower_info_init(a1->obj, &(skill_invocation.target));
+            follower_info_init(OBJ_HANDLE_NULL, &(skill_invocation.item));
             skill_invocation.flags = SKILL_INVOCATION_0x04;
             skill_invocation.skill = SKILL_DISARM_TRAPS;
             sub_57A620(&skill_invocation);

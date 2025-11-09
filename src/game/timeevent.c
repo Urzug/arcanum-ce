@@ -72,7 +72,7 @@ static bool timeevent_recover_handles(TimeEventNode* timeevent);
 static bool timeevent_recover_handles_internal(TimeEventNode* node, bool force);
 static void sub_45B750();
 static bool sub_45B7A0(TimeEventNode* node);
-static bool sub_45BAF0(TimeEvent* timeevent);
+static bool TimeEventAdd(TimeEvent* timeevent);
 static bool sub_45BB40(TimeEventNode* node);
 static void timeevent_save_nodes_to_map(const char* name);
 static int sub_45C500(TimeEventNode* node);
@@ -199,10 +199,10 @@ static tig_timestamp_t dword_5E8624;
 static int dword_5E8628;
 
 // 0x5DE6E0
-static bool dword_5DE6E0;
+static bool g_anim_disable_fidgets;
 
 // 0x45A7C0
-DateTime sub_45A7C0()
+DateTime datetime_get_current()
 {
     return timeevent_game_time;
 }
@@ -219,14 +219,14 @@ DateTime sub_45A7D0(DateTime* other)
 }
 
 // 0x45A7F0
-int sub_45A7F0()
+int GetCurrentGameTimeMs()
 {
     // NOTE: Uninline.
     return datetime_seconds_since_reference_date(&timeevent_game_time);
 }
 
 // 0x45A820
-int sub_45A820(unsigned int milliseconds)
+int time_get_elapsed_seconds(unsigned int milliseconds)
 {
     return datetime_seconds_since_reference_date(&timeevent_game_time) - milliseconds;
 }
@@ -280,7 +280,7 @@ int datetime_get_year(DateTime* datetime)
 }
 
 // 0x45A950
-void sub_45A950(DateTime* datetime, unsigned int milliseconds)
+void DateTimeAddMilliseconds(DateTime* datetime, unsigned int milliseconds)
 {
     datetime->days = 0;
     if (milliseconds != 0) {
@@ -305,7 +305,7 @@ bool sub_45A9B0(DateTime* datetime, unsigned int milliseconds)
 {
     DateTime other;
 
-    sub_45A950(&other, milliseconds);
+    DateTimeAddMilliseconds(&other, milliseconds);
     return datetime_compare(datetime, &other) >= 0;
 }
 
@@ -484,8 +484,8 @@ void datetime_set_start_hour(int hour)
 {
     if (hour >= 0) {
         datetime_start_time_in_milliseconds = 3600000 * hour;
-        sub_45A950(&timeevent_game_time, datetime_start_time_in_milliseconds);
-        sub_45A950(&timeevent_anim_time, datetime_start_time_in_milliseconds);
+        DateTimeAddMilliseconds(&timeevent_game_time, datetime_start_time_in_milliseconds);
+        DateTimeAddMilliseconds(&timeevent_anim_time, datetime_start_time_in_milliseconds);
     }
 }
 
@@ -517,13 +517,13 @@ bool timeevent_init(GameInitInfo* init_info)
         timeevent_new_lists[TIME_TYPE_GAME_TIME] = NULL;
         timeevent_new_lists[TIME_TYPE_ANIMATIONS] = NULL;
 
-        sub_45A950(&timeevent_real_time, 0);
-        sub_45A950(&timeevent_game_time, datetime_start_time_in_milliseconds);
-        sub_45A950(&timeevent_anim_time, datetime_start_time_in_milliseconds);
+        DateTimeAddMilliseconds(&timeevent_real_time, 0);
+        DateTimeAddMilliseconds(&timeevent_game_time, datetime_start_time_in_milliseconds);
+        DateTimeAddMilliseconds(&timeevent_anim_time, datetime_start_time_in_milliseconds);
 
         tig_timer_now(&dword_5E8610);
 
-        sub_45B340();
+        TimeEventResume();
 
         timeevent_initialized = true;
     }
@@ -553,9 +553,9 @@ bool timeevent_set_funcs(TimeEventFuncs* funcs)
 void timeevent_reset()
 {
     timeevent_clear();
-    sub_45A950(&timeevent_real_time, 0);
-    sub_45A950(&timeevent_game_time, datetime_start_time_in_milliseconds);
-    sub_45A950(&timeevent_anim_time, datetime_start_time_in_milliseconds);
+    DateTimeAddMilliseconds(&timeevent_real_time, 0);
+    DateTimeAddMilliseconds(&timeevent_game_time, datetime_start_time_in_milliseconds);
+    DateTimeAddMilliseconds(&timeevent_anim_time, datetime_start_time_in_milliseconds);
     tig_timer_now(&dword_5E8610);
 }
 
@@ -709,7 +709,7 @@ bool timeevent_load(GameLoadInfo* load_info)
                 return false;
             }
 
-            if (!sub_45BAF0(&timeevent)) {
+            if (!TimeEventAdd(&timeevent)) {
                 return false;
             }
         }
@@ -761,7 +761,7 @@ bool timeevent_load_node(TimeEvent* timeevent, TigFile* stream)
 }
 
 // 0x45B300
-bool sub_45B300()
+bool TimeEventIsProcessingAllowed()
 {
     if (dword_5E8618 == 0) {
         return sub_52A900();
@@ -771,30 +771,30 @@ bool sub_45B300()
 }
 
 // 0x45B320
-void sub_45B320()
+void TimeEventPause()
 {
     if (dword_5E8618 < 30) {
         dword_5E8618++;
-        dword_5DE6E0 = true;
+        g_anim_disable_fidgets = true;
     }
 }
 
 // 0x45B340
-void sub_45B340()
+void TimeEventResume()
 {
     if (dword_5E8618 > 0) {
         dword_5E8618--;
         if (dword_5E8618 == 0) {
-            dword_5DE6E0 = false;
+            g_anim_disable_fidgets = false;
         }
     }
 }
 
 // 0x45B360
-void sub_45B360()
+void TimeEventResetPause()
 {
     dword_5E8618 = 0;
-    dword_5DE6E0 = false;
+    g_anim_disable_fidgets = false;
 }
 
 // 0x45B370
@@ -824,15 +824,15 @@ void timeevent_ping(tig_timestamp_t timestamp)
 
     if (tig_net_is_active()
         && !tig_net_is_host()) {
-        if (!sub_45B300()) {
-            if (dword_5E8628 < 1000 * (sub_4A38A0() + 16)) {
+        if (!TimeEventIsProcessingAllowed()) {
+            if (dword_5E8628 < 1000 * (multiplayer_get_join_request_count() + 16)) {
                 datetime_add_milliseconds(&timeevent_game_time, 8 * delta);
                 datetime_add_milliseconds(&timeevent_anim_time, 8 * delta);
                 dword_5E8628 += 8 * delta;
             }
         }
     } else {
-        if (!sub_45B300()) {
+        if (!TimeEventIsProcessingAllowed()) {
             if (!combat_turn_based_is_active()) {
                 datetime_add_milliseconds(&timeevent_game_time, 8 * delta);
             }
@@ -945,7 +945,7 @@ bool timeevent_recover_handles_internal(TimeEventNode* node, bool force)
 
                 if (obj == OBJ_HANDLE_NULL
                     || !obj_handle_is_valid(obj)) {
-                    if (!sub_443F80(&obj, &(node->field_30[index]))) {
+                    if (!object_save_ref_find(&obj, &(node->field_30[index]))) {
                         node->te.params[index].object_value = OBJ_HANDLE_NULL;
                         tig_debug_printf("TimeEvent: ERROR: Object validate recovery FAILED: TE-Type: %s!\n", info->name);
                         return false;
@@ -1021,7 +1021,7 @@ bool timeevent_add_immediate(TimeEvent* timeevent)
 
     dword_5E8620 = true;
 
-    sub_45A950(&datetime, 0);
+    DateTimeAddMilliseconds(&datetime, 0);
     rc = timeevent_add_delay(timeevent, &datetime);
 
     dword_5E8620 = false;
@@ -1095,7 +1095,7 @@ bool timeevent_add_base_at_func(TimeEvent* timeevent, DateTime* base, DateTime* 
 
     for (index = 0; index < TIMEEVENT_PARAM_COUNT; index++) {
         if ((dword_5B2794[index][TIMEEVENT_PARAM_TYPE_OBJECT] & stru_5B2188[timeevent->type].flags) != 0) {
-            sub_443EB0(timeevent->params[index].object_value, &(node->field_30[index]));
+            object_save_ref_init(timeevent->params[index].object_value, &(node->field_30[index]));
         } else {
             node->field_30[index].objid.type = OID_TYPE_NULL;
         }
@@ -1151,7 +1151,7 @@ bool timeevent_add_delay_base_at(TimeEvent* timeevent, DateTime* delay, DateTime
 }
 
 // 0x45BAF0
-bool sub_45BAF0(TimeEvent* timeevent)
+bool TimeEventAdd(TimeEvent* timeevent)
 {
     TimeEventNode* node;
 
@@ -1203,7 +1203,7 @@ bool sub_45BB40(TimeEventNode* node)
 
     for (index = 0; index < TIMEEVENT_PARAM_COUNT; index++) {
         if ((dword_5B2794[index][TIMEEVENT_PARAM_TYPE_OBJECT] & stru_5B2188[node->te.type].flags) != 0) {
-            sub_443EB0(node->te.params[index].object_value, &(node->field_30[index]));
+            object_save_ref_init(node->te.params[index].object_value, &(node->field_30[index]));
         } else {
             node->field_30[index].objid.type = OID_TYPE_NULL;
         }
@@ -1460,7 +1460,7 @@ bool timeevent_clear_one_ex(int list, TimeEventEnumerateFunc* callback)
 }
 
 // 0x45C0E0
-bool sub_45C0E0(int list)
+bool timeevent_is_queued(int list)
 {
     TimeEventNode* node;
 
@@ -1524,7 +1524,7 @@ bool timeevent_inc_milliseconds(unsigned int milliseconds)
 {
     DateTime datetime;
 
-    sub_45A950(&datetime, milliseconds);
+    DateTimeAddMilliseconds(&datetime, milliseconds);
     // NOTE: Uninline.
     return timeevent_inc_datetime(&datetime);
 }
@@ -1738,7 +1738,7 @@ void timeevent_load_nodes_from_map(const char* name)
             break;
         }
 
-        if (!sub_45BAF0(&timeevent)) {
+        if (!TimeEventAdd(&timeevent)) {
             break;
         }
     }

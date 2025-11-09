@@ -441,7 +441,7 @@ bool follower_ui_message_filter(TigMessage* msg)
             for (index = 0; index < FOLLOWER_UI_SLOTS; index++) {
                 if (msg->data.button.button_handle == follower_ui_buttons[index]) {
                     follower_ui_commander_obj = player_get_local_pc_obj();
-                    sub_444130(&follower_ui_followers[follower_ui_top_index + index]);
+                    follower_info_validate(&follower_ui_followers[follower_ui_top_index + index]);
                     follower_ui_subordinate_obj = follower_ui_followers[follower_ui_top_index + index].obj;
                     if (follower_ui_subordinate_obj != OBJ_HANDLE_NULL) {
                         sub_57CD60(follower_ui_commander_obj, follower_ui_subordinate_obj, str);
@@ -487,7 +487,7 @@ bool follower_ui_message_filter(TigMessage* msg)
 
             for (index = 0; index < FOLLOWER_UI_BUTTON_COUNT; index++) {
                 if (msg->data.button.button_handle == follower_ui_buttons[index]) {
-                    sub_444130(&follower_ui_followers[follower_ui_top_index + index]);
+                    follower_info_validate(&follower_ui_followers[follower_ui_top_index + index]);
                     sub_4F2810(&v1, follower_ui_followers[follower_ui_top_index + index].obj);
                     sub_54EA80(&v1);
                     return true;
@@ -532,7 +532,7 @@ void follower_ui_drop_down_menu_create(int index)
 
     follower_ui_commander_obj = player_get_local_pc_obj();
 
-    sub_444130(&(follower_ui_followers[follower_ui_top_index + index]));
+    follower_info_validate(&(follower_ui_followers[follower_ui_top_index + index]));
     follower_ui_subordinate_obj = follower_ui_followers[follower_ui_top_index + index].obj;
 
     window_data.flags = 0;
@@ -657,7 +657,7 @@ void follower_ui_update()
             break;
         }
 
-        sub_444130(&(follower_ui_followers[follower_ui_top_index + index]));
+        follower_info_validate(&(follower_ui_followers[follower_ui_top_index + index]));
 
         follower_obj = follower_ui_followers[follower_ui_top_index + index].obj;
         if (follower_obj == OBJ_HANDLE_NULL) {
@@ -809,7 +809,7 @@ void follower_ui_refresh()
     index = 0;
     node = followers.head;
     while (node != NULL) {
-        sub_4440E0(node->obj, &(follower_ui_followers[index++]));
+        follower_info_init(node->obj, &(follower_ui_followers[index++]));
         node = node->next;
     }
     follower_ui_followers_count = index;

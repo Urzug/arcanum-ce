@@ -95,7 +95,7 @@ bool spell_ui_load(GameLoadInfo* load_info)
         if (tig_file_fread(&(stru_5CB3A8[index].field_4), sizeof(stru_5CB3A8[index].field_4), 1, load_info->stream) != 1) return false;
 
         if (stru_5CB3A8[index].field_4) {
-            intgame_spell_maintain_art_set(index, sub_458AE0(stru_5CB3A8[index].mt_id));
+            intgame_spell_maintain_art_set(index, magictech_get_spell_icon_art(stru_5CB3A8[index].mt_id));
         }
     }
 
@@ -113,7 +113,7 @@ void spell_ui_error_target_not_damaged()
 
     ui_message.type = UI_MSG_TYPE_FEEDBACK;
     ui_message.str = mes_file_entry.str;
-    sub_460630(&ui_message);
+    ui_message_post(&ui_message);
 }
 
 // 0x57BC70
@@ -170,7 +170,7 @@ SpellUiActivate spell_ui_activate(int64_t obj, int spl)
     dword_5CB3A0 = spl;
     qword_6834F8 = obj;
 
-    sub_459F20(spl, &tgt_ptr);
+    magictech_get_begin_aoe_flags_ptr(spl, &tgt_ptr);
     tgt = *tgt_ptr;
 
     if (magictech_is_aggressive(dword_5CB3A0)
@@ -265,7 +265,7 @@ void sub_57C040(int64_t obj, int index)
     int spl;
 
     spl = mt_item_spell(obj, index);
-    if (!sub_45A030(spl) && spl != -1) {
+    if (!magictech_has_item_triggers(spl) && spl != -1) {
         spell_ui_activate(obj, spl);
     }
 }
@@ -273,7 +273,7 @@ void sub_57C040(int64_t obj, int index)
 // 0x57C080
 void sub_57C080(int64_t obj, int spl)
 {
-    if (!sub_45A030(spl) && spl != -1) {
+    if (!magictech_has_item_triggers(spl) && spl != -1) {
         spell_ui_activate(obj, spl);
     }
 }
@@ -327,7 +327,7 @@ void spell_ui_apply(S4F2810* a1)
     if (a1->is_loc) {
         mt_invocation.target_loc = a1->loc;
     } else {
-        sub_4440E0(a1->obj, &(mt_invocation.target_obj));
+        follower_info_init(a1->obj, &(mt_invocation.target_obj));
     }
 
     if (!magictech_check_los(&mt_invocation)) {
@@ -336,7 +336,7 @@ void spell_ui_apply(S4F2810* a1)
 
         ui_message.type = UI_MSG_TYPE_FEEDBACK;
         ui_message.str = mes_file_entry.str;
-        sub_460630(&ui_message);
+        ui_message_post(&ui_message);
         return;
     }
 
@@ -351,7 +351,7 @@ bool spell_ui_maintain_add(int mt_id)
     int cnt;
     int index;
 
-    if (!sub_459FF0(mt_id)) {
+    if (!magictech_is_run_info_id_valid(mt_id)) {
         return false;
     }
 
@@ -374,7 +374,7 @@ bool spell_ui_maintain_add(int mt_id)
 
     stru_5CB3A8[candidate].mt_id = mt_id;
     stru_5CB3A8[candidate].field_4 = 1;
-    intgame_spell_maintain_art_set(candidate, sub_458AE0(mt_id));
+    intgame_spell_maintain_art_set(candidate, magictech_get_spell_icon_art(mt_id));
 
     return true;
 }

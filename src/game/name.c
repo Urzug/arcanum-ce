@@ -8,7 +8,7 @@
 static void name_missing_art_init();
 static bool name_missing_art_load();
 static bool name_missing_art_save();
-static int sub_41D390();
+static int GetMissingArtCount();
 static void fix_missing_art(int num, int cnt, unsigned int* missing, int* anim_ptr, int* weapon_ptr);
 static tig_art_id_t sub_41DFC0(int type, int* extra);
 static tig_art_id_t sub_41E200(tig_art_id_t art_id);
@@ -522,7 +522,7 @@ bool name_missing_art_load()
         return false;
     }
 
-    expected_cnt = sub_41D390();
+    expected_cnt = GetMissingArtCount();
 
     if (tig_file_fread(&actual_cnt, sizeof(actual_cnt), 1, stream) != 1) {
         tig_file_fclose(stream);
@@ -560,7 +560,7 @@ bool name_missing_art_save()
     int cnt;
     TigFile* stream;
 
-    cnt = sub_41D390();
+    cnt = GetMissingArtCount();
     tig_file_mkdir(off_5A1064);
 
     stream = tig_file_fopen(off_5A1068, "wb");
@@ -594,7 +594,7 @@ bool name_missing_art_save()
 }
 
 // 0x41D390
-int sub_41D390()
+int GetMissingArtCount()
 {
     int cnt = 0;
     TigFileList dir_list;
@@ -724,9 +724,9 @@ tig_art_id_t name_normalize_aid(tig_art_id_t aid)
         break;
     case TIG_ART_TYPE_LIGHT:
         aid = tig_art_id_frame_set(aid, 0);
-        if (sub_504790(aid)) {
-            int v1 = sub_504700(aid);
-            aid = sub_504730(aid, v1 - v1 % 8);
+        if (tig_art_light_id_get_rotation_mode_flag(aid)) {
+            int v1 = tig_art_light_id_rotation_get(aid);
+            aid = tig_art_light_id_rotation_set(aid, v1 - v1 % 8);
         } else {
             aid = tig_art_id_rotation_set(aid, 0);
         }
@@ -1128,7 +1128,7 @@ tig_art_id_t sub_41DFC0(int type, int* extra)
     }
 
     if (aid != TIG_ART_ID_INVALID) {
-        if (tig_art_exists(aid) != TIG_OK || sub_502E00(aid) != TIG_OK) {
+        if (tig_art_exists(aid) != TIG_OK || tig_art_palette_exists(aid) != TIG_OK) {
             aid = sub_41E200(aid);
         }
     }
@@ -1402,7 +1402,7 @@ tig_art_id_t sub_41E200(tig_art_id_t art_id)
         }
 
         if (tig_art_exists(art_id) == TIG_OK
-            && sub_502E00(art_id) == TIG_OK) {
+            && tig_art_palette_exists(art_id) == TIG_OK) {
             return art_id;
         }
 

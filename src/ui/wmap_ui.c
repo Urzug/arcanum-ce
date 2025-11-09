@@ -1195,7 +1195,7 @@ void wmap_ui_open_internal()
 
     if (!wmap_load_worldmap_info()) {
         if (wmap_ui_selecting) {
-            sub_452650(pc_obj);
+            magictech_component_movement_teleport_to_area(pc_obj);
             return;
         }
 
@@ -1228,14 +1228,14 @@ void wmap_ui_open_internal()
         return;
     }
 
-    sub_424070(player_get_local_pc_obj(), 4, false, true);
+    anim_set_priority_level(player_get_local_pc_obj(), 4, false, true);
 
     if (!wmap_ui_create()) {
         wmap_ui_close();
         intgame_mode_set(INTGAME_MODE_MAIN);
 
         if (wmap_ui_selecting) {
-            sub_452650(pc_obj);
+            magictech_component_movement_teleport_to_area(pc_obj);
             return;
         }
 
@@ -1416,7 +1416,7 @@ void wmap_ui_close()
     if (pc_obj != OBJ_HANDLE_NULL
         && (obj_field_int32_get(pc_obj, OBJ_F_FLAGS) & OF_OFF) != 0) {
         critter_toggle_on_off(pc_obj);
-        sub_4AA580(pc_obj);
+        ui_update_combat_hotkeys(pc_obj);
     }
 
     if (intgame_mode_set(INTGAME_MODE_MAIN) && wmap_ui_created) {
@@ -1715,7 +1715,7 @@ bool wmap_ui_state_set(WmapUiState state)
             if (pc_obj != OBJ_HANDLE_NULL
                 && (obj_field_int32_get(pc_obj, OBJ_F_FLAGS) & OF_OFF) != 0) {
                 critter_toggle_on_off(pc_obj);
-                sub_4AA580(pc_obj);
+                ui_update_combat_hotkeys(pc_obj);
             }
             timeevent_clear_all_typed(TIMEEVENT_TYPE_WORLDMAP);
             wmap_ui_state = state;
@@ -1856,7 +1856,7 @@ bool wmap_ui_message_filter(TigMessage* msg)
                     int64_t pc_obj = player_get_local_pc_obj();
                     if (antiteleport_check(pc_obj, loc)) {
                         if (player_is_local_pc_obj(wmap_ui_obj)) {
-                            sub_4507B0(wmap_ui_obj, wmap_ui_spell);
+                            magictech_charge_spell(wmap_ui_obj, wmap_ui_spell);
                         }
 
                         if (area_get_last_known_area(pc_obj) == area) {
@@ -2166,7 +2166,7 @@ bool wmap_ui_message_filter(TigMessage* msg)
                                 DateTime datetime;
 
                                 timeevent.type = TIMEEVENT_TYPE_WORLDMAP;
-                                sub_45A950(&datetime, 50);
+                                DateTimeAddMilliseconds(&datetime, 50);
                                 timeevent_add_delay(&timeevent, &datetime);
 
                                 return true;
@@ -2174,17 +2174,17 @@ bool wmap_ui_message_filter(TigMessage* msg)
                         }
                     } else {
                         if (wmap_ui_mode == WMAP_UI_MODE_TOWN && wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].length > 0) {
-                            sub_433640(player_get_local_pc_obj(),
+                            anim_is_obj_convinced_to_move(player_get_local_pc_obj(),
                                 wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].waypoints[0].loc);
 
                             for (int idx = 1; idx < wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].length; idx++) {
-                                sub_433A00(player_get_local_pc_obj(),
+                                anim_goal_move_to(player_get_local_pc_obj(),
                                     wmap_ui_routes[WMAP_ROUTE_TYPE_TOWN].waypoints[idx].loc,
                                     tig_net_is_active()
                                         && !tig_net_is_host());
                             }
 
-                            sub_436D20(0x80000, 0);
+                            anim_set_flags(0x80000, 0);
                             wmap_ui_close();
                         }
                     }
@@ -3602,7 +3602,7 @@ bool sub_5643E0(WmapCoords* coords)
 
         townmap_coords_to_loc(&wmap_ui_tmi, coords->x, coords->y, &to);
 
-        steps = sub_44EB40(player_get_local_pc_obj(), from, to);
+        steps = IsPathingToObject(player_get_local_pc_obj(), from, to);
         if (steps == 0) {
             // "Your path is blocked.  Try clicking closer to the previous waypoint."
             mes_file_entry.num = 610;
@@ -3941,7 +3941,7 @@ bool wmap_ui_bkg_process_callback(TimeEvent* timeevent)
     }
 
     next_timeevent.type = TIMEEVENT_TYPE_WORLDMAP;
-    sub_45A950(&datetime, 62);
+    DateTimeAddMilliseconds(&datetime, 62);
     timeevent_add_delay(&next_timeevent, &datetime);
     return true;
 }
@@ -3978,7 +3978,7 @@ int64_t sub_564EE0(WmapCoords* a1, WmapCoords* a2, DateTime* datetime)
     v3 = (int)(location_dist(v1, v2) / 64);
 
     if (datetime != NULL) {
-        sub_45A950(datetime, 3600000 * v3);
+        DateTimeAddMilliseconds(datetime, 3600000 * v3);
     }
 
     return v3;
@@ -4088,7 +4088,7 @@ int wmap_ui_compass_arrow_frame_get()
 // 0x565140
 bool sub_565140()
 {
-    if (!sub_424070(player_get_local_pc_obj(), 3, 0, 1)) {
+    if (!anim_set_priority_level(player_get_local_pc_obj(), 3, 0, 1)) {
         return false;
     }
 

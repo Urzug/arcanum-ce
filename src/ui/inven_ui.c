@@ -483,8 +483,8 @@ bool inven_ui_open(int64_t pc_obj, int64_t target_obj, int mode)
 
         pkt.type = 100;
         pkt.subtype = 12;
-        sub_4F0640(pc_obj, &(pkt.d.z.field_8));
-        sub_4F0640(target_obj, &(pkt.d.z.field_20));
+        obj_get_oid(pc_obj, &(pkt.d.z.field_8));
+        obj_get_oid(target_obj, &(pkt.d.z.field_20));
         pkt.d.z.field_38 = mode;
         pkt.d.z.field_3C = 0;
         tig_net_send_app_all(&pkt, sizeof(pkt));
@@ -698,7 +698,7 @@ void sub_572640(int64_t pc_obj, int64_t target_obj, int mode)
                 }
             }
             if ((obj_field_int32_get(target_obj, OBJ_F_CONTAINER_FLAGS) & OCOF_INVEN_SPAWN_ONCE) != 0) {
-                sub_463E20(target_obj);
+                SpawnInventory(target_obj);
             }
         } else {
             if (mode == INVEN_UI_MODE_LOOT) {
@@ -1035,14 +1035,14 @@ bool inven_ui_create(int64_t pc_obj, int64_t target_obj, int mode)
     dword_681508 = 0;
     qword_681458 = OBJ_HANDLE_NULL;
 
-    sub_4A53B0(inven_ui_pc_obj, qword_6813A8);
+    multiplayer_set_active_trade_partner(inven_ui_pc_obj, qword_6813A8);
     redraw_inven_fix_bad_inven_obj(inven_ui_pc_obj);
     redraw_inven_fix_bad_inven_obj(qword_6813A8);
 
     if (!dword_6810FC
         && qword_6813A8 != OBJ_HANDLE_NULL
         && obj_field_int32_get(qword_6813A8, OBJ_F_TYPE) != OBJ_TYPE_PC
-        && sub_4A5460(qword_6813A8) <= 1) {
+        && multiplayer_get_trade_partner_count(qword_6813A8) <= 1) {
         item_arrange_inventory(qword_6813A8, false);
         item_inventory_slots_get(qword_6813A8, dword_681518);
     }
@@ -1080,7 +1080,7 @@ bool inven_ui_create(int64_t pc_obj, int64_t target_obj, int mode)
     }
 
     if (qword_6813A8 != OBJ_HANDLE_NULL) {
-        sub_4640C0(qword_6813A8);
+        RefreshInventoryForNearbyPlayers(qword_6813A8);
     }
 
     critter_flags2 = obj_field_int32_get(inven_ui_pc_obj, OBJ_F_CRITTER_FLAGS2);
@@ -1114,7 +1114,7 @@ void inven_ui_destroy()
     }
 
     inven_ui_created = false;
-    sub_4A53B0(inven_ui_pc_obj, 0);
+    multiplayer_set_active_trade_partner(inven_ui_pc_obj, 0);
 
     if ((inven_ui_mode == INVEN_UI_MODE_LOOT
             || inven_ui_mode == INVEN_UI_MODE_IDENTIFY)
@@ -1701,7 +1701,7 @@ static inline bool inven_ui_message_filter_handle_mouse_lbutton_up_accept_drop(T
             }
         }
 
-        err = sub_464D20(inven_ui_drag_item_obj, inventory_location, v2);
+        err = CheckCanWieldItem(inven_ui_drag_item_obj, inventory_location, v2);
         if (err != 0) {
             item_error_msg(v2, err);
             sub_575770();
@@ -1928,7 +1928,7 @@ static inline bool inven_ui_message_filter_handle_mouse_lbutton_up(TigMessage* m
                     && (inven_ui_mode != INVEN_UI_MODE_STEAL
                         || qword_681450 == inven_ui_pc_obj
                         || parent_obj == inven_ui_pc_obj)) {
-                    int wield_reason = sub_464D20(inven_ui_drag_item_obj, inventory_location, parent_obj);
+                    int wield_reason = CheckCanWieldItem(inven_ui_drag_item_obj, inventory_location, parent_obj);
                     if (wield_reason == ITEM_CANNOT_OK) {
                         int64_t old_item_obj = item_wield_get(parent_obj, inventory_location);
                         if (old_item_obj != OBJ_HANDLE_NULL
@@ -2393,7 +2393,7 @@ void sub_5754C0(int x, int y)
 
     inven_ui_drag_item_obj = OBJ_HANDLE_NULL;
 
-    sub_4A3230(obj_get_id(entry->field_8), sub_5755A0, entry, sub_575580, entry);
+    multiplayer_request_object_lock(obj_get_id(entry->field_8), sub_5755A0, entry, sub_575580, entry);
 }
 
 // 0x575580
@@ -2415,7 +2415,7 @@ bool sub_5755A0(void* userinfo)
     TigArtFrameData art_frame_data;
 
     inven_ui_drag_item_obj = entry->field_8;
-    sub_4A50D0(player_get_local_pc_obj(), entry->field_8);
+    multiplayer_hide_item(player_get_local_pc_obj(), entry->field_8);
     art_id = obj_field_int32_get(entry->field_8, OBJ_F_ITEM_INV_AID);
 
     if ((entry->x == -1 && entry->y == -1)
@@ -2530,7 +2530,7 @@ void sub_575770()
     if (item_parent(inven_ui_drag_item_obj, &parent_obj)
         && obj_field_int32_get(inven_ui_drag_item_obj, OBJ_F_ITEM_INV_LOCATION) != -1) {
         if (!tig_net_is_active() || !multiplayer_is_locked()) {
-            sub_4A51C0(player_get_local_pc_obj(), inven_ui_drag_item_obj);
+            multiplayer_show_item(player_get_local_pc_obj(), inven_ui_drag_item_obj);
         }
 
         sound_id = sfx_item_sound(inven_ui_drag_item_obj, qword_681450, OBJ_HANDLE_NULL, ITEM_SOUND_DROP);
@@ -2556,7 +2556,7 @@ void sub_575930()
         }
     }
 
-    if (!sub_4642C0(inven_ui_drag_item_obj, qword_681450)) {
+    if (!IsItemInInventory(inven_ui_drag_item_obj, qword_681450)) {
         if (IS_WEAR_INV_LOC(dword_6810E8)
             && item_wield_get(qword_681450, dword_6810E8) == OBJ_HANDLE_NULL) {
             item_insert(inven_ui_drag_item_obj, qword_681450, dword_6810E8);
@@ -2580,7 +2580,7 @@ void sub_575930()
         }
     }
 
-    sub_4A51C0(player_get_local_pc_obj(), inven_ui_drag_item_obj);
+    multiplayer_show_item(player_get_local_pc_obj(), inven_ui_drag_item_obj);
 
     sound_id = sfx_item_sound(inven_ui_drag_item_obj, qword_681450, OBJ_HANDLE_NULL, ITEM_SOUND_DROP);
     gsound_play_sfx(sound_id, 1);
@@ -2595,7 +2595,7 @@ void sub_575BE0()
     tig_sound_handle_t sound_id;
 
     location = obj_field_int64_get(qword_681450, OBJ_F_LOCATION);
-    sub_466E50(inven_ui_drag_item_obj, location);
+    world_drop_object_at(inven_ui_drag_item_obj, location);
 
     sound_id = sfx_item_sound(inven_ui_drag_item_obj, qword_681450, OBJ_HANDLE_NULL, ITEM_SOUND_DROP);
     gsound_play_sfx(sound_id, 1);
@@ -2605,7 +2605,7 @@ void sub_575BE0()
 void sub_575C50(int64_t obj)
 {
     if (inven_ui_drag_item_obj != OBJ_HANDLE_NULL && obj == inven_ui_drag_item_obj) {
-        sub_4A51C0(player_get_local_pc_obj(), inven_ui_drag_item_obj);
+        multiplayer_show_item(player_get_local_pc_obj(), inven_ui_drag_item_obj);
         inven_ui_drag_item_obj = OBJ_HANDLE_NULL;
         intgame_refresh_cursor();
         redraw_inven(false);
@@ -3911,7 +3911,7 @@ void sub_5788C0(int64_t item_obj, int64_t target_obj, int new_inventory_location
     int qty_fld;
     int qty;
 
-    sub_4A51C0(player_get_local_pc_obj(), item_obj);
+    multiplayer_show_item(player_get_local_pc_obj(), item_obj);
 
     if (target_obj == qword_681450) {
         reason = item_check_remove(item_obj);
@@ -4162,7 +4162,7 @@ bool sub_578EA0(Packet81* pkt)
                         }
                     } else if ((flags & 0x02) != 0) {
                         object_pickup(gold_obj, v1);
-                        sub_466E50(gold_obj, loc);
+                        world_drop_object_at(gold_obj, loc);
                     }
                 }
             } else {
@@ -4192,7 +4192,7 @@ bool sub_578EA0(Packet81* pkt)
                         }
                     } else if ((flags & 0x02) != 0) {
                         object_pickup(ammo_obj, v1);
-                        sub_466E50(ammo_obj, loc);
+                        world_drop_object_at(ammo_obj, loc);
                     }
                 }
             } else {
@@ -4450,9 +4450,9 @@ void sub_579B60(int64_t obj)
 
     if (sub_579840(obj, 1)) {
         skill_invocation_init(&skill_invocation);
-        sub_4440E0(inven_ui_pc_obj, &(skill_invocation.source));
-        sub_4440E0(qword_682C78, &(skill_invocation.target));
-        sub_4440E0(obj, &(skill_invocation.item));
+        follower_info_init(inven_ui_pc_obj, &(skill_invocation.source));
+        follower_info_init(qword_682C78, &(skill_invocation.target));
+        follower_info_init(obj, &(skill_invocation.item));
         skill_invocation.skill = SKILL_GAMBLING;
         skill_invocation.modifier = 0;
         if (skill_invocation_run(&skill_invocation)) {

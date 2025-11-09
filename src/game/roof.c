@@ -8,11 +8,11 @@
 #include "game/tile.h"
 
 static int roof_id_from_loc(int64_t loc);
-static int sub_4395C0(int a1);
+static int roof_grid_index_from_tile_id(int a1);
 static void roof_xy(int64_t loc, int64_t* sx, int64_t* sy);
 static tig_art_id_t roof_art_id_get(int64_t loc);
 static bool roof_art_id_set(int64_t loc, tig_art_id_t aid);
-static void sub_43A140(int x, int y, tig_art_id_t aid, TigRect* rect);
+static void roof_get_art_screen_rect(int x, int y, tig_art_id_t aid, TigRect* rect);
 static void roof_fill(int64_t loc, bool fill, int a3);
 
 // 0x5A53A0
@@ -255,7 +255,7 @@ void roof_draw(GameDrawInfo* draw_info)
                     && loc_x < INT_MAX
                     && loc_y > INT_MIN
                     && loc_y < INT_MAX) {
-                    sub_43A140((int)loc_x, (int)loc_y, aid, &roof_rect);
+                    roof_get_art_screen_rect((int)loc_x, (int)loc_y, aid, &roof_rect);
                     node = *draw_info->rects;
                     while (node != NULL) {
                         if (tig_rect_intersection(&roof_rect, &node->rect, &dst_rect) == TIG_OK) {
@@ -376,11 +376,11 @@ void roof_draw(GameDrawInfo* draw_info)
 // 0x4395A0
 int roof_id_from_loc(int64_t loc)
 {
-    return sub_4395C0(tile_id_from_loc(loc));
+    return roof_grid_index_from_tile_id(tile_id_from_loc(loc));
 }
 
 // 0x4395C0
-int sub_4395C0(int a1)
+int roof_grid_index_from_tile_id(int a1)
 {
     return ((a1 >> 2) & 0xF) + ((a1 >> 8) << 4);
 }
@@ -454,7 +454,7 @@ bool roof_art_id_set(int64_t loc, tig_art_id_t aid)
         && sx < INT_MAX
         && sy > INT_MIN
         && sy < INT_MAX) {
-        sub_43A140((int)sx, (int)sy, aid, &rect);
+        roof_get_art_screen_rect((int)sx, (int)sy, aid, &rect);
         roof_iso_window_invalidate_rect(&rect);
     }
 
@@ -462,7 +462,7 @@ bool roof_art_id_set(int64_t loc, tig_art_id_t aid)
 }
 
 // 0x439890
-bool sub_439890(int x, int y)
+bool roof_hit_test_screen_xy(int x, int y)
 {
     int64_t loc;
     int64_t loc_x;
@@ -488,12 +488,12 @@ bool sub_439890(int x, int y)
     }
 
     roof_xy(loc, &loc_x, &loc_y);
-    sub_43A140((int)loc_x, (int)loc_y, aid, &rect);
+    roof_get_art_screen_rect((int)loc_x, (int)loc_y, aid, &rect);
     if (x >= rect.x
         && y >= rect.y
         && x < rect.x + rect.width
         && y < rect.y + rect.height
-        && !sub_502FD0(aid, x - rect.x, y - rect.y)) {
+        && !tig_art_is_pixel_transparent(aid, x - rect.x, y - rect.y)) {
         return true;
     }
 
@@ -656,16 +656,16 @@ bool roof_is_faded(int64_t loc)
 }
 
 // 0x439FF0
-bool sub_439FF0(int64_t x, int64_t y, int a3)
+bool roof_is_tile_covered_world_xy(int64_t x, int64_t y, int a3)
 {
     int64_t loc;
 
     location_at(x, y, &loc);
-    return sub_43A030(loc, a3);
+    return roof_is_tile_covered(loc, a3);
 }
 
 // 0x43A030
-bool sub_43A030(int64_t loc, int a2)
+bool roof_is_tile_covered(int64_t loc, int a2)
 {
     tig_art_id_t aid;
     int piece;
@@ -724,7 +724,7 @@ unsigned int roof_blit_flags_get()
 }
 
 // 0x43A140
-void sub_43A140(int x, int y, tig_art_id_t aid, TigRect* rect)
+void roof_get_art_screen_rect(int x, int y, tig_art_id_t aid, TigRect* rect)
 {
     TigArtFrameData art_frame_data;
 

@@ -233,7 +233,7 @@ void map_reset()
 
         tig_debug_printf("map_reset: clearing magictech...");
         tig_timer_now(&start);
-        sub_457100();
+        magictech_reset_run_info_pool();
         tig_debug_printf("done. Time (ms): %d\n", tig_timer_elapsed(start));
 
         tig_debug_printf("map_reset: interrupting anims...");
@@ -864,7 +864,7 @@ void map_precache_sectors(int64_t loc)
 }
 
 // 0x40FED0
-void sub_40FED0()
+void UIEnterTurnBasedMode()
 {
 }
 
@@ -1565,14 +1565,14 @@ void map_clear_objects()
         if (obj_inst_first(&obj, &iter)) {
             do {
                 if (!object_is_static(obj)) {
-                    sub_43CF70(obj);
+                    object_remove_from_sector(obj);
                     object_delete(obj);
                 }
             } while (obj_inst_next(&obj, &iter));
         }
 
         sub_4D0B40();
-        sub_4E5300();
+        objp_perm_lookup_compact();
 
         map_in_map_clear_objects = false;
     }

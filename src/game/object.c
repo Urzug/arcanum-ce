@@ -77,11 +77,11 @@ typedef struct ObjectPickupInfo {
     /* 0008 */ int64_t parent_obj;
 } ObjectPickupInfo;
 
-static void sub_43C5C0(GameDrawInfo* draw_info);
-static void sub_43CEA0(int64_t obj, unsigned int flags, const char* path);
-static int sub_43D690(int64_t obj);
-static int sub_43D630(int64_t obj);
-static int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64_t* a6, int* a7, int* a8);
+static void object_draw_hover_underlay(GameDrawInfo* draw_info);
+static void object_editor_delete(int64_t obj, unsigned int flags, const char* path);
+static int object_get_hp_from_points(int64_t obj);
+static int object_get_hp_from_stats(int64_t obj);
+static int object_check_los_recursive(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64_t* a6, int* a7, int* a8);
 static void object_list_vicinity_loc(int64_t loc, unsigned int flags, ObjectList* objects);
 static bool object_drop_success(void* userinfo);
 static bool object_drop_failure(void* userinfo);
@@ -89,10 +89,10 @@ static bool object_pickup_success(void* userinfo);
 static bool object_pickup_failure(void* userinfo);
 static bool object_create_func(int64_t proto_obj, int64_t loc, int64_t* obj_ptr, ObjectID oid);
 static bool object_duplicate_func(int64_t proto_obj, int64_t loc, ObjectID* oids, int64_t* obj_ptr);
-static bool sub_442260(int64_t obj, int64_t loc);
-static void sub_4423E0(int64_t obj, int offset_x, int offset_y);
+static bool object_insert_into_world(int64_t obj, int64_t loc);
+static void object_set_offset_internal(int64_t obj, int offset_x, int offset_y);
 static void object_render_palette_clear(int64_t obj);
-static void sub_442D90(int64_t obj, ObjectRenderColors* colors);
+static void object_apply_render_colors(int64_t obj, ObjectRenderColors* colors);
 static TigPalette object_render_palette_get(int64_t obj);
 static void object_render_colors_set(int64_t obj, ObjectRenderColors* colors);
 static void object_render_colors_clear(int64_t obj);
@@ -105,15 +105,15 @@ static void object_setup_blit(int64_t obj, TigArtBlitInfo* blit_info);
 static void object_enqueue_blit(TigArtBlitInfo* blit_info, int order);
 static void object_flush_pending_blits();
 static int object_compare_blits(const void* va, const void* vb);
-static void sub_443620(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id, TigRect* rect);
-static void sub_4437C0(int64_t obj);
-static bool sub_443880(TigRect* rect, tig_art_id_t art_id);
+static void object_get_eye_candy_rect(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id, TigRect* rect);
+static void object_shadow_clear(int64_t obj);
+static bool object_get_hover_art_rect(TigRect* rect, tig_art_id_t art_id);
 static bool load_reaction_colors();
 static void sub_444270(int64_t obj, int a2);
 static void object_lighting_changed();
 
 // 0x5A548C
-static int dword_5A548C[8] = {
+static int g_eye_candy_scale_table[8] = {
     50,
     63,
     75,
@@ -128,13 +128,13 @@ static int dword_5A548C[8] = {
 static unsigned int object_blit_flags = TIG_ART_BLT_BLEND_ALPHA_CONST;
 
 // 0x5E2E60
-static int64_t qword_5E2E60;
+static int64_t g_object_vis_range_y;
 
 // 0x5E2E68
-int dword_5E2E68;
+int g_object_hover_overlay_art_slot;
 
 // 0x5E2E6C
-int dword_5E2E6C;
+int g_object_hover_underlay_art_slot;
 
 // 0x5E2E70
 static TigRectListNode* object_dirty_rects_head;
@@ -146,7 +146,7 @@ static ObjectBlitInfo* object_pending_blits;
 static tig_color_t object_reaction_colors[REACTION_COUNT];
 
 // 0x5E2E94
-bool dword_5E2E94;
+bool g_object_hover_is_critter;
 
 // 0x5E2E98
 static TigRect object_iso_content_rect;
@@ -173,7 +173,7 @@ static int object_hover_overlay_fps;
 static int object_hover_underlay_fps;
 
 // 0x5E2EC8
-static unsigned int dword_5E2EC8;
+static unsigned int g_object_render_skip_flags;
 
 // 0x5E2ECC
 tig_art_id_t object_hover_overlay_art_id;
@@ -194,7 +194,7 @@ static int object_blit_queue_capacity;
 static tig_window_handle_t object_iso_window_handle;
 
 // 0x5E2F28
-static bool dword_5E2F28;
+static bool g_object_editor_culling_enabled;
 
 // 0x5E2F2C
 static bool object_lighting;
@@ -206,16 +206,16 @@ static TigRect object_iso_content_rect_ex;
 static ObjectRenderColorsNode* object_render_color_array_node_head;
 
 // 0x5E2F48
-static bool dword_5E2F48;
+static bool g_video_is_3d_accelerated;
 
 // 0x5E2F50
-static int64_t qword_5E2F50;
+static int64_t g_object_vis_range_x;
 
 // 0x5E2F58
 static bool object_editor;
 
 // 0x5E2F60
-Ryan stru_5E2F60;
+Ryan g_object_hover_save_ref;
 
 // 0x5E2F88
 static unsigned int dword_5E2F88;
@@ -227,7 +227,7 @@ static ObjectBlitRectInfo* object_pending_rects;
 int64_t object_hover_obj;
 
 // 0x5E2F98
-static int dword_5E2F98;
+static int g_object_list_ref_count;
 
 // 0x43A330
 bool object_init(GameInitInfo* init_info)
@@ -255,8 +255,8 @@ bool object_init(GameInitInfo* init_info)
     object_iso_content_rect_ex.width = window_data.rect.width + 512;
     object_iso_content_rect_ex.height = window_data.rect.height + 512;
 
-    qword_5E2F50 = window_data.rect.width / 40 / 2 + 2;
-    qword_5E2E60 = window_data.rect.height / 20 / 2 + 2;
+    g_object_vis_range_x = window_data.rect.width / 40 / 2 + 2;
+    g_object_vis_range_y = window_data.rect.height / 20 / 2 + 2;
 
     for (idx = 0; idx < 18; idx++) {
         object_type_visibility[idx] = true;
@@ -266,8 +266,8 @@ bool object_init(GameInitInfo* init_info)
         return false;
     }
 
-    tig_art_interface_id_create(467, dword_5E2E6C, 1, 0, &object_hover_underlay_art_id);
-    tig_art_interface_id_create(468, dword_5E2E68, 1, 0, &object_hover_overlay_art_id);
+    tig_art_interface_id_create(467, g_object_hover_underlay_art_slot, 1, 0, &object_hover_underlay_art_id);
+    tig_art_interface_id_create(468, g_object_hover_overlay_art_slot, 1, 0, &object_hover_overlay_art_id);
 
     tig_art_anim_data(object_hover_underlay_art_id, &art_anim_data);
     object_hover_underlay_fps = 1000 / art_anim_data.fps;
@@ -277,15 +277,15 @@ bool object_init(GameInitInfo* init_info)
 
     if (object_editor) {
         dword_5E2F88 = 0;
-        dword_5E2EC8 = 0;
-        dword_5E2F28 = 0;
+        g_object_render_skip_flags = 0;
+        g_object_editor_culling_enabled = 0;
     } else {
         dword_5E2F88 = OF_DESTROYED | OF_OFF;
-        dword_5E2EC8 = OF_DONTDRAW;
+        g_object_render_skip_flags = OF_DONTDRAW;
     }
 
-    dword_5E2F48 = tig_video_3d_check_initialized() == TIG_OK;
-    if (!dword_5E2F48) {
+    g_video_is_3d_accelerated = tig_video_3d_check_initialized() == TIG_OK;
+    if (!g_video_is_3d_accelerated) {
         object_blit_flags = TIG_ART_BLT_BLEND_ALPHA_STIPPLE_D;
     }
 
@@ -306,8 +306,8 @@ void object_resize(GameResizeInfo* resize_info)
     object_iso_content_rect_ex.y = object_iso_content_rect.y - 256;
     object_iso_content_rect_ex.width = object_iso_content_rect.width + 512;
     object_iso_content_rect_ex.height = object_iso_content_rect.height + 512;
-    qword_5E2F50 = object_iso_content_rect.width / 40 / 2 + 2;
-    qword_5E2E60 = object_iso_content_rect.height / 20 / 2 + 2;
+    g_object_vis_range_x = object_iso_content_rect.width / 40 / 2 + 2;
+    g_object_vis_range_y = object_iso_content_rect.height / 20 / 2 + 2;
 }
 
 // 0x43A650
@@ -372,8 +372,8 @@ void object_ping(tig_timestamp_t timestamp)
     if (tig_timer_between(dword_5E2F40, timestamp) >= object_hover_underlay_fps) {
         object_hover_underlay_art_id = tig_art_id_frame_inc(object_hover_underlay_art_id);
         dword_5E2F40 = timestamp;
-        if (dword_5E2E94) {
-            sub_443880(&rect, object_hover_underlay_art_id);
+        if (g_object_hover_is_critter) {
+            object_get_hover_art_rect(&rect, object_hover_underlay_art_id);
             object_iso_invalidate_rect(&rect);
         }
     }
@@ -381,8 +381,8 @@ void object_ping(tig_timestamp_t timestamp)
     if (tig_timer_between(dword_5E2E58, timestamp) >= object_hover_overlay_fps) {
         object_hover_overlay_art_id = tig_art_id_frame_inc(object_hover_overlay_art_id);
         dword_5E2E58 = timestamp;
-        if (dword_5E2E94) {
-            sub_443880(&rect, object_hover_overlay_art_id);
+        if (g_object_hover_is_critter) {
+            object_get_hover_art_rect(&rect, object_hover_overlay_art_id);
             object_iso_invalidate_rect(&rect);
         }
     }
@@ -403,8 +403,8 @@ void object_ping(tig_timestamp_t timestamp)
     while (object_dirty_rects_head != NULL) {
         next = object_dirty_rects_head->next;
         if (tig_rect_intersection(&(object_dirty_rects_head->rect), &bounds, &rect) == TIG_OK
-            && sub_4B9130(&rect, &loc_rect)
-            && sub_4D0090(&loc_rect, &v1)) {
+            && ScreenRectToLocationRect(&rect, &loc_rect)
+            && GetSectorDataForLocationRect(&loc_rect, &v1)) {
             for (col = 0; col < v1.height; col++) {
                 v2 = &(v1.field_8[col]);
 
@@ -477,21 +477,21 @@ void object_type_toggle(int obj_type)
 }
 
 // 0x43AAA0
-bool sub_43AAA0()
+bool object_editor_is_culling_enabled()
 {
-    return dword_5E2F28;
+    return g_object_editor_culling_enabled;
 }
 
 // 0x43AAB0
-void sub_43AAB0()
+void object_editor_toggle_culling()
 {
-    dword_5E2F28 = !dword_5E2F28;
-    if (dword_5E2F28) {
+    g_object_editor_culling_enabled = !g_object_editor_culling_enabled;
+    if (g_object_editor_culling_enabled) {
         dword_5E2F88 = OF_DESTROYED | OF_OFF;
-        dword_5E2EC8 = OF_DONTDRAW;
+        g_object_render_skip_flags = OF_DONTDRAW;
     } else {
         dword_5E2F88 = 0;
-        dword_5E2EC8 = 0;
+        g_object_render_skip_flags = 0;
     }
 }
 
@@ -572,7 +572,7 @@ void object_draw(GameDrawInfo* draw_info)
                         if (obj_node != NULL) {
                             loc = locations[row];
 
-                            if (!sub_43A030(loc, true)) {
+                            if (!roof_is_tile_covered(loc, true)) {
                                 while (obj_node != NULL) {
                                     obj_type = obj_field_int32_get(obj_node->obj, OBJ_F_TYPE);
                                     if (object_type_visibility[obj_type]) {
@@ -598,7 +598,7 @@ void object_draw(GameDrawInfo* draw_info)
                                                             // FIX: Ignore shrunk objects so they match 100% scale. This makes the reaction
                                                             // underlay perfectly match the hover underlay size (the hover underlay is not
                                                             // scaled and is unaffected by shrinking).
-                                                            sub_443620(obj_flags & ~OF_SHRUNK, 100, (int)loc_x, (int)loc_y, art_id, &eye_candy_rect);
+                                                            object_get_eye_candy_rect(obj_flags & ~OF_SHRUNK, 100, (int)loc_x, (int)loc_y, art_id, &eye_candy_rect);
 
                                                             rect_node = *draw_info->rects;
                                                             while (rect_node != NULL) {
@@ -655,7 +655,7 @@ void object_draw(GameDrawInfo* draw_info)
                                                         for (int fld = OBJ_F_OVERLAY_FORE; fld <= OBJ_F_OVERLAY_BACK; fld++) {
                                                             art_id = obj_arrayfield_uint32_get(obj_node->obj, fld, idx);
                                                             if (art_id != TIG_ART_ID_INVALID) {
-                                                                sub_443620(obj_flags, scale, (int)loc_x, (int)loc_y, art_id, &eye_candy_rect);
+                                                                object_get_eye_candy_rect(obj_flags, scale, (int)loc_x, (int)loc_y, art_id, &eye_candy_rect);
 
                                                                 rect_node = *draw_info->rects;
                                                                 while (rect_node != NULL) {
@@ -676,7 +676,7 @@ void object_draw(GameDrawInfo* draw_info)
 
                                                                         int scale_type = tig_art_eye_candy_id_scale_get(art_id);
                                                                         int overlay_scale = scale_type != 4
-                                                                            ? scale * dword_5A548C[scale_type] / 100
+                                                                            ? scale * g_eye_candy_scale_table[scale_type] / 100
                                                                             : scale;
 
                                                                         if (scale_type != 100) {
@@ -716,7 +716,7 @@ void object_draw(GameDrawInfo* draw_info)
 
                                                 // 0x43B9FD
                                                 if (((obj_flags & OF_INVISIBLE) == 0 || is_detecting_invisible)
-                                                    && (dword_5E2EC8 & obj_flags) == 0) {
+                                                    && (g_object_render_skip_flags & obj_flags) == 0) {
                                                     art_blit_info.flags = TIG_ART_BLT_BLEND_COLOR_CONST | TIG_ART_BLT_BLEND_SUB;
                                                     art_blit_info.src_rect = &src_rect;
                                                     art_blit_info.dst_rect = &dst_rect;
@@ -738,7 +738,7 @@ void object_draw(GameDrawInfo* draw_info)
                                                                     break;
                                                                 }
 
-                                                                sub_443620(obj_flags, scale, (int)loc_x, (int)loc_y, shadow->art_id, &eye_candy_rect);
+                                                                object_get_eye_candy_rect(obj_flags, scale, (int)loc_x, (int)loc_y, shadow->art_id, &eye_candy_rect);
                                                                 art_blit_info.art_id = shadow->art_id;
                                                                 art_blit_info.color = shadow->color;
 
@@ -911,7 +911,7 @@ void object_draw(GameDrawInfo* draw_info)
         }
     }
 
-    sub_43C5C0(draw_info);
+    object_draw_hover_underlay(draw_info);
     object_flush_pending_blits();
 }
 
@@ -925,16 +925,16 @@ void object_hover_obj_set(int64_t obj)
     int reaction_type;
 
     if (object_hover_obj != obj) {
-        if (sub_4437E0(&rect)) {
+        if (object_get_hover_rect_total(&rect)) {
             object_iso_invalidate_rect(&rect);
         }
 
-        dword_5E2E94 = false;
+        g_object_hover_is_critter = false;
         object_hover_obj = obj;
         object_hover_color = tig_color_make(255, 255, 255);
 
-        tig_art_interface_id_create(467, dword_5E2E6C, 1, 0, &object_hover_underlay_art_id);
-        tig_art_interface_id_create(468, dword_5E2E68, 1, 0, &object_hover_overlay_art_id);
+        tig_art_interface_id_create(467, g_object_hover_underlay_art_slot, 1, 0, &object_hover_underlay_art_id);
+        tig_art_interface_id_create(468, g_object_hover_overlay_art_slot, 1, 0, &object_hover_overlay_art_id);
 
         if (object_hover_obj != OBJ_HANDLE_NULL) {
             type = obj_field_int32_get(object_hover_obj, OBJ_F_TYPE);
@@ -943,11 +943,11 @@ void object_hover_obj_set(int64_t obj)
                     pc_obj = player_get_local_pc_obj();
                     if (pc_obj == OBJ_HANDLE_NULL) {
                         object_hover_obj = OBJ_HANDLE_NULL;
-                        sub_443EB0(OBJ_HANDLE_NULL, &stru_5E2F60);
+                        object_save_ref_init(OBJ_HANDLE_NULL, &g_object_hover_save_ref);
                         return;
                     }
 
-                    dword_5E2E94 = true;
+                    g_object_hover_is_critter = true;
 
                     if (type == OBJ_TYPE_NPC) {
                         reaction_level = reaction_get(object_hover_obj, pc_obj);
@@ -955,19 +955,19 @@ void object_hover_obj_set(int64_t obj)
                         object_hover_color = object_reaction_colors[reaction_type];
 
                         if (combat_critter_is_combat_mode_active(pc_obj)) {
-                            tig_art_interface_id_create(555, dword_5E2E6C, 1, 0, &object_hover_underlay_art_id);
-                            tig_art_interface_id_create(555, dword_5E2E68, 1, 0, &object_hover_overlay_art_id);
+                            tig_art_interface_id_create(555, g_object_hover_underlay_art_slot, 1, 0, &object_hover_underlay_art_id);
+                            tig_art_interface_id_create(555, g_object_hover_overlay_art_slot, 1, 0, &object_hover_overlay_art_id);
                         }
                     }
                 }
 
-                if (sub_4437E0(&rect)) {
+                if (object_get_hover_rect_total(&rect)) {
                     object_iso_invalidate_rect(&rect);
                 }
             }
         }
 
-        sub_443EB0(object_hover_obj, &stru_5E2F60);
+        object_save_ref_init(object_hover_obj, &g_object_hover_save_ref);
     }
 }
 
@@ -978,7 +978,7 @@ int64_t object_hover_obj_get()
         return OBJ_HANDLE_NULL;
     }
 
-    if (!sub_444020(&object_hover_obj, &stru_5E2F60)) {
+    if (!object_save_ref_validate(&object_hover_obj, &g_object_hover_save_ref)) {
         object_hover_obj_set(OBJ_HANDLE_NULL);
         return OBJ_HANDLE_NULL;
     }
@@ -987,7 +987,7 @@ int64_t object_hover_obj_get()
 }
 
 // 0x43C5C0
-void sub_43C5C0(GameDrawInfo* draw_info)
+void object_draw_hover_underlay(GameDrawInfo* draw_info)
 {
     TigRect rect;
     TigArtBlitInfo art_blit_info;
@@ -995,8 +995,8 @@ void sub_43C5C0(GameDrawInfo* draw_info)
     TigRect dst_rect;
     TigRectListNode* node;
 
-    if (dword_5E2E94) {
-        if (sub_443880(&rect, object_hover_underlay_art_id)) {
+    if (g_object_hover_is_critter) {
+        if (object_get_hover_art_rect(&rect, object_hover_underlay_art_id)) {
             art_blit_info.flags = TIG_ART_BLT_BLEND_ADD | TIG_ART_BLT_BLEND_COLOR_CONST;
             art_blit_info.art_id = object_hover_underlay_art_id;
             art_blit_info.src_rect = &src_rect;
@@ -1019,7 +1019,7 @@ void sub_43C5C0(GameDrawInfo* draw_info)
 }
 
 // 0x43C690
-void sub_43C690(GameDrawInfo* draw_info)
+void object_draw_hover_overlay(GameDrawInfo* draw_info)
 {
     TigRectListNode* rect_node;
     TigArtBlitInfo art_blit_info;
@@ -1033,10 +1033,10 @@ void sub_43C690(GameDrawInfo* draw_info)
         return;
     }
 
-    if (dword_5E2E94) {
+    if (g_object_hover_is_critter) {
         TigRect rect;
 
-        if (sub_443880(&rect, object_hover_overlay_art_id)) {
+        if (object_get_hover_art_rect(&rect, object_hover_overlay_art_id)) {
             art_blit_info.flags = TIG_ART_BLT_BLEND_COLOR_CONST | TIG_ART_BLT_BLEND_ADD;
             art_blit_info.art_id = object_hover_overlay_art_id;
             art_blit_info.src_rect = &src_rect;
@@ -1096,7 +1096,7 @@ void sub_43C690(GameDrawInfo* draw_info)
                         art_blit_info.src_rect = &src_rect;
                         art_blit_info.dst_rect = &dst_rect;
 
-                        if (!dword_5E2F48) {
+                        if (!g_video_is_3d_accelerated) {
                             art_blit_info.flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
                         }
 
@@ -1137,7 +1137,7 @@ void sub_43C690(GameDrawInfo* draw_info)
                     art_blit_info.src_rect = &src_rect;
                     art_blit_info.dst_rect = &dst_rect;
 
-                    if (!dword_5E2F48) {
+                    if (!g_video_is_3d_accelerated) {
                         art_blit_info.flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
                     }
 
@@ -1240,7 +1240,7 @@ void object_destroy(int64_t obj)
     if (object_editor) {
         char* save_path;
         map_paths(NULL, &save_path);
-        sub_43CEA0(obj, -1, save_path);
+        object_editor_delete(obj, -1, save_path);
         return;
     }
 
@@ -1263,11 +1263,11 @@ void object_destroy(int64_t obj)
 
     obj_type = obj_field_int32_get(obj, OBJ_F_TYPE);
     if (obj_type_is_critter(obj_type)) {
-        sub_45E180(obj);
+        critter_remove_from_party(obj);
         ai_timeevent_clear(obj);
 
         if (obj_type == OBJ_TYPE_NPC) {
-            pc_obj = sub_4C1110(obj);
+            pc_obj = GetPCWithHighestReaction(obj);
             if (pc_obj != OBJ_HANDLE_NULL) {
                 sub_460A20(pc_obj, 0);
             }
@@ -1284,10 +1284,10 @@ void object_destroy(int64_t obj)
         sub_4639E0(obj, true);
     }
 
-    sub_423FF0(obj);
-    sub_459740(obj);
+    anim_clear_goals(obj);
+    magictech_handle_object_destroyed(obj);
     sub_4601D0(obj);
-    sub_443770(obj);
+    object_clear_render_data(obj);
 
     if (obj_type == OBJ_TYPE_WALL) {
         loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
@@ -1308,7 +1308,7 @@ void object_destroy(int64_t obj)
 }
 
 // 0x43CEA0
-void sub_43CEA0(int64_t obj, unsigned int flags, const char* path)
+void object_editor_delete(int64_t obj, unsigned int flags, const char* path)
 {
     TigRect rect;
     int type;
@@ -1334,19 +1334,19 @@ void sub_43CEA0(int64_t obj, unsigned int flags, const char* path)
         portal_delete(obj, (flags & 0x1) != 0);
         break;
     default:
-        sub_43CF70(obj);
+        object_remove_from_sector(obj);
         object_delete(obj);
         break;
     }
 }
 
 // 0x43CF70
-void sub_43CF70(int64_t obj)
+void object_remove_from_sector(int64_t obj)
 {
     int64_t sector_id;
     Sector* sector;
 
-    sub_443770(obj);
+    object_clear_render_data(obj);
 
     sector_id = sector_id_from_loc(obj_field_int64_get(obj, OBJ_F_LOCATION));
     if (object_is_static(obj) || sub_4D04E0(sector_id)) {
@@ -1372,11 +1372,11 @@ void object_delete(int64_t obj)
     if ((flags & OF_TEXT_FLOATER) != 0) {
         tf_remove(obj);
     }
-    sub_423FF0(obj);
-    sub_459740(obj);
+    anim_clear_goals(obj);
+    magictech_handle_object_destroyed(obj);
     ai_timeevent_clear(obj);
     sub_4601D0(obj);
-    sub_443770(obj);
+    object_clear_render_data(obj);
     obj_deallocate(obj);
 }
 
@@ -1526,7 +1526,7 @@ void object_flags_unset(int64_t obj, unsigned int flags)
 
     if (visibility_changed) {
         if (!object_editor) {
-            sub_43F710(obj);
+            object_scenery_update_animation(obj);
         }
     }
 }
@@ -1617,10 +1617,10 @@ int object_hp_max(int64_t obj)
     int value;
     int obj_type;
 
-    value = object_hp_adj_get(obj) + sub_43D690(obj);
+    value = object_hp_adj_get(obj) + object_get_hp_from_points(obj);
     obj_type = obj_field_int32_get(obj, OBJ_F_TYPE);
     if (obj_type_is_critter(obj_type)) {
-        value = effect_adjust_max_hit_points(obj, sub_43D630(obj) + value);
+        value = effect_adjust_max_hit_points(obj, object_get_hp_from_stats(obj) + value);
     }
     return value;
 }
@@ -1632,7 +1632,7 @@ int object_hp_current(int64_t obj)
 }
 
 // 0x43D630
-int sub_43D630(int64_t obj)
+int object_get_hp_from_stats(int64_t obj)
 {
     int obj_type;
 
@@ -1647,7 +1647,7 @@ int sub_43D630(int64_t obj)
 }
 
 // 0x43D690
-int sub_43D690(int64_t obj)
+int object_get_hp_from_points(int64_t obj)
 {
     int obj_type;
 
@@ -1746,7 +1746,7 @@ int object_get_ac(int64_t obj, bool a2)
 }
 
 // 0x43D940
-bool sub_43D940(int64_t obj)
+bool object_is_static_type(int64_t obj)
 {
     int obj_type = obj_field_int32_get(obj, OBJ_F_TYPE);
     if (obj_type == OBJ_TYPE_PROJECTILE
@@ -1772,7 +1772,7 @@ bool object_is_static(int64_t obj)
 }
 
 // 0x43D9F0
-bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags)
+bool object_find_by_screen_coords(int x, int y, int64_t* obj_ptr, unsigned int flags)
 {
     TigRect rect;
     LocRect loc_rect;
@@ -1804,7 +1804,7 @@ bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags)
         return false;
     }
 
-    if (sub_439890(x, y)) {
+    if (roof_hit_test_screen_xy(x, y)) {
         return false;
     }
 
@@ -1813,11 +1813,11 @@ bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags)
     rect.width = 512;
     rect.height = 512;
 
-    if (!sub_4B9130(&rect, &loc_rect)) {
+    if (!ScreenRectToLocationRect(&rect, &loc_rect)) {
         return false;
     }
 
-    if (!sub_4D0090(&loc_rect, &v1)) {
+    if (!GetSectorDataForLocationRect(&loc_rect, &v1)) {
         return false;
     }
 
@@ -1881,7 +1881,7 @@ bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags)
                                     test_y = (int)((float)test_y / (float)scale * 100.0f);
                                 }
 
-                                if (!sub_502FD0(aid, test_x, test_y)) {
+                                if (!tig_art_is_pixel_transparent(aid, test_x, test_y)) {
                                     v67 = obj_node->obj;
 
                                     if (obj_type == OBJ_TYPE_WALL
@@ -1909,7 +1909,7 @@ bool sub_43D9F0(int x, int y, int64_t* obj_ptr, unsigned int flags)
                                                 test_y = (int)((float)test_y / (float)scale * 100.0f);
                                             }
 
-                                            if (!sub_502FD0(aid, test_x, test_y)) {
+                                            if (!tig_art_is_pixel_transparent(aid, test_x, test_y)) {
                                                 v69 = obj_node->obj;
                                                 if (obj_type == OBJ_TYPE_WALL
                                                     && (obj_field_int32_get(obj_node->obj, OBJ_F_WALL_FLAGS) & (OWAF_TRANS_LEFT | OWAF_TRANS_RIGHT)) != 0) {
@@ -2092,7 +2092,7 @@ void object_get_rect(int64_t obj, unsigned int flags, TigRect* rect)
                         && tig_art_frame_data(art_id, &art_frame_data) == TIG_OK) {
                         int scale_type = tig_art_eye_candy_id_scale_get(art_id);
                         int overlay_scale = scale_type != 4
-                            ? scale * dword_5A548C[scale_type] / 100
+                            ? scale * g_eye_candy_scale_table[scale_type] / 100
                             : scale;
 
                         hot_x = art_frame_data.hot_x;
@@ -2193,7 +2193,7 @@ void object_get_rect(int64_t obj, unsigned int flags, TigRect* rect)
         }
 
         if (obj == object_hover_obj) {
-            sub_4437E0(&extra_rect);
+            object_get_hover_rect_total(&extra_rect);
             tig_rect_union(rect, &extra_rect, rect);
         }
     }
@@ -2204,7 +2204,7 @@ void object_get_rect(int64_t obj, unsigned int flags, TigRect* rect)
 }
 
 // 0x43E770
-void sub_43E770(int64_t obj, int64_t loc, int offset_x, int offset_y)
+void object_move(int64_t obj, int64_t loc, int offset_x, int offset_y)
 {
     unsigned int flags;
     int64_t cur_loc;
@@ -2221,7 +2221,7 @@ void sub_43E770(int64_t obj, int64_t loc, int offset_x, int offset_y)
 
     cur_loc = obj_field_int64_get(obj, OBJ_F_LOCATION);
     if (cur_loc == loc) {
-        sub_4423E0(obj, offset_x, offset_y);
+        object_set_offset_internal(obj, offset_x, offset_y);
         return;
     }
 
@@ -2286,7 +2286,7 @@ void sub_43EA20(int64_t a1, int64_t a2)
         if (!sub_4B99C0(a2, &v1)) {
             v1 = a2;
         }
-        sub_4EDF20(a1, v1, 0, 0, false);
+        item_drop_at_loc(a1, v1, 0, 0, false);
     }
 }
 
@@ -2306,7 +2306,7 @@ bool object_teleported_timeevent_process(TimeEvent* timeevent)
 void object_set_offset(int64_t obj, int offset_x, int offset_y)
 {
     if ((obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_DESTROYED) == 0) {
-        sub_4423E0(obj, offset_x, offset_y);
+        object_set_offset_internal(obj, offset_x, offset_y);
     }
 }
 
@@ -2325,7 +2325,7 @@ void object_set_current_aid(int64_t obj, tig_art_id_t aid)
         object_get_rect(obj, 0x7, &update_rect);
         tig_rect_union(&dirty_rect, &update_rect, &dirty_rect);
         object_iso_invalidate_rect(&dirty_rect);
-        sub_43F710(obj);
+        object_scenery_update_animation(obj);
     }
 }
 
@@ -2473,7 +2473,7 @@ void object_remove_flags(int64_t obj, unsigned int flags)
 }
 
 // 0x43F030
-void sub_43F030(int64_t obj)
+void object_invalidate_render_flags(int64_t obj)
 {
     TigRect rect;
 
@@ -2495,7 +2495,7 @@ void object_cycle_palette(int64_t obj)
     if ((obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_DESTROYED) == 0) {
         aid = obj_field_int32_get(obj, OBJ_F_CURRENT_AID);
         aid = tig_art_id_palette_set(aid, tig_art_id_palette_get(aid) + 1);
-        if (sub_502E00(aid) == TIG_OK) {
+        if (tig_art_palette_exists(aid) == TIG_OK) {
             aid = tig_art_id_palette_set(aid, 0);
         }
         obj_field_int32_set(obj, OBJ_F_CURRENT_AID, aid);
@@ -2508,7 +2508,7 @@ void object_cycle_palette(int64_t obj)
 }
 
 // 0x43F130
-void sub_43F130(int64_t obj, int palette)
+void object_set_palette(int64_t obj, int palette)
 {
     tig_art_id_t aid;
     TigRect rect;
@@ -2517,7 +2517,7 @@ void sub_43F130(int64_t obj, int palette)
         aid = obj_field_int32_get(obj, OBJ_F_CURRENT_AID);
         aid = tig_art_id_palette_set(aid, palette);
         // NOTE: Looks wrong.
-        if (sub_502E00(aid) != TIG_OK) {
+        if (tig_art_palette_exists(aid) != TIG_OK) {
             obj_field_int32_set(obj, OBJ_F_CURRENT_AID, aid);
             object_get_rect(obj, 0, &rect);
             object_iso_invalidate_rect(&rect);
@@ -2544,11 +2544,11 @@ void object_bust(int64_t obj, int64_t triggerer_obj)
         return;
     }
 
-    sub_424070(obj, 5, 0, 1);
+    anim_set_priority_level(obj, 5, 0, 1);
 
     switch (obj_field_int32_get(obj, OBJ_F_TYPE)) {
     case OBJ_TYPE_WALL:
-        sub_4E1490(obj, triggerer_obj);
+        wall_editor_update(obj, triggerer_obj);
         break;
     case OBJ_TYPE_PORTAL:
         portal_bust(obj, triggerer_obj);
@@ -2586,12 +2586,12 @@ void object_bust(int64_t obj, int64_t triggerer_obj)
 
             scenery_respawn_delay = obj_field_int32_get(obj, OBJ_F_SCENERY_RESPAWN_DELAY);
             if (scenery_respawn_delay == 0) {
-                sub_45A950(&datetime, 0);
+                DateTimeAddMilliseconds(&datetime, 0);
                 datetime.days = 1;
             } else if (scenery_respawn_delay > 0) {
-                sub_45A950(&datetime, 8000 * scenery_respawn_delay);
+                DateTimeAddMilliseconds(&datetime, 8000 * scenery_respawn_delay);
             } else {
-                sub_45A950(&datetime, -60000 * scenery_respawn_delay);
+                DateTimeAddMilliseconds(&datetime, -60000 * scenery_respawn_delay);
             }
 
             timeevent_add_delay(&timeevent, &datetime);
@@ -2729,7 +2729,7 @@ bool object_is_busted(int64_t obj)
 }
 
 // 0x43F710
-void sub_43F710(int64_t obj)
+void object_scenery_update_animation(int64_t obj)
 {
     TigArtAnimData art_anim_data;
 
@@ -2739,14 +2739,14 @@ void sub_43F710(int64_t obj)
     }
 
     if ((obj_field_int32_get(obj, OBJ_F_SCENERY_FLAGS) & OSCF_NO_AUTO_ANIMATE) != 0) {
-        if (!sub_44CB60()) {
-            sub_423FF0(obj);
+        if (!AnimIsProcessingSlot()) {
+            anim_clear_goals(obj);
         }
     } else {
         if (tig_art_anim_data(obj_field_int32_get(obj, OBJ_F_CURRENT_AID), &art_anim_data) == TIG_OK) {
             if (art_anim_data.num_frames <= 1 && sfx_misc_sound(obj, MISC_SOUND_ANIMATING) == -1) {
-                if (!sub_44CB60()) {
-                    sub_423FF0(obj);
+                if (!AnimIsProcessingSlot()) {
+                    anim_clear_goals(obj);
                 }
             } else {
                 anim_goal_animate_loop(obj);
@@ -2772,7 +2772,7 @@ void object_inc_current_aid(int64_t obj)
             obj_field_int32_set(obj, OBJ_F_CURRENT_AID, next_aid);
             if (tig_art_frame_data(next_aid, &art_frame_data) == TIG_OK) {
                 if (art_frame_data.offset_x != 0 || art_frame_data.offset_y != 0) {
-                    sub_4423E0(obj,
+                    object_set_offset_internal(obj,
                         art_frame_data.offset_x + obj_field_int32_get(obj, OBJ_F_OFFSET_X),
                         art_frame_data.offset_y + obj_field_int32_get(obj, OBJ_F_OFFSET_Y));
                 }
@@ -2804,7 +2804,7 @@ void object_dec_current_aid(int64_t obj)
             obj_field_int32_set(obj, OBJ_F_CURRENT_AID, prev_aid);
             if (tig_art_frame_data(prev_aid, &art_frame_data) == TIG_OK) {
                 if (art_frame_data.offset_x != 0 || art_frame_data.offset_y != 0) {
-                    sub_4423E0(obj,
+                    object_set_offset_internal(obj,
                         art_frame_data.offset_x + obj_field_int32_get(obj, OBJ_F_OFFSET_X),
                         art_frame_data.offset_y + obj_field_int32_get(obj, OBJ_F_OFFSET_Y));
                 }
@@ -2949,29 +2949,29 @@ void object_cycle_rotation(int64_t obj)
             obj_field_int32_set(obj,
                 OBJ_F_RENDER_FLAGS,
                 obj_field_int32_get(obj, OBJ_F_RENDER_FLAGS) & ~ORF_08000000);
-            sub_4423E0(obj, 0, 0);
+            object_set_offset_internal(obj, 0, 0);
         }
     }
 }
 
 // 0x43FD70
-bool sub_43FD70(int64_t a1, int64_t a2, int rotation, unsigned int flags, int* a5)
+bool object_is_los_blocked(int64_t a1, int64_t a2, int rotation, unsigned int flags, int* a5)
 {
     int64_t block_obj;
     int block_obj_type;
 
-    return sub_43FDC0(a1, a2, rotation, flags, &block_obj, &block_obj_type, a5) != 0
+    return object_check_los(a1, a2, rotation, flags, &block_obj, &block_obj_type, a5) != 0
         || block_obj != OBJ_HANDLE_NULL;
 }
 
 // 0x43FDC0
-int sub_43FDC0(int64_t a1, int64_t a2, int rotation, unsigned int flags, int64_t* block_obj_ptr, int* block_obj_type_ptr, int* a7)
+int object_check_los(int64_t a1, int64_t a2, int rotation, unsigned int flags, int64_t* block_obj_ptr, int* block_obj_type_ptr, int* a7)
 {
-    return sub_43FE00(a1, a2, rotation, rotation, flags, block_obj_ptr, block_obj_type_ptr, a7);
+    return object_check_los_recursive(a1, a2, rotation, rotation, flags, block_obj_ptr, block_obj_type_ptr, a7);
 }
 
 // 0x43FE00
-int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64_t* block_obj_ptr, int* block_obj_type_ptr, int* a8)
+int object_check_los_recursive(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64_t* block_obj_ptr, int* block_obj_type_ptr, int* a8)
 {
     bool done = false;
     int cost = 0;
@@ -2994,7 +2994,7 @@ int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64
         int ccw_rot = (a3 + 7) % 8;
         int cw_rot = a3 + 1;
 
-        cost += sub_43FE00(a1, a2, ccw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
+        cost += object_check_los_recursive(a1, a2, ccw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
         if (*block_obj_ptr != OBJ_HANDLE_NULL) {
             return cost;
         }
@@ -3003,12 +3003,12 @@ int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64
             return 1;
         }
 
-        cost += sub_43FE00(a1, tmp_loc, cw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
+        cost += object_check_los_recursive(a1, tmp_loc, cw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
         if (*block_obj_ptr != OBJ_HANDLE_NULL) {
             return cost;
         }
 
-        cost += sub_43FE00(a1, a2, cw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
+        cost += object_check_los_recursive(a1, a2, cw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
         if (*block_obj_ptr != OBJ_HANDLE_NULL) {
             return cost;
         }
@@ -3017,7 +3017,7 @@ int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64
             return 1;
         }
 
-        cost += sub_43FE00(a1, tmp_loc, ccw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
+        cost += object_check_los_recursive(a1, tmp_loc, ccw_rot, a4, flags, block_obj_ptr, block_obj_type_ptr, a8);
 
         return cost;
     }
@@ -3279,11 +3279,11 @@ int sub_43FE00(int64_t a1, int64_t a2, int a3, int a4, unsigned int flags, int64
 }
 
 // 0x440700
-bool sub_440700(int64_t obj, int64_t loc, int rot, unsigned int flags, int64_t* block_obj_ptr)
+bool object_is_portal_blocked(int64_t obj, int64_t loc, int rot, unsigned int flags, int64_t* block_obj_ptr)
 {
     int block_obj_type;
 
-    sub_43FE00(obj, loc, rot, rot, flags | 0x4 | 0x1, block_obj_ptr, &block_obj_type, NULL);
+    object_check_los_recursive(obj, loc, rot, rot, flags | 0x4 | 0x1, block_obj_ptr, &block_obj_type, NULL);
 
     if (*block_obj_ptr == OBJ_HANDLE_NULL) {
         return false;
@@ -3369,7 +3369,7 @@ void object_list_location(int64_t loc, unsigned int flags, ObjectList* objects)
 
         if (obj_find_walk_first(sector_id, &obj, &iter)) {
             do {
-                if (!sub_43D940(obj)
+                if (!object_is_static_type(obj)
                     && (obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_INVENTORY) == 0
                     && obj_field_int64_get(obj, OBJ_F_LOCATION) == loc
                     && (dword_5E2F88 & obj_field_int32_get(obj, OBJ_F_FLAGS)) == 0
@@ -3385,7 +3385,7 @@ void object_list_location(int64_t loc, unsigned int flags, ObjectList* objects)
         }
     }
 
-    dword_5E2F98++;
+    g_object_list_ref_count++;
     return;
 }
 
@@ -3435,7 +3435,7 @@ void object_list_rect(LocRect* loc_rect, unsigned int flags, ObjectList* objects
 
     prev_ptr = &(objects->head);
 
-    if (!sub_4D0090(loc_rect, &v1)) {
+    if (!GetSectorDataForLocationRect(loc_rect, &v1)) {
         return;
     }
 
@@ -3446,7 +3446,7 @@ void object_list_rect(LocRect* loc_rect, unsigned int flags, ObjectList* objects
             for (row = 0; row < v2->width; row++) {
                 if (obj_find_walk_first(v2->field_20[row], &obj, &iter)) {
                     do {
-                        if (!sub_43D940(obj)
+                        if (!object_is_static_type(obj)
                             && (obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_INVENTORY) == 0
                             && (dword_5E2F88 & obj_field_int32_get(obj, OBJ_F_FLAGS)) == 0
                             && types[obj_field_int32_get(obj, OBJ_F_TYPE)]) {
@@ -3507,7 +3507,7 @@ void object_list_rect(LocRect* loc_rect, unsigned int flags, ObjectList* objects
         }
     }
 
-    dword_5E2F98++;
+    g_object_list_ref_count++;
 }
 
 // 0x440FC0
@@ -3538,7 +3538,7 @@ void object_list_vicinity_loc(int64_t loc, unsigned int flags, ObjectList* objec
     screen_rect.x = (int)(x - center_x);
     screen_rect.y = (int)(y - center_y);
 
-    if (sub_4B9130(&screen_rect, &loc_rect)) {
+    if (ScreenRectToLocationRect(&screen_rect, &loc_rect)) {
         object_list_rect(&loc_rect, flags, objects);
     } else {
         objects->num_sectors = 0;
@@ -3564,7 +3564,7 @@ void object_list_destroy(ObjectList* objects)
         sector_unlock(objects->sectors[index]);
     }
 
-    --dword_5E2F98;
+    --g_object_list_ref_count;
 }
 
 // 0x441140
@@ -3635,7 +3635,7 @@ void object_list_followers(int64_t obj, ObjectList* objects)
         parent_ptr = &((*parent_ptr)->next);
     }
 
-    ++dword_5E2F98;
+    ++g_object_list_ref_count;
 }
 
 // 0x441260
@@ -3713,7 +3713,7 @@ void object_list_party(int64_t obj, ObjectList* objects)
         objects->head = node;
     }
 
-    ++dword_5E2F98;
+    ++g_object_list_ref_count;
 }
 
 // 0x4413E0
@@ -3797,7 +3797,7 @@ void object_list_copy(ObjectList* dst, ObjectList* src)
 }
 
 // 0x441540
-int sub_441540(int64_t obj)
+int object_get_party_size(int64_t obj)
 {
     int cnt = 0;
     int party_member_index;
@@ -3824,7 +3824,7 @@ void object_drop(int64_t obj, int64_t loc)
         drop_info = (ObjectDropInfo*)MALLOC(sizeof(*drop_info));
         drop_info->obj = obj;
         drop_info->loc = loc;
-        sub_4A3230(obj_get_id(obj), object_drop_success, drop_info, object_drop_failure, drop_info);
+        multiplayer_request_object_lock(obj_get_id(obj), object_drop_success, drop_info, object_drop_failure, drop_info);
 
         return;
     }
@@ -3865,7 +3865,7 @@ bool object_drop_success(void* userinfo)
         multiplayer_lock();
 
         pkt.type = 22;
-        sub_4F0640(entry->obj, &(pkt.oid));
+        obj_get_oid(entry->obj, &(pkt.oid));
         pkt.loc = entry->loc;
         tig_net_send_app_all(&pkt, sizeof(pkt));
 
@@ -3902,7 +3902,7 @@ void object_pickup(int64_t item_obj, int64_t parent_obj)
         pickup_info = (ObjectPickupInfo*)MALLOC(sizeof(*pickup_info));
         pickup_info->item_obj = item_obj;
         pickup_info->parent_obj = parent_obj;
-        sub_4A3230(obj_get_id(item_obj), object_pickup_success, pickup_info, object_pickup_failure, pickup_info);
+        multiplayer_request_object_lock(obj_get_id(item_obj), object_pickup_success, pickup_info, object_pickup_failure, pickup_info);
 
         return;
     }
@@ -3940,8 +3940,8 @@ bool object_pickup_success(void* userinfo)
         multiplayer_lock();
 
         pkt.type = 23;
-        sub_4F0640(pickup_info->item_obj, &(pkt.item_oid));
-        sub_4F0640(pickup_info->parent_obj, &(pkt.parent_oid));
+        obj_get_oid(pickup_info->item_obj, &(pkt.item_oid));
+        obj_get_oid(pickup_info->parent_obj, &(pkt.parent_oid));
 
         object_pickup(pickup_info->item_obj, pickup_info->parent_obj);
         multiplayer_unlock();
@@ -4172,7 +4172,7 @@ bool object_locked_set(int64_t obj, bool locked)
     if ((flags & (type == OBJ_TYPE_PORTAL ? OPF_LOCKED : OCOF_LOCKED)) != 0 && !locked) {
         timeevent.type = TIMEEVENT_TYPE_LOCK;
         timeevent.params[0].object_value = obj;
-        sub_45A950(&datetime, 3600000);
+        DateTimeAddMilliseconds(&datetime, 3600000);
         timeevent_add_delay(&timeevent, &datetime);
     }
 
@@ -4229,7 +4229,7 @@ bool object_jammed_set(int64_t obj, bool jammed)
     if ((flags & (type == OBJ_TYPE_PORTAL ? OPF_JAMMED : OCOF_JAMMED)) == 0 && jammed) {
         timeevent.type = TIMEEVENT_TYPE_LOCK;
         timeevent.params[0].object_value = obj;
-        sub_45A950(&datetime, 86400000);
+        DateTimeAddMilliseconds(&datetime, 86400000);
         timeevent_add_delay(&timeevent, &datetime);
     }
 
@@ -4247,12 +4247,12 @@ bool object_jammed_set(int64_t obj, bool jammed)
 }
 
 // 0x441FC0
-void sub_441FC0(int64_t obj, int a2)
+void object_notify_npc_seen(int64_t obj, int a2)
 {
     if (!object_editor) {
         if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC
             && (obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_DESTROYED) == 0) {
-            sub_4AD790(obj, a2);
+            ai_schedule_process_immediate(obj, a2);
         }
     }
 }
@@ -4263,7 +4263,7 @@ void object_blit_flags_set(unsigned int flags)
     object_blit_flags = flags;
     if (object_iso_invalidate_rect != NULL) {
         object_iso_invalidate_rect(NULL);
-        sub_438530(player_get_local_pc_obj());
+        wallcheck_notify_player_moved(player_get_local_pc_obj());
     }
 }
 
@@ -4274,7 +4274,7 @@ int object_blit_flags_get()
 }
 
 // 0x442050
-void sub_442050(uint8_t** data_ptr, int* size_ptr, int64_t obj)
+void object_serialize_to_memory(uint8_t** data_ptr, int* size_ptr, int64_t obj)
 {
     sub_4064B0(obj);
     obj_write_mem(data_ptr, size_ptr, obj);
@@ -4282,7 +4282,7 @@ void sub_442050(uint8_t** data_ptr, int* size_ptr, int64_t obj)
 }
 
 // 0x4420D0
-bool sub_4420D0(uint8_t* data, int64_t* obj_ptr, int64_t loc)
+bool object_deserialize_from_memory(uint8_t* data, int64_t* obj_ptr, int64_t loc)
 {
     if (!obj_read_mem(data, obj_ptr)) {
         return false;
@@ -4290,7 +4290,7 @@ bool sub_4420D0(uint8_t* data, int64_t* obj_ptr, int64_t loc)
 
     sub_406520(*obj_ptr);
     obj_field_int64_set(*obj_ptr, OBJ_F_LOCATION, loc);
-    if (!sub_442260(*obj_ptr, loc)) {
+    if (!object_insert_into_world(*obj_ptr, loc)) {
         return false;
     }
 
@@ -4306,7 +4306,7 @@ bool object_create_func(int64_t proto_obj, int64_t loc, int64_t* obj_ptr, Object
         sub_405B30(proto_obj, loc, oid, obj_ptr);
     }
 
-    return sub_442260(*obj_ptr, loc);
+    return object_insert_into_world(*obj_ptr, loc);
 }
 
 // 0x4421A0
@@ -4315,14 +4315,14 @@ bool object_duplicate_func(int64_t proto_obj, int64_t loc, ObjectID* oids, int64
     if (oids->type == OID_TYPE_BLOCKED) {
         obj_perm_dup(obj_ptr, proto_obj);
     } else {
-        sub_406210(obj_ptr, proto_obj, oids);
+        ai_strategy_flee_from_object(obj_ptr, proto_obj, oids);
     }
 
-    if (!sub_442260(*obj_ptr, loc)) {
+    if (!object_insert_into_world(*obj_ptr, loc)) {
         return false;
     }
 
-    sub_43E770(*obj_ptr, loc, 0, 0);
+    object_move(*obj_ptr, loc, 0, 0);
 
     if (obj_field_int32_get(*obj_ptr, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
         obj_field_int64_set(*obj_ptr, OBJ_F_NPC_STANDPOINT_DAY, loc);
@@ -4333,7 +4333,7 @@ bool object_duplicate_func(int64_t proto_obj, int64_t loc, ObjectID* oids, int64
 }
 
 // 0x442260
-bool sub_442260(int64_t obj, int64_t loc)
+bool object_insert_into_world(int64_t obj, int64_t loc)
 {
     int type;
     unsigned int flags;
@@ -4383,7 +4383,7 @@ bool sub_442260(int64_t obj, int64_t loc)
 
     if (!object_editor) {
         if (type == OBJ_TYPE_NPC) {
-            sub_4AD6E0(obj);
+            npc_resurrect_ai_init(obj);
         }
     }
 
@@ -4397,7 +4397,7 @@ bool sub_442260(int64_t obj, int64_t loc)
 }
 
 // 0x4423E0
-void sub_4423E0(int64_t obj, int offset_x, int offset_y)
+void object_set_offset_internal(int64_t obj, int offset_x, int offset_y)
 {
     TigRect rect;
     int64_t loc;
@@ -4432,7 +4432,7 @@ void sub_4423E0(int64_t obj, int offset_x, int offset_y)
 }
 
 // 0x442520
-void sub_442520(int64_t obj)
+void object_update_render_state(int64_t obj)
 {
     unsigned int render_flags;
     unsigned int new_render_flags;
@@ -4524,7 +4524,7 @@ void sub_442520(int64_t obj)
             color = colors.colors[obj_rect.width / 2];
         } else {
             color = colors.colors[0];
-            if (dword_5E2F48) {
+            if (g_video_is_3d_accelerated) {
                 new_render_flags |= ORF_20000000;
             }
         }
@@ -4547,7 +4547,7 @@ void sub_442520(int64_t obj)
 
         obj_field_int32_set(obj, OBJ_F_COLOR, color);
         obj_field_int32_set(obj, OBJ_F_RENDER_FLAGS, new_render_flags | ORF_02000000);
-        sub_442D90(obj, &colors);
+        object_apply_render_colors(obj, &colors);
     }
 
     object_get_rect(obj, 0x07, &obj_rect);
@@ -4567,7 +4567,7 @@ void object_render_palette_clear(int64_t obj)
 }
 
 // 0x442D90
-void sub_442D90(int64_t obj, ObjectRenderColors* colors)
+void object_apply_render_colors(int64_t obj, ObjectRenderColors* colors)
 {
     unsigned int obj_flags;
     unsigned int render_flags;
@@ -4588,14 +4588,14 @@ void sub_442D90(int64_t obj, ObjectRenderColors* colors)
 
     if ((obj_flags & OF_DONTLIGHT) != 0
         || (blit_flags & (TIG_ART_BLT_BLEND_MUL | TIG_ART_BLT_BLEND_ADD)) != 0) {
-        if (!dword_5E2F48) {
+        if (!g_video_is_3d_accelerated) {
             render_flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
         }
         render_flags &= ~(ORF_40000000 | ORF_20000000);
     }
 
     if ((render_flags & ORF_20000000) != 0) {
-        if (dword_5E2F48) {
+        if (g_video_is_3d_accelerated) {
             render_flags |= TIG_ART_BLT_BLEND_COLOR_CONST;
         } else {
             palette_modify_info.flags |= TIG_PALETTE_MODIFY_TINT;
@@ -4607,7 +4607,7 @@ void sub_442D90(int64_t obj, ObjectRenderColors* colors)
     if ((render_flags & ORF_40000000) != 0) {
         object_render_colors_set(obj, colors);
         render_flags |= TIG_ART_BLT_BLEND_COLOR_ARRAY;
-        if (!dword_5E2F48) {
+        if (!g_video_is_3d_accelerated) {
             render_flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
         }
     } else {
@@ -4778,23 +4778,23 @@ void object_setup_blit(int64_t obj, TigArtBlitInfo* blit_info)
 
     render_flags = obj_field_int32_get(obj, OBJ_F_RENDER_FLAGS);
     if ((render_flags & (ORF_02000000 | ORF_01000000)) != (ORF_02000000 | ORF_01000000)) {
-        sub_442520(obj);
+        object_update_render_state(obj);
         render_flags = obj_field_int32_get(obj, OBJ_F_RENDER_FLAGS);
     }
 
     if ((obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_FROZEN) != 0) {
         blit_info->flags = TIG_ART_BLT_BLEND_ADD | TIG_ART_BLT_BLEND_COLOR_CONST;
-        if (!dword_5E2F48) {
+        if (!g_video_is_3d_accelerated) {
             blit_info->flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
         }
     } else if ((obj_field_int32_get(obj, OBJ_F_BLIT_FLAGS) & TIG_ART_BLT_BLEND_ADD) != 0) {
         blit_info->flags = TIG_ART_BLT_BLEND_ADD;
-        if (!dword_5E2F48) {
+        if (!g_video_is_3d_accelerated) {
             blit_info->flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
         }
     } else if ((obj_field_int32_get(obj, OBJ_F_BLIT_FLAGS) & TIG_ART_BLT_BLEND_MUL) != 0) {
         blit_info->flags = TIG_ART_BLT_BLEND_MUL;
-        if (!dword_5E2F48) {
+        if (!g_video_is_3d_accelerated) {
             blit_info->flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
         }
     } else if ((obj_field_int32_get(obj, OBJ_F_BLIT_FLAGS) & TIG_ART_BLT_BLEND_ALPHA_CONST) != 0) {
@@ -4847,7 +4847,7 @@ void object_setup_blit(int64_t obj, TigArtBlitInfo* blit_info)
         obj_flags = obj_field_int32_get(obj, OBJ_F_FLAGS);
         if ((obj_flags & (OF_OFF | OF_DESTROYED)) != 0) {
             blit_info->flags = TIG_ART_BLT_BLEND_ADD | TIG_ART_BLT_BLEND_COLOR_CONST;
-            if (!dword_5E2F48) {
+            if (!g_video_is_3d_accelerated) {
                 blit_info->flags |= TIG_ART_BLT_PALETTE_ORIGINAL;
             }
 
@@ -4918,7 +4918,7 @@ int object_compare_blits(const void* va, const void* vb)
 }
 
 // 0x443620
-void sub_443620(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id, TigRect* rect)
+void object_get_eye_candy_rect(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id, TigRect* rect)
 {
     TigArtFrameData art_frame_data;
     int scale_type;
@@ -4938,7 +4938,7 @@ void sub_443620(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id
     if (tig_art_type(art_id) == TIG_ART_TYPE_EYE_CANDY) {
         scale_type = tig_art_eye_candy_id_scale_get(art_id);
         if (scale_type != 4) {
-            scale = scale * dword_5A548C[scale_type] / 100;
+            scale = scale * g_eye_candy_scale_table[scale_type] / 100;
         }
     }
 
@@ -4973,10 +4973,10 @@ void sub_443620(unsigned int flags, int scale, int x, int y, tig_art_id_t art_id
 }
 
 // 0x443770
-void sub_443770(int64_t obj)
+void object_clear_render_data(int64_t obj)
 {
     sub_4D9A90(obj);
-    sub_4437C0(obj);
+    object_shadow_clear(obj);
     object_render_palette_clear(obj);
     object_render_colors_clear(obj);
     obj_field_int32_set(obj,
@@ -4985,13 +4985,13 @@ void sub_443770(int64_t obj)
 }
 
 // 0x4437C0
-void sub_4437C0(int64_t obj)
+void object_shadow_clear(int64_t obj)
 {
     shadow_clear(obj);
 }
 
 // 0x4437E0
-bool sub_4437E0(TigRect* rect)
+bool object_get_hover_rect_total(TigRect* rect)
 {
     TigRect tmp_rect;
 
@@ -5000,16 +5000,16 @@ bool sub_4437E0(TigRect* rect)
         return false;
     }
 
-    if (!dword_5E2E94) {
+    if (!g_object_hover_is_critter) {
         object_get_rect(object_hover_obj, 0, rect);
         return true;
     }
 
-    if (!sub_443880(rect, object_hover_underlay_art_id)) {
-        return sub_443880(rect, object_hover_overlay_art_id);
+    if (!object_get_hover_art_rect(rect, object_hover_underlay_art_id)) {
+        return object_get_hover_art_rect(rect, object_hover_overlay_art_id);
     }
 
-    if (sub_443880(&tmp_rect, object_hover_overlay_art_id)) {
+    if (object_get_hover_art_rect(&tmp_rect, object_hover_overlay_art_id)) {
         tig_rect_union(rect, &tmp_rect, rect);
     }
 
@@ -5017,7 +5017,7 @@ bool sub_4437E0(TigRect* rect)
 }
 
 // 0x443880
-bool sub_443880(TigRect* rect, tig_art_id_t art_id)
+bool object_get_hover_art_rect(TigRect* rect, tig_art_id_t art_id)
 {
     TigArtFrameData art_frame_data;
     int64_t loc;
@@ -5156,7 +5156,7 @@ bool object_load_obj_handle_safe(int64_t* obj_ptr, Ryan* a2, TigFile* stream)
 }
 
 // 0x443EB0
-void sub_443EB0(int64_t obj, Ryan* a2)
+void object_save_ref_init(int64_t obj, Ryan* a2)
 {
     if (obj != OBJ_HANDLE_NULL) {
         if ((obj_field_int32_get(obj, OBJ_F_FLAGS) & OF_DESTROYED) != 0) {
@@ -5181,7 +5181,7 @@ void sub_443EB0(int64_t obj, Ryan* a2)
 }
 
 // 0x443F80
-bool sub_443F80(int64_t* obj_ptr, Ryan* a2)
+bool object_save_ref_find(int64_t* obj_ptr, Ryan* a2)
 {
     ObjectList objects;
 
@@ -5206,7 +5206,7 @@ bool sub_443F80(int64_t* obj_ptr, Ryan* a2)
 }
 
 // 0x444020
-bool sub_444020(int64_t* obj_ptr, Ryan* a2)
+bool object_save_ref_validate(int64_t* obj_ptr, Ryan* a2)
 {
     int64_t obj;
 
@@ -5219,7 +5219,7 @@ bool sub_444020(int64_t* obj_ptr, Ryan* a2)
     if (a2->objid.type != OID_TYPE_NULL
         && *obj_ptr != OBJ_HANDLE_NULL
         && !obj_handle_is_valid(*obj_ptr)) {
-        if (!sub_443F80(&obj, a2)) {
+        if (!object_save_ref_find(&obj, a2)) {
             tig_debug_printf("Object: ERROR: Object validate recovery FAILED!\n");
             *obj_ptr = OBJ_HANDLE_NULL;
             return false;
@@ -5237,29 +5237,29 @@ bool sub_444020(int64_t* obj_ptr, Ryan* a2)
 }
 
 // 0x4440E0
-void sub_4440E0(int64_t obj, FollowerInfo* a2)
+void follower_info_init(int64_t obj, FollowerInfo* a2)
 {
     if (a2 != NULL) {
         a2->obj = obj;
-        sub_443EB0(obj, &(a2->field_8));
+        object_save_ref_init(obj, &(a2->field_8));
     }
 }
 
 // 0x444110
-bool sub_444110(FollowerInfo* a1)
+bool follower_info_find(FollowerInfo* a1)
 {
     if (a1 != NULL) {
-        return sub_443F80(&(a1->obj), &(a1->field_8));
+        return object_save_ref_find(&(a1->obj), &(a1->field_8));
     } else {
         return false;
     }
 }
 
 // 0x444130
-bool sub_444130(FollowerInfo* a1)
+bool follower_info_validate(FollowerInfo* a1)
 {
     if (a1 != NULL) {
-        return sub_444020(&(a1->obj), &(a1->field_8));
+        return object_save_ref_validate(&(a1->obj), &(a1->field_8));
     } else {
         return false;
     }
@@ -5403,7 +5403,7 @@ int64_t get_fire_at_location(int64_t loc)
 }
 
 // 0x4445A0
-void sub_4445A0(int64_t a1, int64_t a2)
+void object_move_to_actor(int64_t a1, int64_t a2)
 {
     int type;
     int64_t loc;
@@ -5419,13 +5419,13 @@ void sub_4445A0(int64_t a1, int64_t a2)
             if (tig_net_is_active()) {
                 if (tig_net_is_host()) {
                     loc = obj_field_int64_get(a1, OBJ_F_LOCATION);
-                    sub_4EDF20(a2, loc, 0, 0, false);
+                    item_drop_at_loc(a2, loc, 0, 0, false);
                 } else {
                     sub_4EF830(a1, a2);
                 }
             } else {
                 loc = obj_field_int64_get(a1, OBJ_F_LOCATION);
-                sub_43E770(a2, loc, 0, 0);
+                object_move(a2, loc, 0, 0);
             }
         }
     }

@@ -2183,7 +2183,7 @@ bool sub_54B5D0(TigMessage* msg)
 
         if (msg->data.button.state == TIG_BUTTON_STATE_MOUSE_INSIDE) {
             if (msg->data.button.button_handle == intgame_clock_button_info.button_handle) {
-                datetime = sub_45A7C0();
+                datetime = datetime_get_current();
 
                 mes_file_entry.num = 22; // "Current Time"
                 mes_get_msg(intgame_mes_file, &mes_file_entry);
@@ -2697,13 +2697,13 @@ void intgame_process_event(TigMessage* msg)
                             if ((tig_kb_get_modifier(SDL_KMOD_CTRL)
                                     || tig_kb_get_modifier(SDL_KMOD_NUM))
                                 && !settings_get_value(&settings, ALWAYS_RUN_KEY)) {
-                                sub_433C80(pc_obj, v1.loc);
+                                anim_goal_run_to(pc_obj, v1.loc);
                             } else {
-                                sub_433640(pc_obj, v1.loc);
+                                anim_is_obj_convinced_to_move(pc_obj, v1.loc);
                             }
 
                             if (dword_64C6D8) {
-                                sub_436CF0();
+                                anim_goals_clear_current();
                             }
                             dword_64C6D8 = true;
                         }
@@ -2728,18 +2728,18 @@ void intgame_process_event(TigMessage* msg)
                         && !critter_is_prone(pc_obj)) {
                         if (combat_critter_is_combat_mode_active(pc_obj)) {
                             if (anim_is_current_goal_type(pc_obj, AG_ANIM_FIDGET, NULL)
-                                || !sub_423300(pc_obj, 0)) {
+                                || !anim_get_current_id(pc_obj, 0)) {
                                 intgame_combat_mode_toggle();
                             }
                         } else {
                             if (critter_is_concealed(pc_obj)
-                                && !sub_423300(pc_obj, NULL)) {
+                                && !anim_get_current_id(pc_obj, NULL)) {
                                 critter_set_concealed(pc_obj, false);
                             }
                         }
 
-                        if (sub_424070(pc_obj, 3, 0, 0)) {
-                            sub_4B4320(pc_obj);
+                        if (anim_set_priority_level(pc_obj, 3, 0, 0)) {
+                            combat_fidget_check(pc_obj);
 
                             tig_mouse_get_state(&mouse_state);
                             if (location_at(mouse_state.x, mouse_state.y, &loc)
@@ -2751,7 +2751,7 @@ void intgame_process_event(TigMessage* msg)
                                 pc_loc = obj_field_int64_get(pc_obj, OBJ_F_LOCATION);
                                 aid = obj_field_int32_get(pc_obj, OBJ_F_CURRENT_AID);
                                 rot = location_rot(pc_loc, loc);
-                                if (!sub_423300(pc_obj, 0)) {
+                                if (!anim_get_current_id(pc_obj, 0)) {
                                     anim_goal_rotate(pc_obj, rot);
                                 } else if (anim_is_current_goal_type(pc_obj, AG_ANIM_FIDGET, NULL)) {
                                     object_set_current_aid(pc_obj, tig_art_id_rotation_set(aid, rot));
@@ -2809,7 +2809,7 @@ void intgame_process_event(TigMessage* msg)
                 if (!inven_ui_is_created()) {
                     if (sub_4F2830(&(msg->data.mouse), &v1, intgame_fullscreen)) {
                         spell_ui_apply(&v1);
-                    } else if (sub_4F2D10() == 0x100000) {
+                    } else if (TargetGetHoverTarget() == 0x100000) {
                         spell_ui_error_target_not_damaged();
                     }
                 }
@@ -2930,13 +2930,13 @@ void intgame_process_event(TigMessage* msg)
                     if ((tig_kb_get_modifier(SDL_KMOD_CTRL)
                             || tig_kb_get_modifier(SDL_KMOD_NUM))
                         && !settings_get_value(&settings, ALWAYS_RUN_KEY)) {
-                        sub_433C80(pc_obj, v1.loc);
+                        anim_goal_run_to(pc_obj, v1.loc);
                     } else {
-                        sub_433640(pc_obj, v1.loc);
+                        anim_is_obj_convinced_to_move(pc_obj, v1.loc);
                     }
 
                     if (dword_64C6D8) {
-                        sub_436CF0();
+                        anim_goals_clear_current();
                     }
                     dword_64C6D8 = true;
                 }
@@ -2969,7 +2969,7 @@ void intgame_process_event(TigMessage* msg)
             case TIG_MESSAGE_MOUSE_LEFT_BUTTON_UP:
                 if (sub_4F2830(&(msg->data.mouse), &v1, intgame_fullscreen)) {
                     item_ui_apply(&v1);
-                } else if (sub_4F2D10() == 0x100000) {
+                } else if (TargetGetHoverTarget() == 0x100000) {
                     spell_ui_error_target_not_damaged();
                 }
                 break;
@@ -3242,7 +3242,7 @@ void sub_54ED30(S4F2810* a1)
         anim = AG_THROW_ITEM;
     } else {
         if (!combat_critter_is_combat_mode_active(pc_obj)) {
-            if (sub_44E940(a1->obj, 0, pc_obj)) {
+            if (FindAnimationByGoalType(a1->obj, 0, pc_obj)) {
                 combat_critter_activate_combat_mode(pc_obj);
             }
         }
@@ -3393,7 +3393,7 @@ void sub_54ED30(S4F2810* a1)
                 }
 
                 if (tig_kb_get_modifier(SDL_KMOD_ALT)) {
-                    sub_4445A0(pc_obj, a1->obj);
+                    object_move_to_actor(pc_obj, a1->obj);
                     return;
                 }
 
@@ -3417,7 +3417,7 @@ void sub_54ED30(S4F2810* a1)
                     }
 
                     if (tig_kb_get_modifier(SDL_KMOD_ALT)) {
-                        sub_4445A0(pc_obj, a1->obj);
+                        object_move_to_actor(pc_obj, a1->obj);
                         return;
                     }
 
@@ -3436,7 +3436,7 @@ void sub_54ED30(S4F2810* a1)
     }
 
     // 0x54F25B
-    if (!sub_44D500(&goal_data, pc_obj, anim)) {
+    if (!AnimGoalDataInitNoPriority(&goal_data, pc_obj, anim)) {
         return;
     }
 
@@ -3482,8 +3482,8 @@ void sub_54ED30(S4F2810* a1)
     }
 
     if (combat_auto_attack_get(pc_obj)) {
-        if (sub_44E6F0(pc_obj, &goal_data)
-            || !sub_424070(pc_obj, 3, 0, 0)) {
+        if (AnimGoalAddWithArgs(pc_obj, &goal_data)
+            || !anim_set_priority_level(pc_obj, 3, 0, 0)) {
             return;
         }
 
@@ -3502,14 +3502,14 @@ void sub_54ED30(S4F2810* a1)
             }
         }
 
-        if (!sub_44D540(&goal_data, &anim_id, flags)) {
+        if (!AnimGoalStartEx(&goal_data, &anim_id, flags)) {
             return;
         }
 
         if (tig_net_is_active()) {
             return;
         }
-    } else if (sub_423300(pc_obj, &anim_id)) {
+    } else if (anim_get_current_id(pc_obj, &anim_id)) {
         // 0x54F68E
         if (combat_turn_based_is_active()) {
             AnimID fidget_anim_id;
@@ -3517,40 +3517,40 @@ void sub_54ED30(S4F2810* a1)
                 && anim_id_is_equal(&anim_id, &fidget_anim_id)
                 && num_goal_subslots_in_use(&anim_id) < 4) {
                 if (is_anim_forever(&anim_id)) {
-                    if (sub_424070(pc_obj, 3, false, false)) {
-                        if (!sub_44D520(&goal_data, &anim_id)) {
+                    if (anim_set_priority_level(pc_obj, 3, false, false)) {
+                        if (!StartAnimationGoal(&goal_data, &anim_id)) {
                             return;
                         }
                     }
                 } else {
                     // __FILE__: "C:\Troika\Code\Game\gameuilib\Intgame.c"
                     // __LINE__: 5088
-                    if (!sub_44DBE0(anim_id, &goal_data, __FILE__, __LINE__)) {
+                    if (!AnimGoalAddSubGoal(anim_id, &goal_data, __FILE__, __LINE__)) {
                         return;
                     }
                 }
             }
-        } else if (sub_44E6F0(pc_obj, &goal_data)) {
+        } else if (AnimGoalAddWithArgs(pc_obj, &goal_data)) {
             if (anim == AG_ATTACK || anim == AG_ATTEMPT_ATTACK) {
                 if (num_goal_subslots_in_use(&anim_id) < 4) {
                     if (is_anim_forever(&anim_id)) {
-                        if (sub_424070(pc_obj, 3, 0, 0)
-                            && !sub_44D520(&goal_data, &anim_id)) {
+                        if (anim_set_priority_level(pc_obj, 3, 0, 0)
+                            && !StartAnimationGoal(&goal_data, &anim_id)) {
                             return;
                         }
                     } else {
                         // __FILE__: "C:\Troika\Code\Game\gameuilib\Intgame.c"
                         // __LINE__: 5026
-                        if (!sub_44DBE0(anim_id, &goal_data, __FILE__, __LINE__)) {
+                        if (!AnimGoalAddSubGoal(anim_id, &goal_data, __FILE__, __LINE__)) {
                             return;
                         }
                     }
                 }
             } else {
-                if (sub_424070(pc_obj, 3, false, false)
-                    && sub_44D520(&goal_data, &anim_id)) {
+                if (anim_set_priority_level(pc_obj, 3, false, false)
+                    && StartAnimationGoal(&goal_data, &anim_id)) {
                     if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-                        sub_436C50(anim_id);
+                        anim_goals_set_current(anim_id);
                     } else if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
                         turn_on_running(anim_id);
                     } else {
@@ -3567,21 +3567,21 @@ void sub_54ED30(S4F2810* a1)
                     }
 
                     if (v26) {
-                        sub_436ED0(anim_id);
+                        anim_run(anim_id);
                     }
                 }
             }
-        } else if (sub_424070(pc_obj, 3, false, false)) {
+        } else if (anim_set_priority_level(pc_obj, 3, false, false)) {
             if (tig_net_is_active()
                 && !tig_kb_get_modifier(SDL_KMOD_SHIFT)
                 && !tig_kb_get_modifier(SDL_KMOD_CTRL)) {
                 // NOTE: Some useless checks.
             }
 
-            if (sub_44D520(&goal_data, &anim_id)
+            if (StartAnimationGoal(&goal_data, &anim_id)
                 && !tig_net_is_active()) {
                 if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-                    sub_436C50(anim_id);
+                    anim_goals_set_current(anim_id);
                 } else if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
                     turn_on_running(anim_id);
                 } else {
@@ -3598,19 +3598,19 @@ void sub_54ED30(S4F2810* a1)
                 }
 
                 if (v26) {
-                    sub_436ED0(anim_id);
+                    anim_run(anim_id);
                 }
             }
         }
     } else {
-        if (!sub_44D520(&goal_data, &anim_id)) {
+        if (!StartAnimationGoal(&goal_data, &anim_id)) {
             return;
         }
     }
 
     // 0x54FB19
     if (tig_kb_get_modifier(SDL_KMOD_SHIFT)) {
-        sub_436C50(anim_id);
+        anim_goals_set_current(anim_id);
     } else {
         if (tig_kb_get_modifier(SDL_KMOD_CTRL)) {
             turn_on_running(anim_id);
@@ -3629,7 +3629,7 @@ void sub_54ED30(S4F2810* a1)
     }
 
     if (v26) {
-        sub_436ED0(anim_id);
+        anim_run(anim_id);
     }
 }
 
@@ -3665,7 +3665,7 @@ void sub_54FCF0(Hotkey* hotkey)
     switch (hotkey->type) {
     case HOTKEY_ITEM:
         intgame_mode_set(INTGAME_MODE_MAIN);
-        sub_444130(&(hotkey->item_obj));
+        follower_info_validate(&(hotkey->item_obj));
         if (obj_field_handle_get(hotkey->item_obj.obj, OBJ_F_ITEM_PARENT) == pc_obj) {
             v2 = hotkey->item_obj.obj;
             if (obj_field_int32_get(v2, OBJ_F_TYPE) != OBJ_TYPE_WRITTEN
@@ -3714,7 +3714,7 @@ void sub_54FCF0(Hotkey* hotkey)
         spell_ui_activate(pc_obj, hotkey->data);
         break;
     case HOTKEY_ITEM_SPELL:
-        sub_444130(&(hotkey->item_obj));
+        follower_info_validate(&(hotkey->item_obj));
 
         weapon_obj = item_wield_get(pc_obj, ITEM_INV_LOC_WEAPON);
         if (obj_field_handle_get(hotkey->item_obj.obj, OBJ_F_ITEM_PARENT) == pc_obj) {
@@ -3743,7 +3743,7 @@ void sub_550000(int64_t critter_obj, Hotkey* hotkey, int inventory_location)
     }
 
     if (item_obj != OBJ_HANDLE_NULL) {
-        v1 = sub_464D20(hotkey->item_obj.obj, inventory_location, critter_obj);
+        v1 = CheckCanWieldItem(hotkey->item_obj.obj, inventory_location, critter_obj);
         if (v1 != 0 && v1 != 4) {
             item_error_msg(critter_obj, v1);
             return;
@@ -3754,7 +3754,7 @@ void sub_550000(int64_t critter_obj, Hotkey* hotkey, int inventory_location)
         }
     }
 
-    v1 = sub_464D20(hotkey->item_obj.obj, inventory_location, critter_obj);
+    v1 = CheckCanWieldItem(hotkey->item_obj.obj, inventory_location, critter_obj);
     if (v1 != 0) {
         item_error_msg(critter_obj, v1);
         if (item_obj != OBJ_HANDLE_NULL) {
@@ -4718,7 +4718,7 @@ bool intgame_get_location_under_cursor(int64_t* loc_ptr)
 
     if (tig_mouse_get_state(&mouse_state) == TIG_OK
         && sub_5518C0(mouse_state.x, mouse_state.y)
-        && sub_4F2CB0(mouse_state.x, mouse_state.y, &v1, Tgt_Tile, intgame_fullscreen)
+        && TargetFindAtScreenCoords(mouse_state.x, mouse_state.y, &v1, Tgt_Tile, intgame_fullscreen)
         && v1.is_loc) {
         *loc_ptr = v1.loc;
         return true;
@@ -4756,13 +4756,13 @@ void sub_551910(TigMessage* msg)
         sub_551F80();
 
         if (!map_is_clearing_objects()) {
-            if (sub_4F2CB0(msg->data.mouse.x, msg->data.mouse.y, &v1, qword_5C7280, intgame_fullscreen)) {
+            if (TargetFindAtScreenCoords(msg->data.mouse.x, msg->data.mouse.y, &v1, qword_5C7280, intgame_fullscreen)) {
                 if (!v1.is_loc) {
                     sub_57CCF0(player_get_local_pc_obj(), v1.obj);
                     object_hover_obj_set(v1.obj);
                 }
             } else if (combat_turn_based_is_active()
-                && sub_4F2CB0(msg->data.mouse.x, msg->data.mouse.y, &v1, Tgt_Tile, intgame_fullscreen)
+                && TargetFindAtScreenCoords(msg->data.mouse.x, msg->data.mouse.y, &v1, Tgt_Tile, intgame_fullscreen)
                 && v1.is_loc
                 && intgame_mode_get() == INTGAME_MODE_MAIN) {
                 combat_check_move_to(player_get_local_pc_obj(), v1.loc);
@@ -5232,7 +5232,7 @@ void intgame_clock_refresh()
         return;
     }
 
-    datetime = sub_45A7C0();
+    datetime = datetime_get_current();
     v1 = (dword_64C47C[1] + dword_64C47C[0]
              + (datetime_seconds_since_reference_date(&datetime) + 73800) % 86400 * (dword_64C47C[1] + dword_64C47C[0]) / 86400
              - intgame_clock_frame.width / 2)
@@ -5337,7 +5337,7 @@ bool intgame_clock_process_callback(TimeEvent* timeevent)
     if (intgame_iso_interface_created) {
         intgame_clock_refresh();
         next_timeevent.type = TIMEEVENT_TYPE_CLOCK;
-        sub_45A950(&datetime, 3600000);
+        DateTimeAddMilliseconds(&datetime, 3600000);
         timeevent_clear_one_typed(TIMEEVENT_TYPE_CLOCK);
         timeevent_add_delay(&next_timeevent, &datetime);
     }
@@ -6139,7 +6139,7 @@ void sub_553A70(TigMessage* msg)
         return;
     }
 
-    if (sub_4F2CB0(msg->data.mouse.x, msg->data.mouse.y, &v1, qword_5C7280, intgame_fullscreen)) {
+    if (TargetFindAtScreenCoords(msg->data.mouse.x, msg->data.mouse.y, &v1, qword_5C7280, intgame_fullscreen)) {
         if (obj != v1.obj) {
             sub_57CCF0(player_get_local_pc_obj(), v1.obj);
             object_hover_obj_set(v1.obj);
@@ -6637,16 +6637,16 @@ void sub_554830(int64_t a1, int64_t a2)
     }
 
     skill_invocation_init(&skill_invocation);
-    sub_4440E0(a1, &(skill_invocation.source));
-    sub_4440E0(a2, &(skill_invocation.target));
-    sub_4440E0(weapon_obj, &(skill_invocation.item));
+    follower_info_init(a1, &(skill_invocation.source));
+    follower_info_init(a2, &(skill_invocation.target));
+    follower_info_init(weapon_obj, &(skill_invocation.item));
     skill_invocation.skill = skill;
 
     effectiveness -= skill_invocation_difficulty(&skill_invocation);
 
     if (weapon_obj != OBJ_HANDLE_NULL
         && skill != SKILL_THROWING) {
-        v3 = sub_461620(weapon_obj, a1, a2);
+        v3 = CalculateMagicTechEffectivenessModifier(weapon_obj, a1, a2);
         if (v3 > 0) {
             if (v3 > 20) {
                 skill_invocation.flags |= SKILL_INVOCATION_MAGIC_TECH_PENALTY;
@@ -8553,7 +8553,7 @@ int sub_557C00()
             && y >= button_data.y
             && x < button_data.x + button_data.width
             && y < button_data.y + button_data.height) {
-            if (!sub_45A030(mt_item_spell(qword_64C688, index))) {
+            if (!magictech_has_item_triggers(mt_item_spell(qword_64C688, index))) {
                 return index;
             } else {
                 return 5;

@@ -30,15 +30,15 @@ typedef struct WallStructure {
 } WallStructure;
 
 static bool build_tile_file_name(const char* name1, const char* name2, int a3, int a4, char* fname);
-static bool sub_4EB0C0(int num, int type, int flippable, char** name_ptr);
+static bool GetTileNameByType(int num, int type, int flippable, char** name_ptr);
 static bool a_name_tile_fname_to_aid(const char* name, tig_art_id_t* art_id_ptr);
 static bool count_tile_names();
 static bool load_tile_names();
 static bool load_tile_edges();
-static bool sub_4EB770(char* name, int* a2, int* a3);
-static bool sub_4EB7D0(const char* name, int* index_ptr);
-static bool sub_4EB860(int a1, int a2, bool* a3, int* a4);
-static bool sub_4EB8D0(int* a1, int a2, int a3, bool* a4);
+static bool ParseTileEdgeName(char* name, int* a2, int* a3);
+static bool FindTileIndexByName(const char* name, int* index_ptr);
+static bool CheckTileConnectivitySetup(int a1, int a2, bool* a3, int* a4);
+static bool FindPathBetweenTiles(int* a1, int a2, int a3, bool* a4);
 static tig_art_id_t sub_4EB970(tig_art_id_t a, tig_art_id_t b);
 static uint8_t a_name_tile_id_flags(tig_art_id_t aid);
 static int8_t sub_4EBE90(int a1, int a2, int a3, int a4, int a5, int a6);
@@ -46,12 +46,12 @@ static bool sub_4EC020();
 static bool sub_4EC0C0();
 static int sub_4EC160();
 static bool build_facade_file_name(int num, char* fname);
-static bool sub_4EC4B0();
-static char* sub_4EC8F0(tig_art_id_t aid);
-static int sub_4EC940(const char* fname);
+static bool InitializePortalNames();
+static char* GetPortalNameFromArtID(tig_art_id_t aid);
+static int GetWallArtIDFromFilename(const char* fname);
 static void init_wall_names();
-static void sub_4ECB80(mes_file_handle_t wallproto_mes_file, char* str, int index);
-static int sub_4ECC00(int index);
+static void ParseWallProtoEntry(mes_file_handle_t wallproto_mes_file, char* str, int index);
+static int GetWallProtoDamageArtId(int index);
 static void init_wall_structures();
 static void parse_wall_structure(char* str, int index);
 static bool build_wall_file_name(const char* name, int piece, int damage, int variation, char* fname);
@@ -79,7 +79,7 @@ static int* outdoor_non_flippable_tile_sounds;
 static uint8_t* indoor_non_flippable_tile_flags;
 
 // 0x603AF8
-static int* dword_603AF8;
+static int* g_tileEdgeData;
 
 // 0x603AFC
 static uint8_t* indoor_flippable_tile_flags;
@@ -187,7 +187,7 @@ static int roof_initialized;
 static uint8_t* dword_687660[7];
 
 // 0x687680
-static size_t dword_687680[7];
+static size_t g_tileCategoryBufferSizes[7];
 
 // 0x4EAC80
 bool a_name_tile_init()
@@ -211,13 +211,13 @@ bool a_name_tile_init()
         return false;
     }
 
-    dword_687680[0] = 16 * (num_outdoor_flippable_names + 4);
-    dword_687680[1] = 16 * (num_outdoor_non_flippable_names + 4);
-    dword_687680[2] = 16 * (num_indoor_flippable_names + 4);
-    dword_687680[3] = 16 * (num_indoor_non_flippable_names + 4);
-    dword_687680[4] = 16 * (num_outdoor_flippable_names * num_outdoor_flippable_names + 4);
-    dword_687680[5] = 16 * (num_outdoor_non_flippable_names * num_outdoor_non_flippable_names + 4);
-    dword_687680[6] = 16 * (num_outdoor_flippable_names * num_outdoor_non_flippable_names + 4);
+    g_tileCategoryBufferSizes[0] = 16 * (num_outdoor_flippable_names + 4);
+    g_tileCategoryBufferSizes[1] = 16 * (num_outdoor_non_flippable_names + 4);
+    g_tileCategoryBufferSizes[2] = 16 * (num_indoor_flippable_names + 4);
+    g_tileCategoryBufferSizes[3] = 16 * (num_indoor_non_flippable_names + 4);
+    g_tileCategoryBufferSizes[4] = 16 * (num_outdoor_flippable_names * num_outdoor_flippable_names + 4);
+    g_tileCategoryBufferSizes[5] = 16 * (num_outdoor_non_flippable_names * num_outdoor_non_flippable_names + 4);
+    g_tileCategoryBufferSizes[6] = 16 * (num_outdoor_flippable_names * num_outdoor_non_flippable_names + 4);
 
     return true;
 }
@@ -227,7 +227,7 @@ void a_name_tile_exit()
 {
     mes_unload(tilename_mes_file);
 
-    FREE(dword_603AF8);
+    FREE(g_tileEdgeData);
     FREE(outdoor_flippable_tile_names);
     FREE(outdoor_non_flippable_tile_names);
     FREE(indoor_flippable_tile_names);
@@ -273,14 +273,14 @@ bool a_name_tile_aid_to_fname(tig_art_id_t aid, char* fname)
 
     num1 = tig_art_tile_id_num1_get(aid);
     num2 = tig_art_tile_id_num2_get(aid);
-    v1 = sub_503700(aid);
-    v2 = sub_5037B0(aid);
+    v1 = tig_art_tile_id_get_edge_data(aid);
+    v2 = tig_art_tile_id_get_variation_data(aid);
     type = tig_art_tile_id_type_get(aid);
     flippable1 = tig_art_tile_id_flippable1_get(aid);
     flippable2 = tig_art_tile_id_flippable2_get(aid);
 
-    if (!sub_4EB0C0(num1, type, flippable1, &name1)
-        || !sub_4EB0C0(num2, type, flippable2, &name2)) {
+    if (!GetTileNameByType(num1, type, flippable1, &name1)
+        || !GetTileNameByType(num2, type, flippable2, &name2)) {
         return false;
     }
 
@@ -318,7 +318,7 @@ bool build_tile_file_name(const char* name1, const char* name2, int a3, int a4, 
         return true;
     }
 
-    if (!sub_4EB7D0(name1, &v1)) {
+    if (!FindTileIndexByName(name1, &v1)) {
         sprintf(fname,
             "art\\tile\\%sbse%c%c.art",
             name1,
@@ -327,7 +327,7 @@ bool build_tile_file_name(const char* name1, const char* name2, int a3, int a4, 
         return true;
     }
 
-    if (!sub_4EB7D0(name2, &v2)) {
+    if (!FindTileIndexByName(name2, &v2)) {
         sprintf(fname,
             "art\\tile\\%sbse%c%c.art",
             name2,
@@ -355,7 +355,7 @@ bool build_tile_file_name(const char* name1, const char* name2, int a3, int a4, 
 }
 
 // 0x4EB0C0
-bool sub_4EB0C0(int num, int type, int flippable, char** name_ptr)
+bool GetTileNameByType(int num, int type, int flippable, char** name_ptr)
 {
     if (flippable) {
         if (type) {
@@ -565,7 +565,7 @@ bool load_tile_edges()
     }
 
     do {
-        if (!sub_4EB770(mes_file_entry.str, &v2, &v3)) {
+        if (!ParseTileEdgeName(mes_file_entry.str, &v2, &v3)) {
             FREE(v1);
             return false;
         }
@@ -574,11 +574,11 @@ bool load_tile_edges()
         v1[cnt * v2 + v3] = true;
     } while (mes_find_next(tilename_mes_file, &mes_file_entry));
 
-    dword_603AF8 = MALLOC(sizeof(*dword_603AF8) * cnt * cnt);
+    g_tileEdgeData = MALLOC(sizeof(*g_tileEdgeData) * cnt * cnt);
 
     for (v2 = 0; v2 < cnt; v2++) {
         for (v3 = 0; v3 < cnt; v3++) {
-            if (!sub_4EB860(v2, v3, v1, &v4)) {
+            if (!CheckTileConnectivitySetup(v2, v3, v1, &v4)) {
                 FREE(v1);
                 return false;
             }
@@ -591,7 +591,7 @@ bool load_tile_edges()
 }
 
 // 0x4EB770
-bool sub_4EB770(char* name, int* a2, int* a3)
+bool ParseTileEdgeName(char* name, int* a2, int* a3)
 {
     char ch;
     bool v1;
@@ -602,18 +602,18 @@ bool sub_4EB770(char* name, int* a2, int* a3)
 
     ch = name[3];
     name[3] = '\0';
-    v1 = sub_4EB7D0(name, a2);
+    v1 = FindTileIndexByName(name, a2);
     name[3] = ch;
 
     if (!v1) {
         return false;
     }
 
-    return sub_4EB7D0(name + 3, a3);
+    return FindTileIndexByName(name + 3, a3);
 }
 
 // 0x4EB7D0
-bool sub_4EB7D0(const char* name, int* index_ptr)
+bool FindTileIndexByName(const char* name, int* index_ptr)
 {
     int index = 0;
 
@@ -635,7 +635,7 @@ bool sub_4EB7D0(const char* name, int* index_ptr)
 }
 
 // 0x4EB860
-bool sub_4EB860(int a1, int a2, bool* a3, int* a4)
+bool CheckTileConnectivitySetup(int a1, int a2, bool* a3, int* a4)
 {
     bool rc;
     int* v1;
@@ -647,7 +647,7 @@ bool sub_4EB860(int a1, int a2, bool* a3, int* a4)
 
     v1 = (int*)MALLOC(sizeof(int) * (num_outdoor_non_flippable_names + num_outdoor_flippable_names));
     v1[0] = a1;
-    rc = sub_4EB8D0(v1, 0, a2, a3);
+    rc = FindPathBetweenTiles(v1, 0, a2, a3);
     *a4 = v1[1];
     FREE(v1);
 
@@ -655,7 +655,7 @@ bool sub_4EB860(int a1, int a2, bool* a3, int* a4)
 }
 
 // 0x4EB8D0
-bool sub_4EB8D0(int* a1, int a2, int a3, bool* a4)
+bool FindPathBetweenTiles(int* a1, int a2, int a3, bool* a4)
 {
     int cnt;
     int index;
@@ -679,7 +679,7 @@ bool sub_4EB8D0(int* a1, int a2, int a3, bool* a4)
                     return true;
                 }
 
-                if (sub_4EB8D0(a1, a2 + 1, a3, a4)) {
+                if (FindPathBetweenTiles(a1, a2 + 1, a3, a4)) {
                     return true;
                 }
             }
@@ -717,7 +717,7 @@ tig_art_id_t sub_4EB970(tig_art_id_t a, tig_art_id_t b)
         v2 += num_outdoor_flippable_names;
     }
 
-    v3 = dword_603AF8[v2 + v1 * (num_outdoor_flippable_names + num_outdoor_non_flippable_names)];
+    v3 = g_tileEdgeData[v2 + v1 * (num_outdoor_flippable_names + num_outdoor_non_flippable_names)];
     if (v3 < num_outdoor_flippable_names) {
         tig_art_tile_id_create(v3, v3, 15, 0, 1, 1, 1, 0, &art_id);
     } else {
@@ -846,7 +846,7 @@ void sub_4EBC40()
     int v3;
 
     for (index = 0; index < 7; index++) {
-        dword_687660[index] = (uint8_t*)MALLOC(dword_687680[index]);
+        dword_687660[index] = (uint8_t*)MALLOC(g_tileCategoryBufferSizes[index]);
     }
 
     if (!sub_4EC020()) {
@@ -966,7 +966,7 @@ bool sub_4EC020()
     }
 
     for (index = 0; index < 7; index++) {
-        if (tig_file_fread(dword_687660[index], 1, dword_687680[index], stream) < dword_687680[index]) {
+        if (tig_file_fread(dword_687660[index], 1, g_tileCategoryBufferSizes[index], stream) < g_tileCategoryBufferSizes[index]) {
             break;
         }
     }
@@ -997,7 +997,7 @@ bool sub_4EC0C0()
     }
 
     for (index = 0; index < 7; index++) {
-        if (tig_file_fwrite(dword_687660[index], 1, dword_687680[index], stream) < dword_687680[index]) {
+        if (tig_file_fwrite(dword_687660[index], 1, g_tileCategoryBufferSizes[index], stream) < g_tileCategoryBufferSizes[index]) {
             break;
         }
     }
@@ -1106,7 +1106,7 @@ bool a_name_item_aid_to_fname(tig_art_id_t aid, char* fname)
 // 0x4EC370
 bool a_name_facade_init()
 {
-    if (!sub_4EC4B0()) {
+    if (!InitializePortalNames()) {
         return false;
     }
 
@@ -1148,7 +1148,7 @@ bool build_facade_file_name(int num, char* fname)
 }
 
 // 0x4EC4B0
-bool sub_4EC4B0()
+bool InitializePortalNames()
 {
     MesFileEntry mes_file_entry;
     int index;
@@ -1213,7 +1213,7 @@ void a_name_portal_exit()
 // 0x4EC620
 bool a_name_portal_aid_to_fname(tig_art_id_t aid, char* fname)
 {
-    sprintf(fname, "art\\portal\\%s", sub_4EC8F0(aid));
+    sprintf(fname, "art\\portal\\%s", GetPortalNameFromArtID(aid));
 
     if (tig_art_id_damaged_get(aid)) {
         fname[strlen(fname) - 6] = 'D';
@@ -1288,7 +1288,7 @@ tig_art_id_t a_name_portal_aid_from_wall_aid(tig_art_id_t wall_art_id, ObjectID*
 
     fname[6] = 'U';
 
-    portal_num = sub_4EC940(fname);
+    portal_num = GetWallArtIDFromFilename(fname);
     if (portal_num == -1) {
         return TIG_ART_ID_INVALID;
     }
@@ -1297,7 +1297,7 @@ tig_art_id_t a_name_portal_aid_from_wall_aid(tig_art_id_t wall_art_id, ObjectID*
     mes_get_msg(portal_mes_file, &mes_file_entry);
 
     // `a_name_portal_init` splits string into two chunks.
-    *oid = sub_4E6540(atoi(mes_file_entry.str + strlen(mes_file_entry.str) + 1));
+    *oid = objid_create_a(atoi(mes_file_entry.str + strlen(mes_file_entry.str) + 1));
 
     rotation = tig_art_id_rotation_get(wall_art_id);
     palette = tig_art_id_palette_get(wall_art_id);
@@ -1327,7 +1327,7 @@ tig_art_id_t a_name_portal_aid_busted_set(tig_art_id_t aid)
 }
 
 // 0x4EC8F0
-char* sub_4EC8F0(tig_art_id_t aid)
+char* GetPortalNameFromArtID(tig_art_id_t aid)
 {
     MesFileEntry mes_file_entry;
 
@@ -1342,7 +1342,7 @@ char* sub_4EC8F0(tig_art_id_t aid)
 }
 
 // 0x4EC940
-int sub_4EC940(const char* fname)
+int GetWallArtIDFromFilename(const char* fname)
 {
     MesFileEntry mes_file_entry;
 
@@ -1433,14 +1433,14 @@ void init_wall_names()
 
     index = 0;
     do {
-        sub_4ECB80(wallproto_mes_file, mes_file_entry.str, index++);
+        ParseWallProtoEntry(wallproto_mes_file, mes_file_entry.str, index++);
     } while (mes_find_next(wallname_mes_file, &mes_file_entry));
 
     mes_unload(wallproto_mes_file);
 }
 
 // 0x4ECB80
-void sub_4ECB80(mes_file_handle_t wallproto_mes_file, char* str, int index)
+void ParseWallProtoEntry(mes_file_handle_t wallproto_mes_file, char* str, int index)
 {
     MesFileEntry mes_file_entry;
 
@@ -1452,7 +1452,7 @@ void sub_4ECB80(mes_file_handle_t wallproto_mes_file, char* str, int index)
 }
 
 // 0x4ECC00
-int sub_4ECC00(int index)
+int GetWallProtoDamageArtId(int index)
 {
     return wall_proto_file_names[index];
 }
@@ -1808,7 +1808,7 @@ void parse_wall_structure(char* str, int index)
         wall_structures[index].roof_art_id = TIG_ART_ID_INVALID;
     }
 
-    wall_structures[index].wall_proto = sub_4ECC00(wall_structures[index].exterior);
+    wall_structures[index].wall_proto = GetWallProtoDamageArtId(wall_structures[index].exterior);
 
     tok = strtok(NULL, " ");
     while (tok != NULL) {
@@ -1861,8 +1861,8 @@ bool a_name_light_aid_to_fname(tig_art_id_t aid, char* fname)
         return false;
     }
 
-    if (sub_504790(aid)) {
-        sprintf(fname, "art\\light\\%s_s%d.art", mes_file_entry.str, sub_504700(aid) / 8);
+    if (tig_art_light_id_get_rotation_mode_flag(aid)) {
+        sprintf(fname, "art\\light\\%s_s%d.art", mes_file_entry.str, tig_art_light_id_rotation_get(aid) / 8);
     } else {
         sprintf(fname, "art\\light\\%s.art", mes_file_entry.str);
     }

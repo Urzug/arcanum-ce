@@ -26,8 +26,8 @@ void player_create();
 bool player_is_local_pc_obj(int64_t obj);
 bool player_is_pc_obj(int64_t obj);
 int64_t player_get_local_pc_obj();
-bool sub_40DAB0();
-bool sub_40DAF0(int64_t obj);
+bool PlayerDestroyLocalPC();
+bool PlayerSetLocalPC(int64_t obj);
 void player_create_info_init(PlayerCreateInfo* player_create_info);
 bool player_obj_create_player(PlayerCreateInfo* player_create_info);
 

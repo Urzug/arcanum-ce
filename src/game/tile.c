@@ -221,7 +221,7 @@ void sub_4D7430(int64_t loc)
     art_id = tile_art_id_at(loc);
     do {
         if (art_id != TIG_ART_ID_INVALID) {
-            art_id = sub_503800(art_id, sub_5037B0(art_id) + 1);
+            art_id = tig_art_tile_id_set_variation_data(art_id, tig_art_tile_id_get_variation_data(art_id) + 1);
         }
     } while (tig_art_exists(art_id) != TIG_OK);
 
@@ -731,7 +731,7 @@ void tile_draw_iso(GameDrawInfo* draw_info)
                         blit_info_initialized = false;
                         art_blit_info.art_id = sectors[v15]->tiles.art_ids[indexes[v15]];
                         tile_type = tig_art_tile_id_type_get(art_blit_info.art_id);
-                        if (!sub_439FF0(center_x + 40, center_y + 20, 0)) {
+                        if (!roof_is_tile_covered_world_xy(center_x + 40, center_y + 20, 0)) {
                             tile_rect.x = center_x + 1;
                             tile_rect.y = center_y;
 

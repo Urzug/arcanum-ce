@@ -250,8 +250,8 @@ bool light_init(GameInitInfo* init_info)
     light_indoor_color = tig_color_make(255, 255, 255);
 
     sub_4DE200();
-    sub_5022B0(sub_4DE0B0);
-    sub_5022D0();
+    tig_art_set_palette_adjust_callback(sub_4DE0B0);
+    tig_art_cache_invalidate_palettes();
 
     return true;
 }
@@ -292,7 +292,7 @@ void sub_4D81F0()
     dword_602ECC = !dword_602ECC;
 
     if (!dword_60340C) {
-        sub_5022D0();
+        tig_art_cache_invalidate_palettes();
     }
 
     sector_enumerate(sub_4DDD90);
@@ -405,7 +405,7 @@ void light_set_colors(tig_color_t indoor_color, tig_color_t outdoor_color)
 
     if (dword_602ECC) {
         if (!dword_60340C) {
-            sub_5022D0();
+            tig_art_cache_invalidate_palettes();
         }
 
         sector_enumerate(sub_4DDD90);
@@ -429,7 +429,7 @@ void light_start_animating(Light* light)
             timeevent.params[0].pointer_value = light;
             timeevent.params[1].integer_value = 1000 / art_anim_data.fps;
 
-            sub_45A950(&datetime, 1000 / art_anim_data.fps);
+            DateTimeAddMilliseconds(&datetime, 1000 / art_anim_data.fps);
             if (timeevent_add_delay(&timeevent, &datetime)) {
                 light_set_flags_internal(light, LF_ANIMATING);
             }
@@ -456,7 +456,7 @@ bool light_timeevent_process(TimeEvent* timeevent)
     light_inc_frame((Light*)timeevent->params[0].pointer_value);
 
     next_timeevent = *timeevent;
-    sub_45A950(&datetime, next_timeevent.params[1].integer_value);
+    DateTimeAddMilliseconds(&datetime, next_timeevent.params[1].integer_value);
     timeevent_add_delay(&next_timeevent, &datetime);
 
     return true;
@@ -498,7 +498,7 @@ bool sub_4D89E0(int64_t loc, int offset_x, int offset_y, int a4, tig_color_t* co
     lx = (int)loc_x + offset_x + 40;
     ly = (int)loc_y + offset_y + 20;
 
-    if (!sub_4B9130(&tmp_rect, &loc_rect)) {
+    if (!ScreenRectToLocationRect(&tmp_rect, &loc_rect)) {
         return false;
     }
 
@@ -533,7 +533,7 @@ bool sub_4D89E0(int64_t loc, int offset_x, int offset_y, int a4, tig_color_t* co
                         && ly >= tmp_rect.y
                         && lx < tmp_rect.x + tmp_rect.width
                         && ly < tmp_rect.y + tmp_rect.height
-                        && sub_502E50(light->art_id, lx - tmp_rect.x, ly - tmp_rect.y, &color) == TIG_OK
+                        && tig_art_frame_get_pixel_color(light->art_id, lx - tmp_rect.x, ly - tmp_rect.y, &color) == TIG_OK
                         && tig_art_anim_data(light->art_id, &art_anim_data) == TIG_OK
                         && color != art_anim_data.color_key) {
                         if (((light->flags & LF_INDOOR) != 0
@@ -580,7 +580,7 @@ bool sub_4D89E0(int64_t loc, int offset_x, int offset_y, int a4, tig_color_t* co
 }
 
 // 0x4D9240
-tig_color_t sub_4D9240(int64_t loc, int offset_x, int offset_y)
+tig_color_t GetTileHeight(int64_t loc, int offset_x, int offset_y)
 {
     tig_color_t color;
 
@@ -910,7 +910,7 @@ bool shadow_apply(int64_t obj)
         stru_602ED8.x = (int)loc_x;
         stru_602ED8.y = (int)loc_y;
 
-        if (!sub_4B9130(&stru_602ED8, &loc_rect)) {
+        if (!ScreenRectToLocationRect(&stru_602ED8, &loc_rect)) {
             return false;
         }
 
@@ -950,7 +950,7 @@ bool shadow_apply(int64_t obj)
                                     int v1 = (int)((float)delta * 0.4f);
                                     int frame = color_index - 32;
 
-                                    shadows[cnt].art_id = sub_504730(art_id, (frame / 7 + 16) % 32);
+                                    shadows[cnt].art_id = tig_art_light_id_rotation_set(art_id, (frame / 7 + 16) % 32);
 
                                     frame %= 7;
                                     frames[cnt] = frame;
@@ -1004,7 +1004,7 @@ bool shadow_apply(int64_t obj)
             shadow = shadow_node_allocate();
         }
 
-        shadow->art_id = sub_504730(art_id, 2);
+        shadow->art_id = tig_art_light_id_rotation_set(art_id, 2);
         shadow->palette = dword_602E58[palette];
         shadow->color = tig_color_make((int)((float)gray * 0.4f), (int)((float)gray * 0.4f), (int)((float)gray * 0.4f));
         obj_arrayfield_ptr_set(obj, OBJ_F_SHADOW_HANDLES, idx, shadow);
@@ -1207,7 +1207,7 @@ void sub_4DC210(int64_t obj, int* colors, int* cnt_ptr)
         rect.height = obj_rect.height + 1024;
 
         LocRect loc_rect;
-        if (sub_4B9130(&rect, &loc_rect)) {
+        if (ScreenRectToLocationRect(&rect, &loc_rect)) {
             SectorListNode* v2 = sector_list_create(&loc_rect);
             SectorListNode* curr = v2;
             while (curr != NULL) {
@@ -1240,7 +1240,7 @@ void sub_4DC210(int64_t obj, int* colors, int* cnt_ptr)
                                             && tmp_y >= affected_rect.y
                                             && tmp_x < affected_rect.x + affected_rect.width
                                             && tmp_y < affected_rect.y + affected_rect.height
-                                            && sub_502E50(light->art_id, tmp_x - light_rect.x, tmp_y - light_rect.y, &color) == TIG_OK
+                                            && tig_art_frame_get_pixel_color(light->art_id, tmp_x - light_rect.x, tmp_y - light_rect.y, &color) == TIG_OK
                                             && color != art_anim_data.color_key) {
                                             if (((light->flags & LF_INDOOR) != 0
                                                     && light->tint_color != indoor_color)
@@ -1365,7 +1365,7 @@ uint8_t sub_4DCE10(int64_t obj)
     tig_color_t color;
 
     if ((obj_field_int32_get(obj, OBJ_F_RENDER_FLAGS) & ORF_02000000) == 0) {
-        sub_442520(obj);
+        object_update_render_state(obj);
     }
 
     color = obj_field_int32_get(obj, OBJ_F_COLOR);
@@ -2512,7 +2512,7 @@ void light_render_internal(GameDrawInfo* draw_info)
                                                 && ly >= tmp_rect.y
                                                 && lx < tmp_rect.x + tmp_rect.width
                                                 && ly < tmp_rect.y + tmp_rect.height
-                                                && sub_502E50(light->art_id, lx - tmp_rect.x, ly - tmp_rect.y, &color) == TIG_OK
+                                                && tig_art_frame_get_pixel_color(light->art_id, lx - tmp_rect.x, ly - tmp_rect.y, &color) == TIG_OK
                                                 && color != art_anim_data.color_key) {
                                                 int cx = (lx - dword_602ED0) / 40;
                                                 int cy = (ly - dword_602ED4) / 20;

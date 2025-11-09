@@ -166,10 +166,10 @@ int sub_4F2C60(int64_t* obj_ptr);
 void sub_4F27F0(S4F2810* a1, int64_t loc);
 void sub_4F2810(S4F2810* a1, int64_t obj);
 bool sub_4F2830(TigMouseMessageData* mouse, S4F2810* a2, bool fullscreen);
-bool sub_4F2CB0(int x, int y, S4F2810* a3, uint64_t tgt, bool fullscreen);
-int64_t sub_4F2D10();
-bool sub_4F2D20(S603CB8* a1);
+bool TargetFindAtScreenCoords(int x, int y, S4F2810* a3, uint64_t tgt, bool fullscreen);
+int64_t TargetGetHoverTarget();
+bool ValidateTargetEligibility(S603CB8* a1);
 void sub_4F40B0(S603CB8* a1);
-bool sub_4F4E40(int64_t obj, int distance, int64_t* loc_ptr);
+bool FindLocationNearObject(int64_t obj, int distance, int64_t* loc_ptr);
 
 #endif /* ARCANUM_GAME_TARGET_H_ */

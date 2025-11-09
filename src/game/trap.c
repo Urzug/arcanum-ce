@@ -205,8 +205,8 @@ bool trap_attempt_spot(int64_t pc_obj, int64_t trap_obj)
 
     if (!magictech_check_env_sf(OSF_DETECTING_TRAPS)) {
         skill_invocation_init(&skill_invocation);
-        sub_4440E0(pc_obj, &(skill_invocation.source));
-        sub_4440E0(trap_obj, &(skill_invocation.target));
+        follower_info_init(pc_obj, &(skill_invocation.source));
+        follower_info_init(trap_obj, &(skill_invocation.target));
         skill_invocation.skill = SKILL_SPOT_TRAP;
 
         item_obj = item_wield_get(pc_obj, ITEM_INV_LOC_SHIELD);
@@ -310,7 +310,7 @@ void trap_mark_known(int64_t pc_obj, int64_t trap_obj, int reason)
     } else {
         obj_arrayfield_script_get(trap_obj, OBJ_F_SCRIPTS_IDX, SAP_USE, &scr);
         if (scr.num >= TRAP_SCRIPT_FIRST && scr.num < TRAP_SCRIPT_COUNT) {
-            sub_4CCD20(&trap_eye_candies,
+            GetAnimFXNodeByID(&trap_eye_candies,
                 &animfx,
                 trap_obj,
                 -1,
@@ -326,7 +326,7 @@ void trap_mark_known(int64_t pc_obj, int64_t trap_obj, int reason)
 
         ui_message.type = UI_MSG_TYPE_EXCLAMATION;
         ui_message.str = mes_file_entry.str;
-        sub_460630(&ui_message);
+        ui_message_post(&ui_message);
     }
 }
 
@@ -385,7 +385,7 @@ bool trap_use_on_obj(int64_t pc_obj, int64_t item_obj, int64_t target_obj)
 
             ui_message.type = UI_MSG_TYPE_EXCLAMATION;
             ui_message.str = mes_file_entry.str;
-            sub_460630(&ui_message);
+            ui_message_post(&ui_message);
 
             return false;
         }
@@ -425,10 +425,10 @@ bool trap_use_at_loc(int64_t pc_obj, int64_t item_obj, int64_t target_loc)
         switch (spl) {
         case 176:
             ai_notify_explosion_dynamite(pc_obj);
-            prototype_handle = sub_4685A0(BP_LIT_DYNAMITE);
+            prototype_handle = GetProtoHandleFromID(BP_LIT_DYNAMITE);
             break;
         case 220:
-            prototype_handle = sub_4685A0(BP_TICKING_TIME_BOMB);
+            prototype_handle = GetProtoHandleFromID(BP_TICKING_TIME_BOMB);
             break;
         default:
             prototype_handle = OBJ_HANDLE_NULL;
@@ -453,7 +453,7 @@ bool trap_use_at_loc(int64_t pc_obj, int64_t item_obj, int64_t target_loc)
 
         ui_message.type = UI_MSG_TYPE_EXCLAMATION;
         ui_message.str = mes_file_entry.str;
-        sub_460630(&ui_message);
+        ui_message_post(&ui_message);
 
         return false;
     }
@@ -467,7 +467,7 @@ bool trap_use_at_loc(int64_t pc_obj, int64_t item_obj, int64_t target_loc)
             : BP_MECHANICAL_TRAP;
     }
 
-    prototype_handle = sub_4685A0(name);
+    prototype_handle = GetProtoHandleFromID(name);
     if (!object_create(prototype_handle, target_loc, &trap_obj)) {
         return false;
     }
@@ -492,7 +492,7 @@ void trap_timeevent_schedule(int spl, int64_t loc, int delay, int64_t item_obj)
         timeevent.params[0].integer_value = spl;
         timeevent.params[1].location_value = loc;
         timeevent.params[2].object_value = item_obj;
-        sub_45A950(&datetime, 1000 * delay);
+        DateTimeAddMilliseconds(&datetime, 1000 * delay);
         timeevent_add_delay(&timeevent, &datetime);
     } else {
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, spl);
@@ -539,7 +539,7 @@ void trap_handle_disarm(int64_t pc_obj, int64_t trap_obj, bool* is_success_ptr, 
         if (*is_critical_ptr
             && tech_skill_training_get(pc_obj, TECH_SKILL_DISARM_TRAPS) >= TRAINING_EXPERT
             && get_disarm_item_name(trap_obj, &disarm_item_name)) {
-            prototype_handle = sub_4685A0(disarm_item_name);
+            prototype_handle = GetProtoHandleFromID(disarm_item_name);
             loc = obj_field_int64_get(pc_obj, OBJ_F_LOCATION);
             if (object_create(prototype_handle, loc, &disarm_item_obj)) {
                 if (tig_net_is_active() && tig_net_is_host()) {
@@ -684,7 +684,7 @@ bool trap_script_execute(ScriptInvocation* invocation)
     }
 
     if (base != -1) {
-        sub_4CCD20(&trap_eye_candies,
+        GetAnimFXNodeByID(&trap_eye_candies,
             &animfx,
             invocation->triggerer_obj,
             -1,
@@ -702,7 +702,7 @@ bool trap_script_execute(ScriptInvocation* invocation)
         while (node != NULL) {
             trigger_trap(node->obj, invocation);
             if (base != -1) {
-                sub_4CCD20(&trap_eye_candies,
+                GetAnimFXNodeByID(&trap_eye_candies,
                     &animfx,
                     node->obj,
                     -1,
@@ -723,7 +723,7 @@ bool trap_script_execute(ScriptInvocation* invocation)
         if (invocation->triggerer_obj != OBJ_HANDLE_NULL) {
             trigger_trap(invocation->triggerer_obj, invocation);
             if (base != -1) {
-                sub_4CCD20(&trap_eye_candies,
+                GetAnimFXNodeByID(&trap_eye_candies,
                     &animfx,
                     invocation->triggerer_obj,
                     -1,
@@ -751,11 +751,11 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
     switch (invocation->script->num) {
     case TRAP_SCRIPT_MAGICAL:
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, (invocation->script->hdr.counters >> 18) & 0xFF);
-        sub_4440E0(obj, &(mt_invocation.target_obj));
+        follower_info_init(obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
         return;
     case TRAP_SCRIPT_MECHANICAL:
-        sub_4B2210(invocation->attachee_obj, obj, &combat);
+        combat_context_init(invocation->attachee_obj, obj, &combat);
         combat.field_30 = sub_4BD950(invocation->attachee_obj);
         combat.flags |= CF_TRAP;
         combat.flags |= 0x300;
@@ -765,16 +765,16 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
     case TRAP_SCRIPT_ARROW:
         trap_source_obj = find_trap_source(invocation->attachee_obj, (invocation->script->hdr.counters >> 16) & 0xFF);
         if (trap_source_obj != OBJ_HANDLE_NULL) {
-            sub_4B2210(trap_source_obj, obj, &combat);
+            combat_context_init(trap_source_obj, obj, &combat);
             combat.field_30 = sub_4BD950(invocation->attachee_obj);
             combat.flags |= 0x300;
             combat.weapon_obj = OBJ_HANDLE_NULL;
             combat.dam[DAMAGE_TYPE_NORMAL] = random_between(invocation->script->hdr.counters & 0xFF, (invocation->script->hdr.counters >> 8) & 0xFF);
-            sub_4B3170(&combat);
+            combat_attack_resolve(&combat);
         }
         break;
     case TRAP_SCRIPT_BULLET:
-        sub_4B2210(invocation->attachee_obj, obj, &combat);
+        combat_context_init(invocation->attachee_obj, obj, &combat);
         combat.field_30 = sub_4BD950(invocation->attachee_obj);
         combat.flags |= CF_TRAP;
         combat.flags |= 0x300;
@@ -782,7 +782,7 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
         combat_dmg(&combat);
         break;
     case TRAP_SCRIPT_FIRE:
-        sub_4B2210(invocation->attachee_obj, obj, &combat);
+        combat_context_init(invocation->attachee_obj, obj, &combat);
         combat.field_30 = sub_4BD950(invocation->attachee_obj);
         combat.flags |= CF_TRAP;
         combat.flags |= 0x300;
@@ -790,7 +790,7 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
         combat_dmg(&combat);
         break;
     case TRAP_SCRIPT_ELECTRICAL:
-        sub_4B2210(invocation->attachee_obj, obj, &combat);
+        combat_context_init(invocation->attachee_obj, obj, &combat);
         combat.field_30 = sub_4BD950(invocation->attachee_obj);
         combat.flags |= CF_TRAP;
         combat.flags |= 0x300;
@@ -798,7 +798,7 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
         combat_dmg(&combat);
         break;
     case TRAP_SCRIPT_POISON:
-        sub_4B2210(invocation->attachee_obj, obj, &combat);
+        combat_context_init(invocation->attachee_obj, obj, &combat);
         combat.field_30 = sub_4BD950(invocation->attachee_obj);
         combat.flags |= CF_TRAP;
         combat.flags |= 0x300;
@@ -811,7 +811,7 @@ void trigger_trap(int64_t obj, ScriptInvocation* invocation)
 
     if (((invocation->script->hdr.counters >> 18) & 0xFF) != 0) {
         magictech_invocation_init(&mt_invocation, OBJ_HANDLE_NULL, (invocation->script->hdr.counters >> 18) & 0xFF);
-        sub_4440E0(obj, &(mt_invocation.target_obj));
+        follower_info_init(obj, &(mt_invocation.target_obj));
         magictech_invocation_run(&mt_invocation);
     }
 }

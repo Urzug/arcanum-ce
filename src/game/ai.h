@@ -6,7 +6,7 @@
 #include "game/timeevent.h"
 
 typedef void(AiFloatLineFunc)(int64_t npc_obj, int64_t pc_obj, const char* str, int speech_id);
-typedef void(Func5F848C)(int64_t, int);
+typedef void(AiCombatInitiationCallbackFunc)(int64_t, int);
 
 typedef enum AiDangerSourceType {
     AI_DANGER_SOURCE_TYPE_NONE,
@@ -124,31 +124,31 @@ bool ai_init(GameInitInfo* init_info);
 void ai_exit();
 bool ai_mod_load();
 void ai_mod_unload();
-void ai_set_callbacks(Func5F848C* a1, AiFloatLineFunc* float_line_func);
+void ai_set_callbacks(AiCombatInitiationCallbackFunc* a1, AiFloatLineFunc* float_line_func);
 void ai_process(int64_t obj);
 void ai_redirect_init(AiRedirect* ai_redirect, int64_t source_obj, int64_t target_obj);
 void ai_redirect_perform(AiRedirect* ai_redirect);
 void ai_attack(int64_t source_obj, int64_t target_obj, int loudness, unsigned int flags);
-void sub_4A9AD0(int64_t attacker_obj, int64_t target_obj);
+void InitiateCombat(int64_t attacker_obj, int64_t target_obj);
 void ai_notify_explosion_dynamite(int64_t pc_obj);
 void ai_notify_killed(int64_t victim_obj, int64_t killer_obj);
-void sub_4AA300(int64_t a1, int64_t a2);
+void ai_clear_hostility(int64_t a1, int64_t a2);
 void ai_stop_attacking(int64_t obj);
-void sub_4AA580(int64_t obj);
+void ui_update_combat_hotkeys(int64_t obj);
 void ai_npc_wait(int64_t obj);
 void ai_npc_unwait(int64_t obj, bool force);
 bool ai_npc_wait_here_timeevent_process(TimeEvent* timeevent);
 bool ai_is_fighting(int64_t obj);
 int ai_object_hp_ratio(int64_t obj);
 int ai_critter_fatigue_ratio(int64_t obj);
-int64_t sub_4ABBC0(int64_t obj);
+int64_t ai_get_or_find_combat_target(int64_t obj);
 bool ai_timeevent_process(TimeEvent* timeevent);
-void sub_4AD6E0(int64_t obj);
+void npc_resurrect_ai_init(int64_t obj);
 void ai_timeevent_clear(int64_t obj);
 int ai_can_speak(int64_t npc_obj, int64_t pc_obj, bool a3);
 int ai_check_follow(int64_t npc_obj, int64_t pc_obj, bool ignore_charisma_limits);
-void sub_4AD790(int64_t obj, int a2);
-int sub_4ADE00(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr);
+void ai_schedule_process_immediate(int64_t obj, int a2);
+int FindLineOfSightBlocker(int64_t source_obj, int64_t target_loc, int64_t* block_obj_ptr);
 void ai_switch_weapon(int64_t obj);
 void ai_calc_party_size_and_level(int64_t obj, int* cnt_ptr, int* lvl_ptr);
 int ai_check_kos(int64_t source_obj, int64_t target_obj);

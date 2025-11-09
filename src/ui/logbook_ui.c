@@ -1276,7 +1276,7 @@ void logbook_check()
     size_t pos;
     TigRect rect;
 
-    stru_6429D8[0] = sub_45A7C0();
+    stru_6429D8[0] = datetime_get_current();
 
     for (index = 0; index < 3000; index++) {
         rect = stru_5C34B8;

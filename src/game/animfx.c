@@ -98,7 +98,7 @@ static const char* off_5B7704[EFFECT_TYPE_COUNT] = {
 };
 
 // 0x5B770C
-static int dword_5B770C[] = {
+static int g_animFXScaleValues[] = {
     50,
     62,
     75,
@@ -109,10 +109,10 @@ static int dword_5B770C[] = {
     200,
 };
 
-static_assert(SDL_arraysize(dword_5B770C) == SCALE_COUNT, "wrong size");
+static_assert(SDL_arraysize(g_animFXScaleValues) == SCALE_COUNT, "wrong size");
 
 // 0x5B772C
-static int dword_5B772C[] = {
+static int g_scale_index_map[] = {
     0,
     1,
     2,
@@ -123,16 +123,16 @@ static int dword_5B772C[] = {
     7,
 };
 
-static_assert(SDL_arraysize(dword_5B772C) == SCALE_COUNT, "wrong size");
+static_assert(SDL_arraysize(g_scale_index_map) == SCALE_COUNT, "wrong size");
 
 // 0x601700
-static AnimID stru_601700;
+static AnimID g_animfx_current_anim_id;
 
 // 0x60170C
-static AnimFxList* dword_60170C[ANIMFX_LIST_CAPACITY];
+static AnimFxList* g_animfx_list_registry[ANIMFX_LIST_CAPACITY];
 
 // 0x601734
-static mes_file_handle_t dword_601734;
+static mes_file_handle_t g_animfx_mes_handle;
 
 // 0x601738
 static AnimFxList* dword_601738;
@@ -162,7 +162,7 @@ void animfx_exit()
 }
 
 // 0x4CCD20
-void sub_4CCD20(AnimFxList* list, AnimFxNode* node, int64_t obj, int mt_id, int fx_id)
+void GetAnimFXNodeByID(AnimFxList* list, AnimFxNode* node, int64_t obj, int mt_id, int fx_id)
 {
     node->list = list;
     node->obj = obj;
@@ -223,7 +223,7 @@ bool animfx_has(AnimFxNode* node)
     }
 
     if ((node->flags & ANIMFX_PLAY_CHECK_ALREADY) != 0
-        && sub_424560(node->obj, entry->eye_candy_art_id, node->mt_id)) {
+        && anim_play_eye_candy_on_obj_ex(node->obj, entry->eye_candy_art_id, node->mt_id)) {
         return false;
     }
 
@@ -328,7 +328,7 @@ bool animfx_add(AnimFxNode* node)
         tig_art_id_t art_id;
 
         if ((node->flags & ANIMFX_PLAY_CHECK_ALREADY) != 0
-            && sub_424560(node->obj, entry->eye_candy_art_id, node->mt_id)) {
+            && anim_play_eye_candy_on_obj_ex(node->obj, entry->eye_candy_art_id, node->mt_id)) {
             return false;
         }
 
@@ -620,7 +620,7 @@ bool animfx_add(AnimFxNode* node)
                 }
             }
 
-            if (sub_44D500(&goal_data, node->obj, goal_type)) {
+            if (AnimGoalDataInitNoPriority(&goal_data, node->obj, goal_type)) {
                 goal_data.params[AGDATA_ANIM_ID].data = eye_candy_art_id;
                 if ((node->flags & ANIMFX_PLAY_NO_ID) != 0) {
                     goal_data.params[AGDATA_SPELL_DATA].data = -1;
@@ -666,17 +666,17 @@ bool animfx_add(AnimFxNode* node)
                 if ((node->flags & ANIMFX_PLAY_STACK) != 0) {
                     // __FILE__: "C:\Troika\Code\Game\GameLibX\AnimFX.c"
                     // __LINE__: 790
-                    sub_44DBE0(stru_601700, &goal_data, __FILE__, __LINE__);
+                    AnimGoalAddSubGoal(g_animfx_current_anim_id, &goal_data, __FILE__, __LINE__);
                 } else {
-                    sub_44D520(&goal_data, &stru_601700);
+                    StartAnimationGoal(&goal_data, &g_animfx_current_anim_id);
                 }
 
                 if ((node->flags & ANIMFX_PLAY_DESTROY) != 0) {
-                    if (sub_44D500(&goal_data, node->obj, AG_DESTROY_OBJ)) {
+                    if (AnimGoalDataInitNoPriority(&goal_data, node->obj, AG_DESTROY_OBJ)) {
 
                         // __FILE__: "C:\Troika\Code\Game\GameLibX\AnimFX.c"
                         // __LINE__: 798
-                        sub_44DBE0(stru_601700, &goal_data, __FILE__, __LINE__);
+                        AnimGoalAddSubGoal(g_animfx_current_anim_id, &goal_data, __FILE__, __LINE__);
                     }
                 }
             }
@@ -717,7 +717,7 @@ bool animfx_add(AnimFxNode* node)
 }
 
 // 0x4CD7A0
-bool sub_4CD7A0(AnimFxNode* node)
+bool AddAnimFX(AnimFxNode* node)
 {
     AnimFxListEntry* entry;
     int overlay_fore_index = -1;
@@ -817,7 +817,7 @@ void animfx_remove(AnimFxList* list, int64_t obj, int fx_id, int mt_id)
     }
 
     if ((list->entries[fx_id].flags & ANIMFX_LIST_ENTRY_ANIMATES) != 0) {
-        sub_4243E0(obj, list->entries[fx_id].eye_candy_art_id, mt_id);
+        anim_play_eye_candy_on_obj(obj, list->entries[fx_id].eye_candy_art_id, mt_id);
     } else {
         sub_4CD9C0(&(list->entries[fx_id]), obj);
     }
@@ -941,7 +941,7 @@ bool animfx_list_load(AnimFxList* list)
 
     dword_601738 = list;
 
-    if (!mes_load(list->path, &dword_601734)) {
+    if (!mes_load(list->path, &g_animfx_mes_handle)) {
         return false;
     }
 
@@ -956,10 +956,10 @@ bool animfx_list_load(AnimFxList* list)
     if (animfx_list_load_internal(list)) {
         success = true;
         list->flags |= ANIMFX_LIST_LOADED;
-        dword_60170C[dword_60173C++] = list;
+        g_animfx_list_registry[dword_60173C++] = list;
     }
 
-    mes_unload(dword_601734);
+    mes_unload(g_animfx_mes_handle);
     dword_601738 = NULL;
 
     return success;
@@ -971,7 +971,7 @@ int animfx_list_find(AnimFxList* list)
     int index;
 
     for (index = 0; index < ANIMFX_LIST_CAPACITY; index++) {
-        if (dword_60170C[index] == list) {
+        if (g_animfx_list_registry[index] == list) {
             return index;
         }
     }
@@ -983,7 +983,7 @@ int animfx_list_find(AnimFxList* list)
 AnimFxList* animfx_list_get(int index)
 {
     if (index < ANIMFX_LIST_CAPACITY) {
-        return dword_60170C[index];
+        return g_animfx_list_registry[index];
     } else {
         return NULL;
     }
@@ -996,8 +996,8 @@ void animfx_list_exit(AnimFxList* list)
 
     if ((list->flags & ANIMFX_LIST_LOADED) != 0) {
         for (index = 0; index < ANIMFX_LIST_CAPACITY; index++) {
-            if (dword_60170C[index] == list) {
-                dword_60170C[index] = NULL;
+            if (g_animfx_list_registry[index] == list) {
+                g_animfx_list_registry[index] = NULL;
                 dword_60173C--;
                 break;
             }
@@ -1018,7 +1018,7 @@ void sub_4CDCD0(AnimFxList* list)
 
     mes_file_entry.num = list->initial;
 
-    while (mes_search(dword_601734, &mes_file_entry)) {
+    while (mes_search(g_animfx_mes_handle, &mes_file_entry)) {
         mes_file_entry.num += list->step;
         count += list->num_fields;
     }
@@ -1042,8 +1042,8 @@ bool animfx_list_load_internal(AnimFxList* list)
         for (index = 0; index < list->num_fields; index++) {
             sub_4CE2A0(list->num_effects);
 
-            if (mes_search(dword_601734, &mes_file_entry)) {
-                mes_get_msg(dword_601734, &mes_file_entry);
+            if (mes_search(g_animfx_mes_handle, &mes_file_entry)) {
+                mes_get_msg(g_animfx_mes_handle, &mes_file_entry);
                 animfx_build_eye_candy_effect(list->num_effects, mes_file_entry.str);
             }
 
@@ -1092,16 +1092,16 @@ void animfx_build_eye_candy_effect(int index, char* str)
         if (tig_str_parse_named_value(&curr, "Scale:", &scale_key)) {
             int scale_index;
             for (scale_index = 0; scale_index < SCALE_COUNT; scale_index++) {
-                if (dword_5B770C[scale_index] == scale_key) {
+                if (g_animFXScaleValues[scale_index] == scale_key) {
                     break;
                 }
             }
 
             if (scale_index < SCALE_COUNT) {
-                scale = dword_5B772C[scale_index];
+                scale = g_scale_index_map[scale_index];
             } else {
                 tig_debug_printf("animfx_build_eye_candy_effect: Error: scale out of range!\n");
-                scale = dword_5B772C[0];
+                scale = g_scale_index_map[0];
             }
 
             entry->flags |= ANIMFX_LIST_ENTRY_CAN_AUTOSCALE;

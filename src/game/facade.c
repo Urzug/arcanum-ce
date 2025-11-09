@@ -3,18 +3,18 @@
 #include "game/tile.h"
 #include "game/walkmask.h"
 
-static void sub_4CA0F0(int a1, int a2, int a3);
-static void sub_4CA240();
-static void sub_4CA7C0(TigRect* rect);
+static void facade_load_data(int a1, int a2, int a3);
+static void facade_free_data();
+static void facade_get_data_screen_rect(TigRect* rect);
 
 // 0x5FF570
-static int dword_5FF570;
+static int facade_data_height;
 
 // 0x5FF574
-static int dword_5FF574;
+static int facade_data_width;
 
 // 0x5FF578
-static int64_t qword_5FF578;
+static int64_t facade_data_origin_loc;
 
 // 0x5FF580
 static IsoInvalidateRectFunc* facade_iso_invalidate_rect;
@@ -23,7 +23,7 @@ static IsoInvalidateRectFunc* facade_iso_invalidate_rect;
 static bool facade_editor;
 
 // 0x5FF588
-static int dword_5FF588;
+static int facade_current_map_id;
 
 // 0x5FF58C
 static tig_window_handle_t facade_iso_window_handle;
@@ -35,10 +35,10 @@ static bool facade_initialized;
 static ViewOptions facade_view_options;
 
 // 0x5FF5A0
-static tig_art_id_t* dword_5FF5A0;
+static tig_art_id_t* facade_art_id_grid;
 
 // 0x5FF5A4
-static TigVideoBuffer** dword_5FF5A4;
+static TigVideoBuffer** facade_top_down_buffers;
 
 // 0x4C9DA0
 bool facade_init(GameInitInfo* init_info)
@@ -55,7 +55,7 @@ bool facade_init(GameInitInfo* init_info)
 // 0x4C9DE0
 void facade_exit()
 {
-    sub_4CA240();
+    facade_free_data();
     facade_initialized = false;
 }
 
@@ -68,10 +68,10 @@ void facade_resize(GameResizeInfo* resize_info)
 // 0x4C9E00
 void facade_update_view(ViewOptions* view_options)
 {
-    if (dword_5FF5A0 != NULL) {
-        sub_4CA240();
+    if (facade_art_id_grid != NULL) {
+        facade_free_data();
         facade_view_options = *view_options;
-        sub_4CA0F0(dword_5FF588, LOCATION_GET_X(qword_5FF578), LOCATION_GET_Y(qword_5FF578));
+        facade_load_data(facade_current_map_id, LOCATION_GET_X(facade_data_origin_loc), LOCATION_GET_Y(facade_data_origin_loc));
         facade_iso_invalidate_rect(NULL);
     } else {
         facade_view_options = *view_options;
@@ -95,12 +95,12 @@ void facade_draw(GameDrawInfo* draw_info)
     TigRect src_rect;
     TigRect dst_rect;
 
-    if (dword_5FF5A0 == NULL) {
+    if (facade_art_id_grid == NULL) {
         return;
     }
 
     loc_rect = *draw_info->loc_rect;
-    if (!sub_4CA6B0(&loc_rect, &start_x, &start_y)) {
+    if (!facade_clip_rect_and_get_start_indices(&loc_rect, &start_x, &start_y)) {
         return;
     }
 
@@ -116,11 +116,11 @@ void facade_draw(GameDrawInfo* draw_info)
 
     y = loc_rect.y1;
     while (y <= loc_rect.y2) {
-        index = start_y * dword_5FF574 + start_x;
+        index = start_y * facade_data_width + start_x;
 
         x = loc_rect.x1;
         while (x <= loc_rect.x2) {
-            art_blit_info.art_id = dword_5FF5A0[index];
+            art_blit_info.art_id = facade_art_id_grid[index];
             if (art_blit_info.art_id != TIG_ART_ID_INVALID) {
                 location_xy(LOCATION_MAKE(x, y), &tile_x, &tile_y);
                 tile_rect.x = (int)tile_x;
@@ -145,7 +145,7 @@ void facade_draw(GameDrawInfo* draw_info)
                             src_rect.x--;
                             tig_window_blit_art(facade_iso_window_handle, &art_blit_info);
                         } else {
-                            tig_window_copy_from_vbuffer(facade_iso_window_handle, &dst_rect, dword_5FF5A4[index], &src_rect);
+                            tig_window_copy_from_vbuffer(facade_iso_window_handle, &dst_rect, facade_top_down_buffers[index], &src_rect);
                         }
                     }
                     rect_node = rect_node->next;
@@ -162,80 +162,80 @@ void facade_draw(GameDrawInfo* draw_info)
 }
 
 // 0x4CA0F0
-void sub_4CA0F0(int a1, int a2, int a3)
+void facade_load_data(int a1, int a2, int a3)
 {
     TigRect rect;
     TigVideoBufferCreateInfo vb_create_info;
     int index;
 
-    sub_4CA240();
+    facade_free_data();
 
-    if (walkmask_load(a1, &dword_5FF5A0, &dword_5FF574, &dword_5FF570)) {
-        dword_5FF588 = a1;
-        qword_5FF578 = location_make(a2 - dword_5FF574 / 2, a3 - dword_5FF570 / 2);
+    if (walkmask_load(a1, &facade_art_id_grid, &facade_data_width, &facade_data_height)) {
+        facade_current_map_id = a1;
+        facade_data_origin_loc = location_make(a2 - facade_data_width / 2, a3 - facade_data_height / 2);
 
         if (facade_view_options.type == VIEW_TYPE_TOP_DOWN) {
-            dword_5FF5A4 = (TigVideoBuffer**)MALLOC(sizeof(*dword_5FF5A4) * dword_5FF570 * dword_5FF574);
+            facade_top_down_buffers = (TigVideoBuffer**)MALLOC(sizeof(*facade_top_down_buffers) * facade_data_height * facade_data_width);
 
             vb_create_info.flags = TIG_VIDEO_BUFFER_CREATE_SYSTEM_MEMORY;
             vb_create_info.width = facade_view_options.zoom;
             vb_create_info.height = facade_view_options.zoom;
             vb_create_info.background_color = 0;
 
-            for (index = 0; index < dword_5FF570 * dword_5FF574; index++) {
-                if (dword_5FF5A0[index] != TIG_ART_ID_INVALID) {
-                    tig_video_buffer_create(&vb_create_info, &(dword_5FF5A4[index]));
-                    sub_4D7590(dword_5FF5A0[index], dword_5FF5A4[index]);
+            for (index = 0; index < facade_data_height * facade_data_width; index++) {
+                if (facade_art_id_grid[index] != TIG_ART_ID_INVALID) {
+                    tig_video_buffer_create(&vb_create_info, &(facade_top_down_buffers[index]));
+                    sub_4D7590(facade_art_id_grid[index], facade_top_down_buffers[index]);
                 } else {
-                    dword_5FF5A4[index] = NULL;
+                    facade_top_down_buffers[index] = NULL;
                 }
             }
         }
 
-        sub_4CA7C0(&rect);
+        facade_get_data_screen_rect(&rect);
         facade_iso_invalidate_rect(&rect);
     }
 }
 
 // 0x4CA240
-void sub_4CA240()
+void facade_free_data()
 {
     int index;
 
-    if (dword_5FF5A4 != NULL) {
-        for (index = 0; index < dword_5FF574 * dword_5FF570; index++) {
-            if (dword_5FF5A4[index] != NULL) {
-                tig_video_buffer_destroy(dword_5FF5A4[index]);
+    if (facade_top_down_buffers != NULL) {
+        for (index = 0; index < facade_data_width * facade_data_height; index++) {
+            if (facade_top_down_buffers[index] != NULL) {
+                tig_video_buffer_destroy(facade_top_down_buffers[index]);
             }
         }
-        FREE(dword_5FF5A4);
-        dword_5FF5A4 = NULL;
+        FREE(facade_top_down_buffers);
+        facade_top_down_buffers = NULL;
     }
 
-    if (dword_5FF5A0 != NULL) {
-        FREE(dword_5FF5A0);
-        dword_5FF5A0 = NULL;
+    if (facade_art_id_grid != NULL) {
+        FREE(facade_art_id_grid);
+        facade_art_id_grid = NULL;
     }
 }
 
 // 0x4CA2C0
-void sub_4CA2C0()
+void facade_set_or_update_palette()
 {
     // TODO: Incomplete.
 }
 
 // 0x4CA6B0
-bool sub_4CA6B0(LocRect* loc_rect, int* a2, int* a3)
+bool facade_clip_rect_and_get_start_indices(LocRect* loc_rect, int* a2, int* a3)
 {
     int64_t min_x;
     int64_t min_y;
     int64_t max_x;
     int64_t max_y;
 
-    min_x = location_make(LOCATION_GET_X(qword_5FF578), 0);
-    min_y = location_make(0, LOCATION_GET_Y(qword_5FF578));
-    max_x = location_make(LOCATION_GET_X(qword_5FF578) + dword_5FF574 - 1, 0);
-    max_y = location_make(0, LOCATION_GET_Y(qword_5FF578) + dword_5FF570 - 1);
+    min_x = location_make(LOCATION_GET_X(facade_data_origin_loc), 0);
+    min_y = location_make(0, LOCATION_GET_Y(facade_data_origin_loc));
+    max_x = location_make(LOCATION_GET_X(facade_data_origin_loc) + facade_data_width - 1, 0);
+    max_y = location_make(0, LOCATION_GET_Y(facade_data_origin_loc) + facade_data_height - 1);
 
     if (loc_rect->x1 < min_x) {
         loc_rect->x1 = min_x;
@@ -253,8 +253,8 @@ bool sub_4CA6B0(LocRect* loc_rect, int* a2, int* a3)
         loc_rect->y2 = max_y;
     }
 
-    if (qword_5FF578 > loc_rect->y1) {
-        loc_rect->y1 = qword_5FF578;
+    if (facade_data_origin_loc > loc_rect->y1) {
+        loc_rect->y1 = facade_data_origin_loc;
     }
 
     if (loc_rect->x2 - loc_rect->x1 + 1 < 0) {
@@ -272,7 +272,7 @@ bool sub_4CA6B0(LocRect* loc_rect, int* a2, int* a3)
 }
 
 // 0x4CA7C0
-void sub_4CA7C0(TigRect* rect)
+void facade_get_data_screen_rect(TigRect* rect)
 {
     int64_t tmp;
     int64_t min_x;
@@ -282,16 +282,16 @@ void sub_4CA7C0(TigRect* rect)
 
     switch (facade_view_options.type) {
     case VIEW_TYPE_ISOMETRIC:
-        location_xy(qword_5FF578, &tmp, &min_y);
-        location_xy(LOCATION_MAKE(LOCATION_GET_X(qword_5FF578) + dword_5FF574, LOCATION_GET_Y(qword_5FF578)), &min_x, &tmp);
-        location_xy(LOCATION_MAKE(LOCATION_GET_X(qword_5FF578), LOCATION_GET_Y(qword_5FF578) + dword_5FF574), &max_x, &tmp);
-        location_xy(LOCATION_MAKE(LOCATION_GET_X(qword_5FF578) + dword_5FF574, LOCATION_GET_Y(qword_5FF578) + dword_5FF574), &tmp, &max_y);
+        location_xy(facade_data_origin_loc, &tmp, &min_y);
+        location_xy(LOCATION_MAKE(LOCATION_GET_X(facade_data_origin_loc) + facade_data_width, LOCATION_GET_Y(facade_data_origin_loc)), &min_x, &tmp);
+        location_xy(LOCATION_MAKE(LOCATION_GET_X(facade_data_origin_loc), LOCATION_GET_Y(facade_data_origin_loc) + facade_data_width), &max_x, &tmp);
+        location_xy(LOCATION_MAKE(LOCATION_GET_X(facade_data_origin_loc) + facade_data_width, LOCATION_GET_Y(facade_data_origin_loc) + facade_data_width), &tmp, &max_y);
         max_x += 80;
         max_y += 40;
         break;
     case VIEW_TYPE_TOP_DOWN:
-        location_xy(qword_5FF578, &min_x, &min_y);
-        location_xy(LOCATION_MAKE(LOCATION_GET_X(qword_5FF578) + dword_5FF574, LOCATION_GET_Y(qword_5FF578) + dword_5FF574), &max_x, &max_y);
+        location_xy(facade_data_origin_loc, &min_x, &min_y);
+        location_xy(LOCATION_MAKE(LOCATION_GET_X(facade_data_origin_loc) + facade_data_width, LOCATION_GET_Y(facade_data_origin_loc) + facade_data_width), &max_x, &max_y);
         max_x += facade_view_options.zoom;
         max_y += facade_view_options.zoom;
         break;

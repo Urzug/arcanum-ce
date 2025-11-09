@@ -323,7 +323,7 @@ int64_t sub_468570(ObjectType object_type)
 }
 
 // 0x4685A0
-int64_t sub_4685A0(int a1)
+int64_t GetProtoHandleFromID(int a1)
 {
     return objp_perm_lookup(sub_468860(a1));
 }
@@ -479,7 +479,7 @@ void sub_468800()
 // 0x468860
 ObjectID sub_468860(int a1)
 {
-    return sub_4E6540(a1 + 20);
+    return objid_create_a(a1 + 20);
 }
 
 // 0x468890

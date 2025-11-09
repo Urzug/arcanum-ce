@@ -57,11 +57,11 @@ bool dialog_init(GameInitInfo* init_info);
 void dialog_exit();
 bool dialog_load(const char* path, int* dlg_ptr);
 void dialog_unload(int dlg);
-void sub_412F60(int dlg);
-bool sub_412FD0(DialogState* state);
-void sub_413130(DialogState* state, int index);
-void sub_413280(DialogState* state);
-void sub_4132A0(int64_t npc_obj, int64_t pc_obj, char* buffer);
+void DialogFileFreeEntries(int dlg);
+bool dialog_begin(DialogState* state);
+void dialog_select_option(DialogState* state, int index);
+void dialog_end(DialogState* state);
+void dialog_get_greeting_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
 void dialog_copy_npc_farewell_msg(int64_t npc_obj, int64_t pc_obj, char* buffer, int* speech_id_ptr);
 void dialog_copy_npc_sell_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
 void dialog_copy_npc_wont_sell_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
@@ -73,7 +73,7 @@ void dialog_copy_npc_normally_wont_buy_msg(int64_t npc_obj, int64_t pc_obj, char
 void dialog_copy_npc_buy_for_less_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
 void dialog_copy_npc_not_enough_money_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
 void dialog_copy_npc_let_me_handle_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
-void sub_413A30(DialogState* a1, bool a2);
+void dialog_goto_line(DialogState* a1, bool a2);
 void dialog_copy_npc_wont_follow_msg(int64_t npc_obj, int64_t pc_obj, int reason, char* buffer, int* speech_id_ptr);
 void dialog_copy_npc_order_ok_msg(int64_t npc_obj, int64_t pc_obj, char* buffer, int* speech_id_ptr);
 void dialog_copy_npc_order_no_msg(int64_t npc_obj, int64_t pc_obj, char* buffer, int* speech_id_ptr);
@@ -94,6 +94,6 @@ void dialog_copy_npc_wont_repair_undamaged_msg(int64_t npc_obj, int64_t pc_obj, 
 void dialog_copy_npc_repair_msg(int64_t npc_obj, int64_t pc_obj, char* buffer);
 void dialog_check();
 void dialog_enable_numbers();
-void sub_418A00(int a1, int* a2, int* a3);
+void dialog_parse_speech_id(int a1, int* a2, int* a3);
 
 #endif /* ARCANUM_GAME_DIALOG_H_ */

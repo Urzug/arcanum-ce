@@ -182,7 +182,7 @@ bool teleport_process(TeleportData* teleport_data)
         if ((teleport_data->flags & TELEPORT_TIME) != 0) {
             DateTime datetime;
 
-            sub_45A950(&datetime, 1000 * teleport_data->time);
+            DateTimeAddMilliseconds(&datetime, 1000 * teleport_data->time);
             timeevent_inc_datetime(&datetime);
         }
     }
@@ -225,8 +225,8 @@ bool teleport_process(TeleportData* teleport_data)
     }
 
     if (teleport_data->map != map && player_is_pc_obj(teleport_data->obj)) {
-        sub_459F50();
-        sub_437980();
+        magictech_reset_ai_data();
+        anim_init_run_info_params();
         timeevent_notify_pc_teleported(teleport_data->map);
     }
 
@@ -315,7 +315,7 @@ bool schedule_teleport_obj_recursively(int64_t obj, int64_t loc)
         while (obj_node != NULL) {
             if ((obj_field_int32_get(obj_node->obj, OBJ_F_NPC_FLAGS) & ONF_AI_WAIT_HERE) == 0) {
                 if (tig_net_is_active()) {
-                    v1 = sub_4C1110(obj_node->obj);
+                    v1 = GetPCWithHighestReaction(obj_node->obj);
                     if (v1 != OBJ_HANDLE_NULL) {
                         sub_460A20(v1, 0);
                     }
@@ -480,10 +480,10 @@ bool sub_4D39A0(TeleportData* teleport_data)
 
             if (tig_net_is_active()
                 && tig_net_is_host()) {
-                sub_424070(node->obj, 5, false, false);
+                anim_set_priority_level(node->obj, 5, false, false);
             }
 
-            sub_4EDF20(node->obj, node->loc, 0, 0, 1);
+            item_drop_at_loc(node->obj, node->loc, 0, 0, 1);
         }
         node = node->next;
     }
@@ -499,12 +499,12 @@ void sub_4D3D60(int64_t obj)
     int type;
 
     type = obj_field_int32_get(obj, OBJ_F_TYPE);
-    sub_424070(obj, 5, 0, 1);
+    anim_set_priority_level(obj, 5, 0, 1);
 
     // NOTE: Conditions looks odd, check (note fallthrough from npc block).
     switch (type) {
     case OBJ_TYPE_NPC:
-        sub_45F710(obj);
+        critter_teleport_map_init(obj);
         mp_obj_field_obj_set(obj, OBJ_F_NPC_COMBAT_FOCUS, OBJ_HANDLE_NULL);
         mp_obj_field_obj_set(obj, OBJ_F_NPC_WHO_HIT_ME_LAST, OBJ_HANDLE_NULL);
         sub_4F0500(obj, OBJ_F_NPC_SHIT_LIST_IDX);
@@ -526,11 +526,11 @@ void sub_4D3E20(int64_t obj)
     sub_4D3D60(obj);
     combat_critter_deactivate_combat_mode(obj);
     if (obj_field_int32_get(obj, OBJ_F_TYPE) == OBJ_TYPE_NPC) {
-        sub_45F710(obj);
+        critter_teleport_map_init(obj);
     }
     ai_timeevent_clear(obj);
     sub_4601D0(obj);
-    sub_43CF70(obj);
+    object_remove_from_sector(obj);
 }
 
 // 0x4D3E80
