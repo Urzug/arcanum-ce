@@ -267,7 +267,7 @@ static AnimID g_anim_slot_scratch = { -1, -1, 0 };
 // 0x5A59D0
 static AnimGoalNode anim_goal_node_animate = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -294,7 +294,7 @@ static AnimGoalNode anim_goal_node_animate = {
 // 0x5A5BD0
 static AnimGoalNode anim_goal_node_animate_loop = {
     4,
-    PRIORITY_1,
+    PRIORITY_PASSIVE_LOOP,
     0,
     1,
     1,
@@ -321,7 +321,7 @@ static AnimGoalNode anim_goal_node_animate_loop = {
 // 0x5A5DD0
 static AnimGoalNode anim_goal_node_animate_fidget = {
     5,
-    PRIORITY_1,
+    PRIORITY_PASSIVE_LOOP,
     0,
     0,
     0,
@@ -348,7 +348,7 @@ static AnimGoalNode anim_goal_node_animate_fidget = {
 // 0x5A5FD0
 static AnimGoalNode anim_goal_node_move_to_tile = {
     7,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -375,7 +375,7 @@ static AnimGoalNode anim_goal_node_move_to_tile = {
 // 0x5A61D0
 static AnimGoalNode anim_goal_node_run_to_tile = {
     8,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -402,7 +402,7 @@ static AnimGoalNode anim_goal_node_run_to_tile = {
 // 0x5A63D0
 static AnimGoalNode anim_goal_node_attempt_move = {
     12,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -429,7 +429,7 @@ static AnimGoalNode anim_goal_node_attempt_move = {
 // 0x5A65D0
 static AnimGoalNode anim_goal_node_move_to_pause = {
     3,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     1,
     0,
@@ -456,7 +456,7 @@ static AnimGoalNode anim_goal_node_move_to_pause = {
 // 0x5A67D0
 static AnimGoalNode anim_goal_node_move_near_tile = {
     7,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -483,7 +483,7 @@ static AnimGoalNode anim_goal_node_move_near_tile = {
 // 0x5A69D0
 static AnimGoalNode anim_goal_node_move_near_obj = {
     6,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -510,7 +510,7 @@ static AnimGoalNode anim_goal_node_move_near_obj = {
 // 0x5A6BD0
 static AnimGoalNode anim_goal_node_move_straight = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -537,7 +537,7 @@ static AnimGoalNode anim_goal_node_move_straight = {
 // 0x5A6DD0
 static AnimGoalNode anim_goal_node_attempt_move_straight = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -564,7 +564,7 @@ static AnimGoalNode anim_goal_node_attempt_move_straight = {
 // 0x5A6FD0
 static AnimGoalNode anim_goal_node_open_door = {
     5,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -591,7 +591,7 @@ static AnimGoalNode anim_goal_node_open_door = {
 // 0x5A71D0
 static AnimGoalNode anim_goal_node_attempt_open_door = {
     8,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     1,
     1,
     0,
@@ -618,7 +618,7 @@ static AnimGoalNode anim_goal_node_attempt_open_door = {
 // 0x5A73D0
 static AnimGoalNode anim_goal_node_jump_window = {
     11,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -645,7 +645,7 @@ static AnimGoalNode anim_goal_node_jump_window = {
 // 0x5A75D0
 static AnimGoalNode anim_goal_node_pickup_item = {
     10,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -672,7 +672,7 @@ static AnimGoalNode anim_goal_node_pickup_item = {
 // 0x5A77D0
 static AnimGoalNode anim_goal_node_attempt_pickup = {
     2,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -699,7 +699,7 @@ static AnimGoalNode anim_goal_node_attempt_pickup = {
 // 0x5A79D0
 static AnimGoalNode anim_goal_node_pickpocket = {
     1,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -726,7 +726,7 @@ static AnimGoalNode anim_goal_node_pickpocket = {
 // 0x5A7BD0
 static AnimGoalNode anim_goal_node_attack = {
     8,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -753,7 +753,7 @@ static AnimGoalNode anim_goal_node_attack = {
 // 0x5A7DD0
 static AnimGoalNode anim_goal_node_attempt_attack = {
     13,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -780,7 +780,7 @@ static AnimGoalNode anim_goal_node_attempt_attack = {
 // 0x5A7FD0
 static AnimGoalNode anim_goal_node_kill = {
     7,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -807,7 +807,7 @@ static AnimGoalNode anim_goal_node_kill = {
 // 0x5A81D0
 static AnimGoalNode anim_goal_node_talk = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -834,7 +834,7 @@ static AnimGoalNode anim_goal_node_talk = {
 // 0x5A83D0
 static AnimGoalNode anim_goal_node_chase = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -861,7 +861,7 @@ static AnimGoalNode anim_goal_node_chase = {
 // 0x5A85D0
 static AnimGoalNode anim_goal_node_follow = {
     5,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -888,7 +888,7 @@ static AnimGoalNode anim_goal_node_follow = {
 // 0x5A87D0
 static AnimGoalNode anim_goal_node_flee = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -915,7 +915,7 @@ static AnimGoalNode anim_goal_node_flee = {
 // 0x5A89D0
 static AnimGoalNode anim_goal_node_throw_spell = {
     10,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -942,7 +942,7 @@ static AnimGoalNode anim_goal_node_throw_spell = {
 // 0x5A8BD0
 static AnimGoalNode anim_goal_node_attempt_spell = {
     12,
-    PRIORITY_4,
+    PRIORITY_OVERRIDE_ACTION,
     0,
     0,
     0,
@@ -969,7 +969,7 @@ static AnimGoalNode anim_goal_node_attempt_spell = {
 // 0x5A8DD0
 static AnimGoalNode anim_goal_node_shoot_spell = {
     9,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -996,7 +996,7 @@ static AnimGoalNode anim_goal_node_shoot_spell = {
 // 0x5A8FD0
 static AnimGoalNode anim_goal_node_hit_by_spell = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -1023,7 +1023,7 @@ static AnimGoalNode anim_goal_node_hit_by_spell = {
 // 0x5A91D0
 static AnimGoalNode anim_goal_node_hit_by_weapon = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -1050,7 +1050,7 @@ static AnimGoalNode anim_goal_node_hit_by_weapon = {
 // 0x5A93D0
 static AnimGoalNode anim_goal_node_dying = {
     9,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     0,
     1,
     0,
@@ -1077,7 +1077,7 @@ static AnimGoalNode anim_goal_node_dying = {
 // 0x5A95D0
 static AnimGoalNode anim_goal_node_destroy_obj = {
     1,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     0,
     0,
     0,
@@ -1104,7 +1104,7 @@ static AnimGoalNode anim_goal_node_destroy_obj = {
 // 0x5A97D0
 static AnimGoalNode anim_goal_node_use_skill_on = {
     7,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1131,7 +1131,7 @@ static AnimGoalNode anim_goal_node_use_skill_on = {
 // 0x5A99D0
 static AnimGoalNode anim_goal_node_attempt_use_skill_on = {
     9,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1158,7 +1158,7 @@ static AnimGoalNode anim_goal_node_attempt_use_skill_on = {
 // 0x5A9BD0
 static AnimGoalNode anim_goal_node_skill_conceal = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1185,7 +1185,7 @@ static AnimGoalNode anim_goal_node_skill_conceal = {
 // 0x5A9DD0
 static AnimGoalNode anim_goal_node_projectile = {
     7,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     0,
     0,
     0,
@@ -1212,7 +1212,7 @@ static AnimGoalNode anim_goal_node_projectile = {
 // 0x5A9FD0
 static AnimGoalNode anim_goal_node_throw_item = {
     9,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1239,7 +1239,7 @@ static AnimGoalNode anim_goal_node_throw_item = {
 // 0x5AA1D0
 static AnimGoalNode anim_goal_node_use_object = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1266,7 +1266,7 @@ static AnimGoalNode anim_goal_node_use_object = {
 // 0x5AA3D0
 static AnimGoalNode anim_goal_node_use_item_on_object = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1293,7 +1293,7 @@ static AnimGoalNode anim_goal_node_use_item_on_object = {
 // 0x5AA5D0
 static AnimGoalNode anim_goal_node_use_item_on_object_with_skill = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1320,7 +1320,7 @@ static AnimGoalNode anim_goal_node_use_item_on_object_with_skill = {
 // 0x5AA7D0
 static AnimGoalNode anim_goal_node_use_item_on_tile = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1347,7 +1347,7 @@ static AnimGoalNode anim_goal_node_use_item_on_tile = {
 // 0x5AA9D0
 static AnimGoalNode anim_goal_node_use_item_on_tile_with_skill = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1374,7 +1374,7 @@ static AnimGoalNode anim_goal_node_use_item_on_tile_with_skill = {
 // 0x5AABD0
 static AnimGoalNode anim_goal_node_knockback = {
     4,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     0,
     0,
     0,
@@ -1401,7 +1401,7 @@ static AnimGoalNode anim_goal_node_knockback = {
 // 0x5AADD0
 static AnimGoalNode anim_goal_node_floating = {
     4,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     1,
@@ -1428,7 +1428,7 @@ static AnimGoalNode anim_goal_node_floating = {
 // 0x5AAFD0
 static AnimGoalNode anim_goal_node_eye_candy = {
     4,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1455,7 +1455,7 @@ static AnimGoalNode anim_goal_node_eye_candy = {
 // 0x5AB1D0
 static AnimGoalNode anim_goal_node_eye_candy_reverse = {
     4,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1482,7 +1482,7 @@ static AnimGoalNode anim_goal_node_eye_candy_reverse = {
 // 0x5AB3D0
 static AnimGoalNode anim_goal_node_eye_candy_callback = {
     6,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1509,7 +1509,7 @@ static AnimGoalNode anim_goal_node_eye_candy_callback = {
 // 0x5AB5D0
 static AnimGoalNode anim_goal_node_eye_candy_reverse_callback = {
     6,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1536,7 +1536,7 @@ static AnimGoalNode anim_goal_node_eye_candy_reverse_callback = {
 // 0x5AB7D0
 static AnimGoalNode anim_goal_node_close_door = {
     2,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -1563,7 +1563,7 @@ static AnimGoalNode anim_goal_node_close_door = {
 // 0x5AB9D0
 static AnimGoalNode anim_goal_node_attempt_close_door = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     1,
     0,
     0,
@@ -1590,7 +1590,7 @@ static AnimGoalNode anim_goal_node_attempt_close_door = {
 // 0x5ABBD0
 static AnimGoalNode anim_goal_node_animate_reverse = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -1617,7 +1617,7 @@ static AnimGoalNode anim_goal_node_animate_reverse = {
 // 0x5ABDD0
 static AnimGoalNode anim_goal_node_move_away_from_obj = {
     7,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -1644,7 +1644,7 @@ static AnimGoalNode anim_goal_node_move_away_from_obj = {
 // 0x5ABFD0
 static AnimGoalNode anim_goal_node_rotate = {
     1,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -1671,7 +1671,7 @@ static AnimGoalNode anim_goal_node_rotate = {
 // 0x5AC1D0
 static AnimGoalNode anim_goal_node_unconceal = {
     5,
-    PRIORITY_4,
+    PRIORITY_OVERRIDE_ACTION,
     0,
     0,
     0,
@@ -1698,7 +1698,7 @@ static AnimGoalNode anim_goal_node_unconceal = {
 // 0x5AC3D0
 static AnimGoalNode anim_goal_node_run_near_tile = {
     8,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -1725,7 +1725,7 @@ static AnimGoalNode anim_goal_node_run_near_tile = {
 // 0x5AC5D0
 static AnimGoalNode anim_goal_node_run_near_obj = {
     7,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -1752,7 +1752,7 @@ static AnimGoalNode anim_goal_node_run_near_obj = {
 // 0x5AC7D0
 static AnimGoalNode anim_goal_node_animate_stunned = {
     7,
-    PRIORITY_1,
+    PRIORITY_PASSIVE_LOOP,
     0,
     1,
     0,
@@ -1779,7 +1779,7 @@ static AnimGoalNode anim_goal_node_animate_stunned = {
 // 0x5AC9D0
 static AnimGoalNode anim_goal_node_eye_candy_end_callback = {
     5,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1806,7 +1806,7 @@ static AnimGoalNode anim_goal_node_eye_candy_end_callback = {
 // 0x5ACBD0
 static AnimGoalNode anim_goal_node_eye_candy_reverse_end_callback = {
     5,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -1833,7 +1833,7 @@ static AnimGoalNode anim_goal_node_eye_candy_reverse_end_callback = {
 // 0x5ACDD0
 static AnimGoalNode anim_goal_node_animate_kneel_magic_hands = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1860,7 +1860,7 @@ static AnimGoalNode anim_goal_node_animate_kneel_magic_hands = {
 // 0x5ACFD0
 static AnimGoalNode anim_goal_node_attempt_move_near = {
     12,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -1887,7 +1887,7 @@ static AnimGoalNode anim_goal_node_attempt_move_near = {
 // 0x5AD1D0
 static AnimGoalNode anim_goal_node_knock_down = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -1914,7 +1914,7 @@ static AnimGoalNode anim_goal_node_knock_down = {
 // 0x5AD3D0
 static AnimGoalNode anim_goal_node_anim_get_up = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1941,7 +1941,7 @@ static AnimGoalNode anim_goal_node_anim_get_up = {
 // 0x5AD5D0
 static AnimGoalNode anim_goal_node_attempt_move_straight_knockback = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1968,7 +1968,7 @@ static AnimGoalNode anim_goal_node_attempt_move_straight_knockback = {
 // 0x5AD7D0
 static AnimGoalNode anim_goal_node_wander = {
     1,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -1995,7 +1995,7 @@ static AnimGoalNode anim_goal_node_wander = {
 // 0x5AD9D0
 static AnimGoalNode anim_goal_node_wander_seek_darkness = {
     1,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2022,7 +2022,7 @@ static AnimGoalNode anim_goal_node_wander_seek_darkness = {
 // 0x5ADBD0
 static AnimGoalNode anim_goal_node_use_picklock_skill_on = {
     7,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2049,7 +2049,7 @@ static AnimGoalNode anim_goal_node_use_picklock_skill_on = {
 // 0x5ADDD0
 static AnimGoalNode anim_goal_node_please_move = {
     8,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -2076,7 +2076,7 @@ static AnimGoalNode anim_goal_node_please_move = {
 // 0x5ADFD0
 static AnimGoalNode anim_goal_node_attempt_spread_out = {
     5,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     1,
     0,
     0,
@@ -2103,7 +2103,7 @@ static AnimGoalNode anim_goal_node_attempt_spread_out = {
 // 0x5AE1D0
 static AnimGoalNode anim_goal_node_animate_door_open = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -2130,7 +2130,7 @@ static AnimGoalNode anim_goal_node_animate_door_open = {
 // 0x5AE3D0
 static AnimGoalNode anim_goal_node_animate_door_closed = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -2157,7 +2157,7 @@ static AnimGoalNode anim_goal_node_animate_door_closed = {
 // 0x5AE5D0
 static AnimGoalNode anim_goal_node_pend_closing_door = {
     1,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     1,
     0,
@@ -2184,7 +2184,7 @@ static AnimGoalNode anim_goal_node_pend_closing_door = {
 // 0x5AE7D0
 static AnimGoalNode anim_goal_node_throw_spell_friendly = {
     9,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     1,
     0,
     0,
@@ -2211,7 +2211,7 @@ static AnimGoalNode anim_goal_node_throw_spell_friendly = {
 // 0x5AE9D0
 static AnimGoalNode anim_goal_node_attempt_spell_friendly = {
     12,
-    PRIORITY_4,
+    PRIORITY_OVERRIDE_ACTION,
     1,
     0,
     0,
@@ -2238,7 +2238,7 @@ static AnimGoalNode anim_goal_node_attempt_spell_friendly = {
 // 0x5AEBD0
 static AnimGoalNode anim_goal_node_eye_candy_fire_dmg = {
     5,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     1,
@@ -2265,7 +2265,7 @@ static AnimGoalNode anim_goal_node_eye_candy_fire_dmg = {
 // 0x5AEDD0
 static AnimGoalNode anim_goal_node_eye_candy_reverse_fire_dmg = {
     5,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     1,
@@ -2292,7 +2292,7 @@ static AnimGoalNode anim_goal_node_eye_candy_reverse_fire_dmg = {
 // 0x5AEFD0
 static AnimGoalNode anim_goal_node_animate_loop_fire_dmg = {
     5,
-    PRIORITY_1,
+    PRIORITY_PASSIVE_LOOP,
     0,
     1,
     1,
@@ -2319,7 +2319,7 @@ static AnimGoalNode anim_goal_node_animate_loop_fire_dmg = {
 // 0x5AF1D0
 static AnimGoalNode anim_goal_node_attempt_move_straight_spell = {
     3,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2346,7 +2346,7 @@ static AnimGoalNode anim_goal_node_attempt_move_straight_spell = {
 // 0x5AF3D0
 static AnimGoalNode anim_goal_node_move_near_obj_combat = {
     8,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -2373,7 +2373,7 @@ static AnimGoalNode anim_goal_node_move_near_obj_combat = {
 // 0x5AF5D0
 static AnimGoalNode anim_goal_node_attempt_move_near_combat = {
     12,
-    PRIORITY_2,
+    PRIORITY_BACKGROUND_ACTION,
     0,
     0,
     0,
@@ -2400,7 +2400,7 @@ static AnimGoalNode anim_goal_node_attempt_move_near_combat = {
 // 0x5AF7D0
 static AnimGoalNode anim_goal_node_use_container = {
     6,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2427,7 +2427,7 @@ static AnimGoalNode anim_goal_node_use_container = {
 // 0x5AF9D0
 static AnimGoalNode anim_goal_node_throw_spell_w_cast_anim = {
     10,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2454,7 +2454,7 @@ static AnimGoalNode anim_goal_node_throw_spell_w_cast_anim = {
 // 0x5AFBD0
 static AnimGoalNode anim_goal_node_attempt_spell_w_cast_anim = {
     14,
-    PRIORITY_4,
+    PRIORITY_OVERRIDE_ACTION,
     0,
     0,
     0,
@@ -2481,7 +2481,7 @@ static AnimGoalNode anim_goal_node_attempt_spell_w_cast_anim = {
 // 0x5AFDD0
 static AnimGoalNode anim_goal_node_throw_spell_w_cast_anim_secondary = {
     5,
-    PRIORITY_5,
+    PRIORITY_SYSTEM_PROTECTED,
     1,
     1,
     0,
@@ -2508,7 +2508,7 @@ static AnimGoalNode anim_goal_node_throw_spell_w_cast_anim_secondary = {
 // 0x5AFFD0
 static AnimGoalNode anim_goal_node_back_off_from = {
     4,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2535,7 +2535,7 @@ static AnimGoalNode anim_goal_node_back_off_from = {
 // 0x5B01D0
 static AnimGoalNode anim_goal_node_attempt_use_pickpocket_skill_on = {
     9,
-    PRIORITY_3,
+    PRIORITY_STANDARD_ACTION,
     0,
     0,
     0,
@@ -2847,7 +2847,7 @@ void anim_id_to_str(AnimID* anim_id, char* buffer)
     ASSERT(anim_id != NULL); // pAnimID != NULL
     ASSERT(buffer != NULL); // str != NULL
 
-    snprintf(buffer, ANIM_ID_STR_SIZE,
+    snprintf(buffer, ANIM_ID_DEBUG_FORMAT_SIZE,
         "[%d:%dr%d]",
         anim_id->slot_num,
         anim_id->field_4,
@@ -3657,7 +3657,7 @@ bool anim_timeevent_process(TimeEvent* timeevent)
 
             combat_turn_based_end_critter_turn(run_info->anim_obj);
             g_anim_current_run_index = -1;
-            InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+            InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
             return true;
         }
 
@@ -3804,7 +3804,7 @@ bool anim_timeevent_process(TimeEvent* timeevent)
             return true;
         }
 
-        bool rc = InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+        bool rc = InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
 
         if (!combat_turn_based_is_active()) {
             combat_fidget_check(anim_obj);
@@ -3994,7 +3994,7 @@ bool anim_set_priority_level(int64_t obj, int priority_level, bool a3, bool a4)
     int prev = -1;
     int slot;
 
-    ASSERT(priority_level >= PRIORITY_NONE && priority_level < PRIORITY_HIGHEST); // (priorityLevel >= priorityNone)&&(priorityLevel <= priorityHighest)
+    ASSERT(priority_level >= PRIORITY_INACTIVE && priority_level < PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT); // (priorityLevel >= priorityNone)&&(priorityLevel <= priorityHighest)
 
     if (!a4) {
         if (tig_net_is_active() && player_is_pc_obj(obj)) {
@@ -4026,7 +4026,7 @@ bool anim_set_priority_level(int64_t obj, int priority_level, bool a3, bool a4)
     }
 
     if (a3) {
-        priority_level = PRIORITY_NONE;
+        priority_level = PRIORITY_INACTIVE;
     }
 
     slot = anim_find_first(obj);
@@ -4050,7 +4050,7 @@ bool anim_goal_interrupt_all_goals()
     if (g_anim_system_active > 0) {
         for (index = 0; index < 216; index++) {
             if ((anim_run_info[index].flags & 0x1) != 0
-                && !InterruptAnimation(&(anim_run_info[index].id), PRIORITY_HIGHEST)) {
+                && !InterruptAnimation(&(anim_run_info[index].id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT)) {
                 return false;
             }
         }
@@ -4064,7 +4064,7 @@ bool anim_goal_interrupt_all_goals_of_priority(int priority_level)
 {
     int index;
 
-    ASSERT(priority_level >= PRIORITY_NONE && priority_level < PRIORITY_HIGHEST); // (priorityLevel >= priorityNone)&&(priorityLevel <= priorityHighest)
+    ASSERT(priority_level >= PRIORITY_INACTIVE && priority_level < PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT); // (priorityLevel >= priorityNone)&&(priorityLevel <= priorityHighest)
 
     for (index = 0; index < 216; index++) {
         if ((anim_run_info[index].flags & 0x1) != 0
@@ -4131,7 +4131,7 @@ bool anim_play_eye_candy_on_obj(int64_t obj, tig_art_id_t eye_candy_id, int mt_i
 
             if (run_info->cur_stack_data->params[AGDATA_SPELL_DATA].data == mt_id
                 && tig_art_num_get(run_info->cur_stack_data->params[AGDATA_ANIM_ID].data) == num
-                && InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST)) {
+                && InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT)) {
                 break;
             }
         }
@@ -5600,7 +5600,7 @@ bool anim_path_is_clear(int64_t obj)
         && anim_id_to_run_info(&anim_id, &run_info)) {
         run_info->cur_stack_data->params[AGDATA_SCRATCH_VAL5].data -= 3;
         if (run_info->cur_stack_data->params[AGDATA_SCRATCH_VAL5].data <= 0) {
-            InterruptAnimation(&anim_id, PRIORITY_HIGHEST);
+            InterruptAnimation(&anim_id, PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
         }
     }
 
@@ -8490,7 +8490,7 @@ bool AG_CheckDoorNotBlocked(AnimRunInfo* run_info)
 void anim_goal_reset_position_mp(AnimID* anim_id, int64_t obj, int64_t loc, tig_art_id_t art_id, unsigned int flags, int offset_x, int offset_y)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
 
     if (art_id != TIG_ART_ID_INVALID) {
         object_set_current_aid(obj, art_id);
@@ -10477,7 +10477,7 @@ bool AG_BeginMoveAnim(AnimRunInfo* run_info)
     anim_select_move_animation(run_info, obj, &art_id, (run_info->flags & 0x40) != 0, &v2);
 
     if (!combat_check_action_points(obj, v2)) {
-        InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+        InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
         return false;
     }
 
@@ -11629,7 +11629,7 @@ bool AG_UpdateMoveFrame(AnimRunInfo* run_info)
                 }
 
                 if (!combat_check_action_points(obj, v3)) {
-                    InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+                    InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
                     return false;
                 }
             } else {
@@ -11793,7 +11793,7 @@ int anim_deduct_move_cost(AnimRunInfo* run_info)
 
     if (!combat_consume_action_points(obj, action_points)) {
         g_anim_float_offset_y = 0;
-        InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+        InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
         return false;
     }
 
@@ -12823,7 +12823,7 @@ bool AG_BeginAttackAnimWithSound(AnimRunInfo* run_info)
 
     action_points = combat_attack_cost(source_obj);
     if (!combat_consume_action_points(source_obj, action_points)) {
-        InterruptAnimation(&(run_info->id), PRIORITY_HIGHEST);
+        InterruptAnimation(&(run_info->id), PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
         return false;
     }
 
@@ -13915,7 +13915,7 @@ bool anim_goal_follow_obj(int64_t source_obj, int64_t target_obj)
     }
 
     if (v1) {
-        InterruptAnimation(&anim_id, PRIORITY_HIGHEST);
+        InterruptAnimation(&anim_id, PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT);
     }
 
     if (!anim_set_priority_level(source_obj, 3, false, false)) {
@@ -14554,7 +14554,7 @@ bool anim_goal_make_knockdown(int64_t obj)
         return false;
     }
 
-    if (!anim_set_priority_level(obj, PRIORITY_4, false, false)) {
+    if (!anim_set_priority_level(obj, PRIORITY_OVERRIDE_ACTION, false, false)) {
         return false;
     }
 
@@ -15084,7 +15084,7 @@ bool anim_goal_attempt_spread_out(int64_t obj, int64_t target_obj)
 void turn_on_running(AnimID anim_id)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
     int64_t obj;
     Packet8 pkt;
 
@@ -15174,7 +15174,7 @@ void anim_set_flags(unsigned int flags1, unsigned int flags2)
 void turn_on_flags(AnimID anim_id, unsigned int flags1, unsigned int flags2)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
     int64_t obj;
     Packet8 pkt;
 
@@ -15228,7 +15228,7 @@ void anim_run(AnimID anim_id)
 void notify_speed_recalc(AnimID* anim_id)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
 
     if (!anim_id_to_run_info(anim_id, &run_info)) {
         anim_id_to_str(anim_id, str);
@@ -15285,7 +15285,7 @@ bool anim_can_move(int64_t a1, int64_t a2)
 int num_goal_subslots_in_use(AnimID* anim_id)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
 
     if (!anim_id_to_run_info(anim_id, &run_info)) {
         anim_id_to_str(anim_id, str);
@@ -15300,7 +15300,7 @@ int num_goal_subslots_in_use(AnimID* anim_id)
 bool is_anim_forever(AnimID* anim_id)
 {
     AnimRunInfo* run_info;
-    char str[ANIM_ID_STR_SIZE];
+    char str[ANIM_ID_DEBUG_FORMAT_SIZE];
 
     if (!anim_id_to_run_info(anim_id, &run_info)) {
         anim_id_to_str(anim_id, str);

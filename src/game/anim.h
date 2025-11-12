@@ -6,17 +6,18 @@
 #include "game/context.h"
 #include "game/timeevent.h"
 
-// TODO: Figure out priority meaning.
+// Animation Goal Priority Levels: Defines the interruptibility of actions (higher value means harder to interrupt).
+// Must be strictly less than PRIORITY_HIGHEST for standard goals.
 
-#define PRIORITY_NONE 0
-#define PRIORITY_1 1
-#define PRIORITY_2 2
-#define PRIORITY_3 3
-#define PRIORITY_4 4
-#define PRIORITY_5 5
-#define PRIORITY_HIGHEST 6
+#define PRIORITY_INACTIVE 0 // Default/Inactive priority level; used when querying an object with no active goals.
+#define PRIORITY_PASSIVE_LOOP 1 // Lowest Active Priority; used for passive loops (e.g., idle, fidgeting, stunned animations).
+#define PRIORITY_BACKGROUND_ACTION 2 // Routine Movement/Background Interaction. Used for basic movement, following, rotation, and object/network usage.
+#define PRIORITY_STANDARD_ACTION 3 // Standard Action Priority (Combat/Skills/Major Interaction). Used for attacks, casting spells, fleeing, door manipulation, and most explicit actions. Interruptible by P3+.
+#define PRIORITY_OVERRIDE_ACTION 4 // Elevated Action/Transitional Priority. Used for projectile initiation, unconcealing, and setting up critical states like stun initialization.
+#define PRIORITY_SYSTEM_PROTECTED 5 // Critical/Protected System Priority. Used for essential, persistent states like Dying, Knockback, Floating, and persistent eye-candy effects. Cannot be interrupted except by PRIORITY_HIGHEST.
+#define PRIORITY_ABSOLUTE_SYSTEM_INTERRUPT 6 // Absolute System Interrupt. Used to unconditionally terminate any active animation goal (e.g., when running out of action points or during system cleanup/teleport cleanup).
 
-#define ANIM_ID_STR_SIZE 36
+#define ANIM_ID_DEBUG_FORMAT_SIZE 36 // Buffer size required for storing an AnimID structure as a debug string.
 
 typedef enum AnimEyeCandy {
     ANIM_EYE_CANDY_NORMAL_BLOOD_SPLOTCH,
